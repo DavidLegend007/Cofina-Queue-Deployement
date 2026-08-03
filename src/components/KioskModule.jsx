@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { createTicket } from '../services/queueStore';
+import { createTicket, COFINA_SERVICES } from '../services/queueStore';
 
 /* ─── Design tokens (COFINA Brand Theme) ─────────────── */
 const MD = {
@@ -32,6 +32,14 @@ const OPERATIONS = [
   { id: 'op-conseil',   code: 'V', label: 'Conseiller',          icon: 'support_agent', filled: false, primary: false },
   { id: 'op-autres',    code: 'V', label: 'Autres services',     icon: 'apps',          filled: false, primary: false },
 ];
+
+/* ─── Thème couleur par service (Boarding Pass style) ─────────────────────── */
+const SERVICE_THEMES = {
+  A: { color: '#D3122A', gradient: 'linear-gradient(135deg, #D3122A 0%, #920020 100%)', bg: '#FFF0F0', border: '#fca5a5', emoji: '💵', vip: false },
+  B: { color: '#1D4ED8', gradient: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', bg: '#EFF6FF', border: '#93c5fd', emoji: '🏦', vip: false },
+  C: { color: '#B45309', gradient: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)', bg: '#FFFBEB', border: '#fcd34d', emoji: '📋', vip: false },
+  V: { color: '#059669', gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', bg: '#ECFDF5', border: '#6ee7b7', emoji: '⭐', vip: true  },
+};
 
 /* ─── Textes bilingues ────────────────────────────────────────────────────── */
 const TEXTS = {
@@ -247,92 +255,128 @@ const buildCSS = () => `
     padding:24px; z-index:100; animation:fadeIn .25s ease forwards;
   }
 
-  /* Ticket Card (Ultra-Clean & Compact) */
+  /* ── Premium Ticket Card — Boarding Pass Style ───────────────────────── */
   .bn-ticket-card {
-    background:${MD.surfaceLowest}; border-radius:24px; padding:20px 24px;
-    max-width:440px; width:100%; box-shadow:0 20px 40px rgba(0,0,0,.22);
-    display:flex; flex-direction:column; align-items:center; gap:10px;
-    animation:scaleUp .3s cubic-bezier(.175,.885,.32,1.275) forwards;
+    background:#ffffff; border-radius:24px; overflow:hidden;
+    max-width:430px; width:100%;
+    box-shadow:0 28px 72px rgba(0,0,0,.32), 0 0 0 1px rgba(255,255,255,.08);
+    display:flex; flex-direction:column;
+    animation:scaleUp .35s cubic-bezier(.175,.885,.32,1.275) forwards;
   }
-  .bn-ticket-header { text-align:center; }
-  .bn-receipt-logo { height:40px; object-fit:contain; margin-bottom:2px; }
-  .bn-agency-name { font-weight:700; color:${MD.onSurface}; font-size:14px; margin:2px 0 0 0; }
-  .bn-ticket-date { font-size:12px; color:${MD.onSurfaceVariant}; margin:0; }
 
+  /* Gradient banner header */
+  .bn-ticket-banner {
+    padding:18px 22px 16px;
+    display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+  }
+  .bn-ticket-banner-logo { height:26px; object-fit:contain; filter:brightness(0) invert(1); }
+  .bn-ticket-banner-agency {
+    font-size:11px; font-weight:700; color:rgba(255,255,255,0.85);
+    letter-spacing:0.04em; margin-top:5px;
+  }
+  .bn-ticket-service-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    background:rgba(255,255,255,.18); backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.32);
+    border-radius:999px; padding:5px 14px;
+    font-size:11px; font-weight:800; color:#fff;
+    letter-spacing:0.08em; text-transform:uppercase; white-space:nowrap;
+  }
+  .bn-ticket-vip-badge {
+    font-size:10px; color:rgba(255,255,255,.9); font-weight:800;
+    letter-spacing:0.12em; text-align:right; margin-top:4px;
+  }
+
+  /* Perforated separator */
+  .bn-perforated {
+    display:flex; align-items:center; position:relative;
+    margin:0 -1px;
+  }
+  .bn-perf-circle {
+    width:22px; height:22px; border-radius:50%; flex-shrink:0;
+    background:rgba(26,28,29,.62);
+  }
+  .bn-perforated-line {
+    flex:1; border-top:2px dashed #e2e8f0;
+  }
+
+  /* Body */
+  .bn-ticket-body {
+    padding:14px 22px 10px;
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+  }
+
+  /* Number block */
   .bn-ticket-number-box {
-    background: #fdf3f3; border: 1.5px dashed ${MD.outlineVariant};
-    border-radius: 20px; padding: 12px 20px; width: 100%; text-align: center;
+    text-align:center; padding:10px 16px 12px; width:100%;
+    background:linear-gradient(135deg,#fafafa 0%,#f1f5f9 100%);
+    border-radius:14px; border:1.5px solid #e2e8f0;
   }
   .bn-receipt-label {
-    font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;
-    color:${MD.onSurfaceVariant}; display:block;
+    font-size:9px; font-weight:800; letter-spacing:2.5px;
+    text-transform:uppercase; color:#94a3b8; display:block; margin-bottom:2px;
   }
   .bn-receipt-number {
-    font-family:'Plus Jakarta Sans',sans-serif; font-size:72px; font-weight:700;
-    line-height:1; color:${MD.primary}; margin:4px 0;
+    font-family:'Plus Jakarta Sans',sans-serif; font-size:60px; font-weight:800;
+    line-height:1; margin:2px 0;
   }
   .bn-receipt-service {
-    font-family:'Plus Jakarta Sans',sans-serif; font-size:18px; font-weight:600;
-    color:${MD.onSurface}; margin:0;
+    font-family:'Plus Jakarta Sans',sans-serif; font-size:13px; font-weight:600;
+    color:#64748b; margin:3px 0 0;
   }
+  .bn-ticket-date { font-size:10px; color:#94a3b8; margin:4px 0 0; }
 
+  /* QR section */
   .bn-qr-section {
-    background: #f4f6fa; border: 1px solid #dbe2ef;
-    border-radius: 20px; padding: 16px 20px; width: 100%;
-    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    width:100%; border-radius:14px; padding:12px 16px 14px;
+    display:flex; flex-direction:column; align-items:center; gap:9px;
+    background:#f8faff; border:1.5px solid #dbeafe;
   }
-  .bn-qr-title { font-weight: 700; font-size: 12px; letter-spacing: 0.05em; color: #1e3a8a; text-transform: uppercase; }
-  .bn-qr-sub { font-size: 12px; color: #475569; text-align: center; margin: -4px 0 2px 0; }
+  .bn-qr-title {
+    font-weight:800; font-size:10px; letter-spacing:0.12em;
+    color:#1e40af; text-transform:uppercase;
+    display:flex; align-items:center; gap:6px;
+  }
   .bn-qr-box {
-    background: #ffffff; border: 1px solid #cbd5e1;
-    border-radius: 16px; padding: 12px; display: flex; flex-direction: column;
-    align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    background:#fff; border:1px solid #e2e8f0; border-radius:10px;
+    padding:8px; box-shadow:0 2px 8px rgba(0,0,0,0.05);
   }
-  .bn-qr-url { font-family:monospace; font-size:11px; color:${MD.onSurfaceVariant}; margin:0; }
-
-  .bn-scan-action-btn {
-    background: #1e40af; color: #ffffff; border: none; border-radius: 14px;
-    padding: 12px 20px; font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 14px; font-weight: 700; cursor: pointer; display: flex;
-    align-items: center; justify-content: center; gap: 8px; width: 100%;
-    transition: all 0.2s ease; box-shadow: 0 4px 10px rgba(30,64,175,0.2);
+  .bn-qr-pulse {
+    display:flex; align-items:center; gap:6px;
+    font-size:10px; font-weight:800; color:#059669; letter-spacing:0.04em;
   }
-  .bn-scan-action-btn:hover { background: #1d4ed8; }
-  .bn-scan-action-btn:active { transform: scale(0.98); }
-  .bn-scan-action-btn.active { background: #059669; box-shadow: 0 4px 10px rgba(5,150,105,0.2); }
-
-  .bn-success-notice {
-    background:#ecfdf5; color:#065f46; border-radius:12px; padding:12px 16px;
-    font-size:13px; font-weight:500; display:flex; align-items:center; gap:10px;
-    text-align:left; width:100%; margin:0;
+  .bn-pulse-dot {
+    width:7px; height:7px; background:#10b981; border-radius:50%;
+    animation:pulseDot 1.6s ease-in-out infinite;
+  }
+  .bn-wait-info {
+    font-size:11px; color:#64748b; text-align:center;
+    font-weight:500; line-height:1.4;
   }
 
-  .bn-print-section { width: 100%; }
+  /* Footer */
+  .bn-ticket-footer {
+    padding:8px 22px 18px;
+    display:flex; flex-direction:column; gap:8px;
+  }
   .bn-print-action-btn {
-    background: ${MD.primaryContainer}; color: #ffffff; border: none; border-radius: 16px;
-    padding: 16px 24px; font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 16px; font-weight: 700; cursor: pointer; display: flex;
-    align-items: center; justify-content: center; gap: 10px; width: 100%;
-    transition: all 0.2s ease; box-shadow: 0 6px 16px rgba(214,0,50,0.25);
+    background:#f8fafc; color:#475569;
+    border:1.5px solid #e2e8f0; border-radius:11px;
+    padding:9px 16px; font-family:'Plus Jakarta Sans',sans-serif;
+    font-size:12px; font-weight:700; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; transition:all 0.2s ease;
   }
-  .bn-print-action-btn:hover { background: #b8002b; }
-  .bn-print-action-btn:active { transform: scale(0.98); }
-  .bn-print-action-btn.printed { background: #15803d; box-shadow: 0 4px 12px rgba(21,128,61,0.25); }
-
-  .bn-countdown {
-    background:#fffbeb; border:1px solid #fcd34d; color:#78350f;
-    border-radius:9999px; padding:8px 20px; font-size:13px; font-weight:600;
-    display:flex; align-items:center; gap:8px; margin:0;
-    flex-wrap:wrap; justify-content:center;
-  }
+  .bn-print-action-btn:hover { background:#f1f5f9; border-color:#cbd5e1; }
+  .bn-print-action-btn.printed { background:#ecfdf5; color:#065f46; border-color:#6ee7b7; }
   .bn-finish-btn {
-    background:${MD.onSurface}; color:${MD.surface};
-    font-family:'Plus Jakarta Sans',sans-serif; font-size:15px; font-weight:700;
-    border:none; border-radius:14px; padding:14px 28px; cursor:pointer;
-    transition:opacity .2s; letter-spacing:.02em; width:100%;
+    background:#1a1c1d; color:#ffffff;
+    font-family:'Plus Jakarta Sans',sans-serif; font-size:13px; font-weight:700;
+    border:none; border-radius:11px; padding:12px 20px; cursor:pointer;
+    transition:opacity .2s; width:100%;
     display:flex; align-items:center; justify-content:center; gap:8px;
   }
-  .bn-finish-btn:hover  { opacity:.85; }
+  .bn-finish-btn:hover  { opacity:.82; }
   .bn-finish-btn:active { transform:scale(.98); }
 
   .bn-help-overlay {
@@ -372,9 +416,10 @@ const buildCSS = () => `
     animation:spin .7s linear infinite; flex-shrink:0;
   }
 
-  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes scaleUp { from{opacity:0;transform:scale(.92)} to{opacity:1;transform:scale(1)} }
-  @keyframes spin { to{transform:rotate(360deg)} }
+  @keyframes fadeIn   { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes scaleUp  { from{opacity:0;transform:scale(.90)} to{opacity:1;transform:scale(1)} }
+  @keyframes spin     { to{transform:rotate(360deg)} }
+  @keyframes pulseDot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.5)} }
 `;
 
 /* ─── COMPOSANT PRINCIPAL ────────────────────────────────────────────────── */
@@ -387,6 +432,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   const [resetCountdown, setResetCountdown] = useState(15);
   const [showHelp,       setShowHelp]       = useState(false);
   const [clockTime,      setClockTime]      = useState(new Date());
+  const [waitingCount,   setWaitingCount]   = useState(0);
 
   /* Horloge temps réel (rafraîchissement chaque seconde) */
   useEffect(() => {
@@ -417,6 +463,17 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
     setIsScanned(false);
 
     setTimeout(() => {
+      // Capture waiting count before creating ticket to show queue position
+      let waitingBefore = 0;
+      try {
+        const raw = localStorage.getItem('cofina_queue_v1_store_togo');
+        const stored = raw ? JSON.parse(raw) : null;
+        if (stored && Array.isArray(stored.tickets)) {
+          waitingBefore = stored.tickets.filter(t => t.status === 'WAITING').length;
+        }
+      } catch {}
+      setWaitingCount(waitingBefore);
+
       const ticket = createTicket(op.code, null, null, lang);
       setIssuedTicket({ ...ticket, operationLabel: op.label, op });
       setIsSubmitting(false);
@@ -533,79 +590,110 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
         </div>
       )}
 
-      {/* MODAL TICKET GÉNÉRÉ (QR CODE EN MOYEN PRINCIPAL DÈS LA SÉLECTION) */}
-      {issuedTicket && (
-        <div className="bn-overlay" onClick={handleReset}>
-          <div className="bn-ticket-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px', padding: '18px 22px', gap: '10px' }}>
-            <div className="bn-ticket-header">
-              <img src="/COFINA.png" alt="Cofina" className="bn-receipt-logo" style={{ height: '30px' }} />
-              <p className="bn-agency-name" style={{ fontSize: '12px', margin: '2px 0 0 0' }}>{agencyName}</p>
-            </div>
+      {/* MODAL TICKET PREMIUM — BOARDING PASS COFINA */}
+      {issuedTicket && (() => {
+        const theme = SERVICE_THEMES[issuedTicket.serviceCode] || SERVICE_THEMES.A;
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+        const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        const avgMin = (COFINA_SERVICES.find(s => s.code === issuedTicket.serviceCode) || {}).avgTimeMin || 5;
+        const estWait = Math.max(2, waitingCount * avgMin);
+        return (
+          <div className="bn-overlay" onClick={handleReset}>
+            <div className="bn-ticket-card" onClick={e => e.stopPropagation()}>
 
-            <div className="bn-ticket-number-box" style={{ padding: '8px 14px', borderRadius: '12px' }}>
-              <span className="bn-receipt-label" style={{ fontSize: '10px' }}>{txt.ticketLabel}</span>
-              <h1 className="bn-receipt-number" style={{ fontSize: '50px', margin: '2px 0' }}>{issuedTicket.ticketNumber}</h1>
-              <p className="bn-receipt-service" style={{ fontSize: '14px' }}>{issuedTicket.serviceName}</p>
-            </div>
-
-            {/* MOYEN PRINCIPAL : BLOC QR CODE VISIBLE IMMÉDIATEMENT */}
-            <div className="bn-qr-box" style={{ 
-              width: '100%', 
-              background: '#f8fafc', 
-              border: '2px solid #3b82f6', 
-              borderRadius: '14px', 
-              padding: '12px', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              gap: '6px',
-              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.12)'
-            }}>
-              <span style={{ fontSize: '11px', fontWeight: '800', color: '#1e40af', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                📱 MOYEN PRINCIPAL — SCANNER SUR MOBILE
-              </span>
-              <div style={{ background: '#ffffff', padding: '8px', borderRadius: '10px', border: '1px solid #cbd5e1' }}>
-                <QRCodeSVG value={`https://cofina.tg/q/${issuedTicket.ticketNumber}`} size={110} />
+              {/* ── BANDEAU GRADIENT THÉMATIQUE ── */}
+              <div className="bn-ticket-banner" style={{ background: theme.gradient }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                  <img src="/COFINA.png" alt="Cofina" className="bn-ticket-banner-logo" />
+                  <span className="bn-ticket-banner-agency">📍 {agencyName}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
+                  <span className="bn-ticket-service-badge">
+                    {theme.emoji} {issuedTicket.serviceName}
+                  </span>
+                  {theme.vip && (
+                    <span className="bn-ticket-vip-badge">★ ACCÈS PRIORITAIRE VIP</span>
+                  )}
+                </div>
               </div>
-              <span style={{ fontSize: '11px', color: '#475569', textAlign: 'center', fontWeight: '600' }}>
-                Scannez avec la caméra de votre téléphone pour suivre votre rang en direct
-              </span>
-            </div>
 
-            {/* MOYEN SECONDAIRE : IMPRESSION PAPIER (OPTIONNEL) */}
-            <div style={{ width: '100%' }}>
-              <button
-                type="button"
-                className={`bn-print-action-btn ${printed ? 'printed' : ''}`}
-                onClick={handlePrintTicket}
-                disabled={isPrinting}
-                style={{ 
-                  width: '100%', 
-                  padding: '8px 12px', 
-                  fontSize: '12px', 
-                  borderRadius: '10px',
-                  background: printed ? '#15803d' : '#f1f5f9',
-                  color: printed ? '#ffffff' : '#475569',
-                  border: printed ? 'none' : '1px solid #cbd5e1',
-                  boxShadow: 'none',
-                  fontWeight: '600'
-                }}
-              >
-                <MatIcon name={printed ? "check_circle" : "print"} size={16} />
-                <span>
-                  {isPrinting ? 'Impression papier…' : printed ? '✓ Ticket Papier Imprimé !' : '🖨️ Imprimer un ticket papier (Optionnel)'}
-                </span>
-              </button>
-            </div>
+              {/* ── LIGNE PERFORÉE ── */}
+              <div className="bn-perforated">
+                <div className="bn-perf-circle" />
+                <div className="bn-perforated-line" />
+                <div className="bn-perf-circle" />
+              </div>
 
-            {/* Bouton de Fin avec Décompte Intégré */}
-            <button className="bn-finish-btn" onClick={handleReset} style={{ padding: '10px 18px', fontSize: '13px', borderRadius: '10px', marginTop: '2px' }}>
-              <span>TERMINER ({resetCountdown}s)</span>
-              <MatIcon name="arrow_forward" size={16} />
-            </button>
+              {/* ── CORPS DU TICKET ── */}
+              <div className="bn-ticket-body">
+
+                {/* Numéro de passage */}
+                <div className="bn-ticket-number-box">
+                  <span className="bn-receipt-label">{txt.ticketLabel}</span>
+                  <div className="bn-receipt-number" style={{ color: theme.color }}>
+                    {issuedTicket.ticketNumber}
+                  </div>
+                  <p className="bn-receipt-service">{issuedTicket.operationLabel}</p>
+                  <p className="bn-ticket-date">
+                    {dateStr.charAt(0).toUpperCase() + dateStr.slice(1)} · {timeStr}
+                  </p>
+                </div>
+
+                {/* QR Code — moyen principal */}
+                <div className="bn-qr-section">
+                  <div className="bn-qr-title">
+                    <span>📱</span>
+                    <span>Suivez votre rang sur mobile</span>
+                  </div>
+                  <div className="bn-qr-box">
+                    <QRCodeSVG value={`https://cofina.tg/q/${issuedTicket.ticketNumber}`} size={118} />
+                  </div>
+                  <div className="bn-qr-pulse">
+                    <div className="bn-pulse-dot" />
+                    <span>SUIVI EN DIRECT · SCAN CAMÉRA</span>
+                  </div>
+                  {waitingCount >= 0 && (
+                    <div className="bn-wait-info">
+                      {waitingCount === 0
+                        ? '🎉 Vous êtes le prochain ! Approchez-vous d\'un guichet.'
+                        : `👥 ~${waitingCount} personne${waitingCount > 1 ? 's' : ''} avant vous · Attente estimée ~${estWait} min`
+                      }
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── LIGNE PERFORÉE ── */}
+              <div className="bn-perforated">
+                <div className="bn-perf-circle" />
+                <div className="bn-perforated-line" />
+                <div className="bn-perf-circle" />
+              </div>
+
+              {/* ── PIED DU TICKET ── */}
+              <div className="bn-ticket-footer">
+                <button
+                  type="button"
+                  className={`bn-print-action-btn ${printed ? 'printed' : ''}`}
+                  onClick={handlePrintTicket}
+                  disabled={isPrinting}
+                >
+                  <MatIcon name={printed ? 'check_circle' : 'print'} size={15} />
+                  <span>
+                    {isPrinting ? 'Impression en cours…' : printed ? '✓ Reçu papier imprimé !' : '🖨️ Imprimer un reçu papier (Optionnel)'}
+                  </span>
+                </button>
+                <button className="bn-finish-btn" onClick={handleReset}>
+                  <span>TERMINER ({resetCountdown}s)</span>
+                  <MatIcon name="arrow_forward" size={15} />
+                </button>
+              </div>
+
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* HELP MODAL */}
       {showHelp && (
