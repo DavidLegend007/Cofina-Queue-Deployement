@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # Base de données locale PostgreSQL 16
+  postgres:
+    image: postgres:16-alpine
+    container_name: cofina_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: cofina_queue_db
+      POSTGRES_USER: cofina_admin
+      POSTGRES_PASSWORD: CofinaTogo2026!Secure
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Dashboard BI & Reporting Centralisé V2 Metabase
+  metabase:
+    image: metabase/metabase:latest
+    container_name: cofina_metabase
+    restart: always
+    ports:
+      - "3001:3000"
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: cofina_queue_db
+      MB_DB_PORT: 5432
+      MB_DB_USER: cofina_admin
+      MB_DB_PASS: CofinaTogo2026!Secure
+      MB_DB_HOST: postgres
+    depends_on:
+      - postgres
+
+  # Supervision Infra & Health-Checks Uptime Kuma
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: cofina_uptime_kuma
+    restart: always
+    ports:
+      - "3002:3001"
+    volumes:
+      - uptime_kuma_data:/app/data
+
+volumes:
+  postgres_data:
+  uptime_kuma_data:

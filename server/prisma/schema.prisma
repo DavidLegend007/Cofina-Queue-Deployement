@@ -1,0 +1,103 @@
+// Prisma Schema — Système de Gestion de File d'Attente Cofina Togo
+// Support Mode Local Edge (V1) + Extension Intégration en Ligne & Multi-Agences (V2)
+
+datasource db {
+  provider = "sqlite" // Utilisé en local edge; modifiable en "postgresql" avec env("DATABASE_URL") pour le cloud
+  url      = "file:./cofina_edge.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Agency {
+  id        String   @id @default(uuid())
+  code      String   @unique // AGC-01, AGC-02, AGC-03, AGC-04
+  name      String
+  city      String
+  address   String
+  createdAt DateTime @default(now())
+
+  agents    Agent[]
+  tickets   Ticket[]
+}
+
+model Agent {
+  id             String   @id @default(uuid())
+  name           String
+  title          String?  // ex: Caissier Senior - Guichet 1
+  avatar         String?  // emoji (👨🏽‍💼) ou icône
+  photoUrl       String?  // Photo de profil uploadée (base64 ou URL)
+  defaultCounter Int      @default(1)
+  pinCode        String?  // Code PIN de connexion sécurisé
+  isActive       Boolean  @default(true)
+  totalServed    Int      @default(0)
+
+  agencyId       String
+  agency         Agency   @relation(fields: [agencyId], references: [id])
+  tickets        Ticket[]
+
+  createdAt      DateTime @default(now())
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  code        String   @unique // A, B, C, V
+  name        String
+  description String?
+  color       String   @default("#D3122A")
+  avgTimeMin  Int      @default(5)
+  isPriority  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+}
+
+model Ticket {
+  id                String    @id @default(uuid())
+  ticketNumber      String    // ex: A-008, B-012, V-001
+  serviceCode       String
+  serviceName       String
+  priority          Boolean   @default(false)
+
+  // CHAMPS PRÊTS POUR INTÉGRATION EN LIGNE (FUTURE PROOF)
+  channel           String    @default("KIOSK") // KIOSK (borne sur place) ou ONLINE (web/mobile)
+  appointmentTime   DateTime? // Si réservation de créneau à distance
+  qrToken           String?   @unique // Jeton unique pour le suivi du ticket sur smartphone
+
+  // Informations Client
+  customerPhone     String?
+  customerEmail     String?
+  customerName      String?
+
+  // Statut opérationnel
+  status            String    @default("WAITING") // WAITING, CALLED, IN_PROGRESS, COMPLETED, NO_SHOW, CANCELLED
+  counterNumber     Int?
+
+  // Relations
+  agentId           String?
+  agent             Agent?    @relation(fields: [agentId], references: [id])
+  agentName         String?
+
+  agencyId          String?
+  agency            Agency?   @relation(fields: [agencyId], references: [id])
+
+  createdAt         DateTime  @default(now())
+  calledAt          DateTime?
+  completedAt       DateTime?
+  satisfactionScore Int?
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([agencyId])
+  @@index([channel])
+}
+
+model SyncOutbox {
+  id         String    @id @default(uuid())
+  eventType  String    // TICKET_CREATED, TICKET_COMPLETED, AGENT_UPDATED
+  payload    String    // JSON stringifié de l'événement
+  status     String    @default("PENDING") // PENDING, SENT, FAILED
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  sentAt     DateTime?
+}
+

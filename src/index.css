@@ -1,0 +1,245 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   GROUPE COFINA TOGO — SYSTEME DE GESTION DE FILE D'ATTENTE (KODJOVIAKOPÉ)
+   ========================================================================== */
+
+:root {
+  --cofina-red: #D3122A;
+  --cofina-red-dark: #A80B1E;
+  --cofina-red-light: #FFF0F2;
+  --cofina-red-border: rgba(211, 18, 42, 0.25);
+  
+  --cofina-dark: #2D3136;
+  --cofina-dark-deep: #1A1D20;
+  --cofina-dark-surface: #363B41;
+
+  --cofina-bg: #F4F6F9;
+  --cofina-card: #FFFFFF;
+  --cofina-border: #E2E8F0;
+  
+  --cofina-text-primary: #1E293B;
+  --cofina-text-secondary: #64748B;
+  --cofina-text-muted: #94A3B8;
+
+  --status-waiting: #F59E0B;
+  --status-called: #3B82F6;
+  --status-in-progress: #10B981;
+  --status-completed: #6B7280;
+  --status-cancelled: #EF4444;
+
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Montserrat', sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 8px 16px -4px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 20px 30px -10px rgba(0, 0, 0, 0.12);
+  --shadow-red: 0 10px 25px -5px rgba(211, 18, 42, 0.35);
+
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--cofina-bg);
+  color: var(--cofina-text-primary);
+  line-height: 1.5;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--cofina-dark);
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow-md);
+}
+
+.glass-dark {
+  background: rgba(45, 49, 54, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+}
+
+/* Cofina Button Styles */
+.btn-cofina-primary {
+  background: linear-gradient(135deg, var(--cofina-red) 0%, var(--cofina-red-dark) 100%);
+  color: #FFFFFF;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.75rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  box-shadow: var(--shadow-red);
+  transition: var(--transition-normal);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-cofina-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px -5px rgba(211, 18, 42, 0.45);
+}
+
+.btn-cofina-primary:active {
+  transform: translateY(1px);
+}
+
+.btn-cofina-secondary {
+  background: var(--cofina-dark);
+  color: #FFFFFF;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1.5rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: var(--transition-normal);
+}
+
+.btn-cofina-secondary:hover {
+  background: var(--cofina-dark-surface);
+  transform: translateY(-1px);
+}
+
+.btn-cofina-outline {
+  background: transparent;
+  color: var(--cofina-dark);
+  border: 2px solid var(--cofina-border);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: var(--transition-normal);
+}
+
+.btn-cofina-outline:hover {
+  border-color: var(--cofina-red);
+  color: var(--cofina-red);
+  background: var(--cofina-red-light);
+}
+
+/* Pulsing Badge for Status */
+.pulse-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  position: relative;
+}
+
+.pulse-indicator.active {
+  background-color: #10B981;
+}
+
+.pulse-indicator.active::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: 50%;
+  border: 2px solid #10B981;
+  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+/* Call Alert Animation for Public Display */
+@keyframes flash-call {
+  0%, 100% {
+    background-color: var(--cofina-red);
+    box-shadow: 0 0 40px rgba(211, 18, 42, 0.6);
+  }
+  50% {
+    background-color: var(--cofina-dark);
+    box-shadow: 0 0 10px rgba(45, 49, 54, 0.4);
+  }
+}
+
+.calling-active {
+  animation: flash-call 1.2s infinite ease-in-out;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Animations */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-scale-up {
+  animation: scaleUp 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}

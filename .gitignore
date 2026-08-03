@@ -1,0 +1,21 @@
+# Dependencies
+node_modules
+server/node_modules
+
+# Production Build Outputs
+dist
+server/dist
+
+# SQLite Local Database & Logs
+*.db
+*.db-journal
+server/prisma/cofina_edge.db
+server/prisma/cofina_edge.db-journal
+*.log
+npm-debug.log*
+
+# Environment & Local Files
+.env
+.env.local
+.DS_Store
+Thumbs.db
