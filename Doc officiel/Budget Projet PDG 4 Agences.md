@@ -1,9 +1,15 @@
+> 🏢 **MATRIX INDUSTRIE** — *Solutions Digitales & Intégration Numérique*  
+> 📍 Siège : Lomé, Togo • 📧 contact@matrix-industrie.com • 🌐 www.matrix-industrie.com  
+> 📋 **RÉFÉRENCE :** MI-COF-2026-BDG | **DATE :** 03 Août 2026 | **CLIENT :** Groupe COFINA Togo
+
+---
+
 # BUDGET PROJET — SYSTEME DE GESTION DE FILE D'ATTENTE
 **Proposition budgétaire et technique pour l'institution de microfinance (COFINA)**
 
 > **Document confidentiel** — À destination du Président Directeur Général
 > **Périmètre** : Déploiement sur 4 agences (avec 1 agence pilote)
-> **Date** : Juillet 2026
+> **Date** : 03 Août 2026
 
 ---
 
@@ -70,22 +76,22 @@ Le matériel de borne interactive constitue le point de contact physique initial
 
 | Format & Taille | Type / OS | Modèle constructeur | Caractéristiques principales |
 | :--- | :--- | :---: | :--- |
-| **Borne 32 pouces**<br>*(Intégrateur tactile)* | **Version Android** | **RS321-WC** | Écran tactile HD 32", contrôleur Android haute vitesse, Logo Matrix |
-| **Borne 55 pouces**<br>*(Intégrateur tactile)* | **Version Android** | **RS551-WC** | Écran grand format HD 55", contrôleur Android haute vitesse, Logo Matrix |
+| **Borne 32 pouces**<br>*(Intégrateur tactile)* | **Version Android** | **RS321-WC** | Écran tactile HD 32", contrôleur Android haute vitesse, Logo MATRIX INDUSTRIE |
+| **Borne 55 pouces**<br>*(Intégrateur tactile)* | **Version Android** | **RS551-WC** | Écran grand format HD 55", contrôleur Android haute vitesse, Logo MATRIX INDUSTRIE |
 
 ### 2. Visuels des Modèles de Bornes
 
 | Borne 55 pouces (`RS551-WC`) | Borne 32 pouces (`RS321-WC`) |
 | :---: | :---: |
 | ![Borne 55 pouces](file:///d:/Cofina/public/Borne%2055%20pouces.jpg) | ![Borne 32 pouces](file:///d:/Cofina/public/Borne%2032%20pouces.jpg) |
-| **Borne 55" Grand Format** *(Version Android — Logo Matrix)* | **Borne 32" Format Compact** *(Version Android — Logo Matrix)* |
+| **Borne 55" Grand Format** *(Version Android — Logo MATRIX INDUSTRIE)* | **Borne 32" Format Compact** *(Version Android — Logo MATRIX INDUSTRIE)* |
 
 ### 3. Tarification des Bornes Interactives
 
 | Modèle & Format | Modèle Constructeur | Système / Branding | Prix Unitaire HT |
 | :--- | :---: | :--- | ---: |
-| **Borne 55 pouces** (Grand format) | `RS551-WC` | Android — Logo Matrix | **955 000 FCFA** |
-| **Borne 32 pouces** (Format compact) | `RS321-WC` | Android — Logo Matrix | **770 000 FCFA** |
+| **Borne 55 pouces** (Grand format) | `RS551-WC` | Android — Logo MATRIX INDUSTRIE | **955 000 FCFA** |
+| **Borne 32 pouces** (Format compact) | `RS321-WC` | Android — Logo MATRIX INDUSTRIE | **770 000 FCFA** |
 
 ### 4. Total Matériel Complété par Agence
 
