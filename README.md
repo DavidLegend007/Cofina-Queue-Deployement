@@ -12,6 +12,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Architecture-100%25%20Edge%20Local-red?style=for-the-badge" alt="Edge Local"/>
   <img src="https://img.shields.io/badge/Hors--Ligne-Garanti%20Sans%20Internet-059669?style=for-the-badge" alt="Offline"/>
+  <img src="https://img.shields.io/badge/Cycle-Lundi--Samedi%2014h-1D4ED8?style=for-the-badge" alt="Cycle Hebdomadaire"/>
   <img src="https://img.shields.io/badge/React-18.3.1-61DAFB?style=for-the-badge&logo=react" alt="React"/>
   <img src="https://img.shields.io/badge/Node.js-Socket.io-339933?style=for-the-badge&logo=node.js" alt="Node.js"/>
   <img src="https://img.shields.io/badge/Database-SQLite%20%2F%20Prisma-2563EB?style=for-the-badge&logo=prisma" alt="SQLite Prisma"/>
@@ -25,14 +26,14 @@ Le **Cofina Queue System V1** a été spécifiquement développé pour répondre
 
 ### 🌟 Principes Directeurs
 1. **0% Dépendance Cloud / Internet** : L'ensemble de la file d'attente (Borne tactile, Écran TV d'accueil, Postes Caissiers) fonctionne en **réseau local interne (LAN)**. Si la fibre ou la connexion 4G coupe, l'agence continue de servir les clients sans aucune interruption.
-2. **Prise de Ticket 1-Clic "Zéro Barrière Digitale"** : Interface géante, intuitive et multilingue (Français / Anglais), adaptée aussi bien aux mamans commerçantes des marchés qu'aux clients institutionnels.
-3. **Émission Hybride Duale** : 
-   - **Ticket Papier Thermique ESC/POS** (imprimantes 80mm/58mm).
-   - **Ticket Digital QR Code** scannable sur smartphone.
-4. **Annonce Audio en 2 Temps** :
-   - *Temps 1 (Borne)* : Vocalisation de confirmation immédiate à la prise de ticket (*"Bienvenue chez Cofina, votre ticket A-008 est créé..."*).
-   - *Temps 2 (Guichet)* : Carillon Gong sonore + Annonce vocale de passage (*"Ticket A-008, veuillez passer à la Caisse 1"*).
-5. **Persistance & Tolérance aux Pannes de Courant** : La base de données **SQLite locale** (`cofina_edge.db`) sauvegarde l'état de chaque ticket à la seconde près. En cas de délestage électrique, le système reprend exactement là où il s'était arrêté au redémarrage du serveur.
+2. **Cycle Hebdomadaire Opérationnel (Lundi 00h00 $\rightarrow$ Samedi 14h00)** : La numérotation des tickets s'étale sur la semaine d'exploitation des agences (Lundi matin au Samedi 14h00). À chaque clôture du Samedi à 14h, l'intégralité des tickets et métriques de la semaine est **automatiquement sauvegardée et archivée en base de données SQLite** (`WeeklyArchive`), puis les compteurs repartent à zéro (`A-001`, `B-001`...) pour le cycle suivant.
+3. **Prise de Ticket QR Code Mobile & Boarding Pass Premium** : 
+   - **Ticket Digital QR Code** affiché en moyen principal immédiat (style billet d'avion *Boarding Pass* avec thèmes couleur par service).
+   - **Ticket Papier Thermique ESC/POS** disponible sous forme d'option secondaire d'appoint.
+4. **Annonce Audio d'Appel au Guichet** :
+   - *Sur la Borne* : Confirmation visuelle instantanée sans vocalisation bruyante sur borne.
+   - *Au Guichet (Écran TV)* : Carillon Gong sonore bi-tonal + Synthèse vocale de passage (*"Ticket A-008, veuillez passer à la Caisse 1"*).
+5. **Persistance SQLite & Widget Bureau Indépendant** : Base SQLite locale (`cofina_edge.db`) avec persistance absolue en cas de délestage électrique + **Widget Caissier détachable** dans une petite fenêtre bureau ultra-compacte (`360px x 420px`).
 
 ---
 
@@ -46,6 +47,7 @@ graph TD
         Agent2[👩🏽‍💼 Poste Caisse 2] -->|Socket.io / HTTP Local| EdgeServer
         Agent3[👨🏿‍💼 Poste Caisse 3] -->|Socket.io / HTTP Local| EdgeServer
         Agent4[👨🏽‍💼 Poste Caisse 4] -->|Socket.io / HTTP Local| EdgeServer
+        Widget[📱 Widget Bureau Indépendant] -->|Socket.io LAN| EdgeServer
         Display[📺 Écran TV Salle d'Attente + Audio] <--|Socket.io Realtime| EdgeServer
         EdgeServer --> LocalDB[(🗄️ Base SQLite Locale Prisma)]
     end
@@ -66,28 +68,28 @@ graph TD
 
 ### 1. 🖥️ Borne Tactile Kiosque (`KioskModule.jsx`)
 - Interface tactile grand format avec 4 boutons de services simplifiés :
-  - **A** : Dépôt & Retrait d'Espèces *(Service N°1)*
-  - **B** : Épargne & Tontine / Compte *(Service Épargne)*
-  - **C** : Crédit & Microcrédit *(Service Financement)*
-  - **V** : Service Client & Prioritaire *(VIP / Mamans Commerçantes)*
+  - **A** : Dépôt & Retrait d'Espèces *(Theme Rouge Crimson `#D3122A`)*
+  - **B** : Épargne & Tontine / Compte *(Theme Bleu Océan `#1D4ED8`)*
+  - **C** : Crédit & Microcrédit *(Theme Ambre Doré `#B45309`)*
+  - **V** : Service Client & Prioritaire *(Theme Émeraude `#059669` + Badge VIP)*
+- Modal Ticket Style **Boarding Pass Premium** avec ligne perforée et suivi du rang sur mobile.
 - Auto-réinitialisation dynamique après 15 secondes d'inactivité.
-- Génération et découpe automatique ESC/POS sur imprimante thermique USB.
 
 ### 2. 📺 Écran TV Public & Annonces Vocales (`DisplayModule.jsx`)
 - Grille dynamique d'affichage en direct des 4 Caisses (Caisse 1 à Caisse 4).
 - Bannière d'appel clignotante avec animation visuelle d'urgence.
 - Synthèse vocale Web Audio (`SpeechSynthesis`) et Carillon Gong bi-tonal.
 
-### 3. 👨‍💼 Station Caissier / Guichet (`AgentModule.jsx` & `FloatingTellerWidget.jsx`)
+### 3. 👨‍💼 Station Caissier & Widget Bureau Indépendant (`AgentModule.jsx` & `FloatingTellerWidget.jsx`)
 - Sélection du caissier et affectation du numéro de guichet.
 - Contrôle d'appel en 1-clic : **Suivant**, **Rappeler**, **Absent (No-Show)**.
 - Chronomètre de traitement par client et suivi du délai moyen d'attente.
-- Widget flottant réduisible accessible depuis n'importe quel écran.
+- **Widget bureau indépendant** (`?widgetOnly=true` à `360x420px`) permettant de contrôler la file même si le navigateur principal est réduit.
 
 ### 4. 👤 Profils Agents & Administration (`ProfilePage.jsx` & `AdminModule.jsx`)
 - Visualisation et édition des profils caissiers (Nom, Titre, Avatar emoji / photo).
 - Attribution automatique de **Badges d'Excellence** (*Rapide*, *Performant*, *Senior*, *Fiable*).
-- Historique détaillé de la journée et **Export CSV sécurisé** pour le Data Analyste.
+- **Archivage Hebdomadaire (Lundi $\rightarrow$ Samedi 14h)** et **Export CSV sécurisé** pour le Data Analyste.
 
 ---
 
@@ -108,22 +110,23 @@ Cofina/
 ├── 📁 server/                    # SERVEUR BACKEND NODE.JS EDGE
 │   ├── 📄 package.json           # Dépendances Backend (Express, Socket.io, Prisma)
 │   ├── 📁 prisma/
-│   │   ├── 📄 schema.prisma      # Schéma de base de données SQLite/PostgreSQL
+│   │   ├── 📄 schema.prisma      # Schéma de base de données SQLite (Ticket & WeeklyArchive)
 │   │   └── 📄 seed.js            # Données d'initialisation d'agence
 │   └── 📁 src/
 │       └── 📄 server.ts          # Serveur Express, WebSocket & REST API
 │
 └── 📁 src/                       # APPLICATION FRONTEND REACT
-    ├── 📄 App.jsx                # Application principale & Routeur de modules
+    ├── 📄 App.jsx                # Application principale & Routeur de modules (?widgetOnly=true)
     ├── 📁 components/
-    │   ├── 📄 KioskModule.jsx    # Borne tactile
+    │   ├── 📄 KioskModule.jsx    # Borne tactile & Ticket Boarding Pass
     │   ├── 📄 DisplayModule.jsx  # Écran TV Public & Synthèse vocale
     │   ├── 📄 AgentModule.jsx    # Poste de travail Caissier
-    │   ├── 📄 AdminModule.jsx    # Administration & Statistiques
+    │   ├── 📄 FloatingTellerWidget.jsx # Widget bureau indépendant détachable
+    │   ├── 📄 AdminModule.jsx    # Administration & Archivage Hebdomadaire (Lundi - Samedi 14h)
     │   ├── 📄 ProfilePage.jsx    # Profil Caissier & Badges
     │   └── 📄 Navbar.jsx         # Barre de navigation & Sélecteur de langue
     └── 📁 services/
-        ├── 📄 queueStore.js      # Moteur de synchronisation Socket.io + LocalStorage
+        ├── 📄 queueStore.js      # Moteur de synchronisation Socket.io + Cycle hebdomadaire
         └── 📄 translations.js   # Dictionnaire de traduction FR / EN
 ```
 
@@ -133,7 +136,7 @@ Cofina/
 
 ### 1. Cloner et installer les dépendances
 ```bash
-git clone <URL_DU_DEPOT> Cofina
+git clone https://github.com/DavidLegend007/Cofina-Queue.git Cofina
 cd Cofina
 
 # Installer les dépendances Frontend & Backend
@@ -158,6 +161,7 @@ npm run dev
 
 L'application sera accessible sur :
 - **Frontend** : `http://localhost:3000`
+- **Widget Caissier Bureau** : `http://localhost:3000/?widgetOnly=true`
 - **Backend API & Socket.io** : `http://localhost:4000`
 - **Health Check** : `http://localhost:4000/health`
 
@@ -184,11 +188,13 @@ Double-cliquez sur **`deploy.bat`** ou exécutez `deploy.bat` dans l'invite de c
 
 ### REST API Endpoints (`http://localhost:4000`)
 - `GET /health` : État du serveur et nombre de tickets actifs pour Uptime Kuma.
-- `GET /api/tickets` : Récupère la liste des tickets du jour et les compteurs par service.
+- `GET /api/tickets` : Récupère la liste des tickets de la semaine en cours et les compteurs par service.
 - `POST /api/tickets/create` : Crée un nouveau ticket depuis la borne.
 - `POST /api/tickets/call-next` : Appelle le ticket suivant pour un caissier (priorité gérée automatiquement).
 - `POST /api/tickets/update-status` : Met à jour le statut (`IN_PROGRESS`, `COMPLETED`, `NO_SHOW`, `CANCELLED`).
 - `POST /api/tickets/recall` : Rappelle le ticket courant sur l'écran TV.
+- `POST /api/tickets/weekly-archive` : Enregistre l'archive hebdomadaire de la semaine (Samedi 14h) dans SQLite.
+- `GET /api/tickets/weekly-archives` : Récupère l'historique des semaines archivées.
 - `POST /api/auth/login` : Authentification sécurisée des caissiers par JWT.
 
 ### Événements WebSocket (`Socket.io LAN`)
@@ -197,6 +203,7 @@ Double-cliquez sur **`deploy.bat`** ou exécutez `deploy.bat` dans l'invite de c
 - `ticket_called` : Émis lorsqu'un caissier appelle un ticket.
 - `ticket_updated` : Émis lors du changement d'état d'un ticket.
 - `ticket_recalled` : Émis lors d'un rappel sonore de ticket.
+- `weekly_archived` : Émis lors de l'archivage hebdomadaire d'une semaine.
 
 ---
 
