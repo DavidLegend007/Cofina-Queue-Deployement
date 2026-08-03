@@ -65,9 +65,9 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
   };
 
   const handleResetQueue = () => {
-    if (window.confirm(`Voulez-vous vraiment archiver la semaine en base de données et réinitialiser la file d'attente pour le nouveau cycle de Samedi ?\n\nTous les tickets de la semaine seront automatiquement sauvegardés en base de données SQLite.`)) {
+    if (window.confirm(`Voulez-vous vraiment archiver la semaine (Lundi → Samedi 14h) en base de données et réinitialiser la file d'attente ?\n\nTous les tickets de la semaine seront automatiquement sauvegardés en base de données SQLite.`)) {
       resetAgencyQueue();
-      showToast("Semaine archivée en Base de Données SQLite & File d'attente réinitialisée pour la nouvelle semaine.");
+      showToast("Semaine (Lundi - Samedi 14h) archivée en BDD SQLite & File d'attente réinitialisée !");
     }
   };
 
@@ -79,11 +79,11 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
         <div className="adm-hdr-left">
           <div className="adm-server-badge">
             <Server size={16} />
-            <span>CYCLE HEBDOMADAIRE (SAMEDI → VENDREDI)</span>
+            <span>CYCLE HEBDOMADAIRE (LUNDI MATIN → SAMEDI 14H00)</span>
           </div>
           <div>
             <h1 className="adm-title">Console de Gestion — {agencyName}</h1>
-            <p className="adm-subtitle">Serveur Edge Autonome • Sauvegarde Automatique &amp; Réinitialisation Hebdomadaire Chaque Samedi</p>
+            <p className="adm-subtitle">Serveur Edge Autonome • Sauvegarde Automatique &amp; Réinitialisation du Lundi au Samedi 14h00</p>
           </div>
         </div>
 
@@ -91,8 +91,8 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
           <button className="adm-btn adm-btn-sim" onClick={handleSimulateTraffic} disabled={isSimulating}>
             <Zap size={16} /> {isSimulating ? 'Ajout...' : 'Simuler Trafic (+4)'}
           </button>
-          <button className="adm-btn adm-btn-danger" onClick={handleResetQueue} title="Archiver la semaine en DB et démarrer un nouveau cycle Samedi">
-            <Database size={16} /> Archiver Semaine &amp; Réinitialiser (Samedi)
+          <button className="adm-btn adm-btn-danger" onClick={handleResetQueue} title="Archiver la semaine en DB et démarrer un nouveau cycle">
+            <Database size={16} /> Archiver Semaine &amp; Réinitialiser (Samedi 14h)
           </button>
         </div>
       </header>

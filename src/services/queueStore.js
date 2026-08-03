@@ -350,21 +350,30 @@ const getInitialState = () => {
   };
 };
 
-// Helper: Get start of current week (Saturday 00:00:00)
-export const getWeekSaturdayStart = () => {
+// Helper: Get start of current week (Monday 00:00:00 -> Saturday 14:00)
+export const getWeekCycleStart = () => {
   const now = new Date();
-  const day = now.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
-  const diffToSaturday = (day + 1) % 7;
-  const sat = new Date(now);
-  sat.setDate(now.getDate() - diffToSaturday);
-  sat.setHours(0, 0, 0, 0);
-  return sat.toISOString().slice(0, 10);
+  const day = now.getDay(); // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
+  const hour = now.getHours();
+
+  const mon = new Date(now);
+  if (day === 6 && hour >= 14) {
+    const daysUntilMon = 2;
+    mon.setDate(now.getDate() + daysUntilMon);
+  } else {
+    const diffToMon = (day + 6) % 7;
+    mon.setDate(now.getDate() - diffToMon);
+  }
+  mon.setHours(0, 0, 0, 0);
+  return mon.toISOString().slice(0, 10);
 };
+
+export const getWeekSaturdayStart = getWeekCycleStart;
 
 export const getStoredState = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    const currentWeekStart = getWeekSaturdayStart();
+    const currentWeekStart = getWeekCycleStart();
     
     if (!raw) {
       const init = { ...getInitialState(), lastWeekStart: currentWeekStart, archivedWeeks: [] };
@@ -374,12 +383,12 @@ export const getStoredState = () => {
 
     const state = JSON.parse(raw);
     
-    // Auto-detect Saturday week turnover: archive previous week and reset tickets counter
+    // Auto-detect weekly turnover (Saturday 14h / Monday morning): archive previous week and reset tickets counter
     if (!state || !state.lastWeekStart || state.lastWeekStart !== currentWeekStart) {
       const previousTickets = state.tickets || [];
       const archivedRecord = {
         id: 'archive_' + Date.now(),
-        weekLabel: `Semaine du ${state.lastWeekStart || 'Précédente'} au ${currentWeekStart}`,
+        weekLabel: `Semaine du Lundi ${state.lastWeekStart || 'Précédente'} au Samedi 14h (${currentWeekStart})`,
         archivedAt: new Date().toISOString(),
         totalTickets: previousTickets.length,
         completedTickets: previousTickets.filter(t => t.status === 'COMPLETED').length,

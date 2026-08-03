@@ -37,15 +37,24 @@ async function getOrCreateDefaultAgency() {
   return agency;
 }
 
-// Helper: Compute start date of current weekly cycle (Most recent Saturday 00:00:00)
+// Helper: Compute start date of current weekly cycle (Monday 00:00:00 -> Saturday 14:00)
 function getWeekStartDate() {
   const now = new Date();
-  const day = now.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
-  const diffToSaturday = (day + 1) % 7;
-  const sat = new Date(now);
-  sat.setDate(now.getDate() - diffToSaturday);
-  sat.setHours(0, 0, 0, 0);
-  return sat;
+  const day = now.getDay(); // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
+  const hour = now.getHours();
+
+  const mon = new Date(now);
+  if (day === 6 && hour >= 14) {
+    // If Saturday after 14h: transition to next Monday
+    const daysUntilMon = 2;
+    mon.setDate(now.getDate() + daysUntilMon);
+  } else {
+    // Compute previous Monday 00:00:00
+    const diffToMon = (day + 6) % 7; // Mon=0, Tue=1, ..., Sun=6
+    mon.setDate(now.getDate() - diffToMon);
+  }
+  mon.setHours(0, 0, 0, 0);
+  return mon;
 }
 
 // Helper: Get active weekly state (tickets & counters starting from Saturday)
