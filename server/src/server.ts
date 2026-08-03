@@ -37,15 +37,25 @@ async function getOrCreateDefaultAgency() {
   return agency;
 }
 
-// Helper: Get today's state (tickets & counters) from SQLite DB
-async function getTodayState() {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+// Helper: Compute start date of current weekly cycle (Most recent Saturday 00:00:00)
+function getWeekStartDate() {
+  const now = new Date();
+  const day = now.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const diffToSaturday = (day + 1) % 7;
+  const sat = new Date(now);
+  sat.setDate(now.getDate() - diffToSaturday);
+  sat.setHours(0, 0, 0, 0);
+  return sat;
+}
+
+// Helper: Get active weekly state (tickets & counters starting from Saturday)
+async function getCurrentWeekState() {
+  const startOfWeek = getWeekStartDate();
 
   const tickets = await prisma.ticket.findMany({
     where: {
       createdAt: {
-        gte: startOfDay
+        gte: startOfWeek
       }
     },
     orderBy: {
@@ -65,8 +75,12 @@ async function getTodayState() {
     }
   });
 
-  return { tickets, dailyCounters };
+  return { tickets, dailyCounters, weekStartDate: startOfWeek.toISOString() };
 }
+
+// Legacy alias for compatibility
+const getTodayState = getCurrentWeekState;
+
 
 // Health Check Endpoint for Supervision & Uptime Kuma
 app.get('/health', async (req, res) => {
@@ -217,6 +231,47 @@ app.post('/api/tickets/recall', async (req, res) => {
     io.emit('ticket_recalled', { ticket: updated, tickets: updatedState.tickets });
 
     res.json(updated);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Weekly Archiving Endpoints (Saturday Reset & DB Backup)
+app.post('/api/tickets/weekly-archive', async (req, res) => {
+  try {
+    const { weekLabel, startDate, endDate, totalTickets, completedTickets, noShowTickets, avgWaitMin, tickets } = req.body;
+
+    const archive = await prisma.weeklyArchive.create({
+      data: {
+        weekLabel: weekLabel || `Semaine du ${new Date().toLocaleDateString('fr-FR')}`,
+        startDate: startDate ? new Date(startDate) : new Date(),
+        endDate: endDate ? new Date(endDate) : new Date(),
+        totalTickets: totalTickets || 0,
+        completedTickets: completedTickets || 0,
+        noShowTickets: noShowTickets || 0,
+        avgWaitMin: avgWaitMin || 0,
+        ticketsJson: JSON.stringify(tickets || [])
+      }
+    });
+
+    const archivesList = await prisma.weeklyArchive.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+
+    io.emit('weekly_archived', { archive, archivesList });
+    res.status(201).json({ message: 'Semaine archivée avec succès en base de données SQLite', archive });
+  } catch (e: any) {
+    console.error('Error creating weekly archive:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/tickets/weekly-archives', async (req, res) => {
+  try {
+    const archives = await prisma.weeklyArchive.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(archives);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

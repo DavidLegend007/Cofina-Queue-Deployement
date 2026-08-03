@@ -350,23 +350,65 @@ const getInitialState = () => {
   };
 };
 
+// Helper: Get start of current week (Saturday 00:00:00)
+export const getWeekSaturdayStart = () => {
+  const now = new Date();
+  const day = now.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const diffToSaturday = (day + 1) % 7;
+  const sat = new Date(now);
+  sat.setDate(now.getDate() - diffToSaturday);
+  sat.setHours(0, 0, 0, 0);
+  return sat.toISOString().slice(0, 10);
+};
+
 export const getStoredState = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const currentWeekStart = getWeekSaturdayStart();
     
     if (!raw) {
-      const init = { ...getInitialState(), lastDate: todayStr };
+      const init = { ...getInitialState(), lastWeekStart: currentWeekStart, archivedWeeks: [] };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(init));
       return init;
     }
 
     const state = JSON.parse(raw);
-    if (!state || !state.tickets || state.tickets.length === 0 || (state.lastDate && state.lastDate !== todayStr)) {
-      const init = { ...getInitialState(), lastDate: todayStr };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(init));
-      return init;
+    
+    // Auto-detect Saturday week turnover: archive previous week and reset tickets counter
+    if (!state || !state.lastWeekStart || state.lastWeekStart !== currentWeekStart) {
+      const previousTickets = state.tickets || [];
+      const archivedRecord = {
+        id: 'archive_' + Date.now(),
+        weekLabel: `Semaine du ${state.lastWeekStart || 'Précédente'} au ${currentWeekStart}`,
+        archivedAt: new Date().toISOString(),
+        totalTickets: previousTickets.length,
+        completedTickets: previousTickets.filter(t => t.status === 'COMPLETED').length,
+        noShowTickets: previousTickets.filter(t => t.status === 'NO_SHOW').length,
+        tickets: previousTickets
+      };
+
+      const archivedWeeks = [archivedRecord, ...(state.archivedWeeks || [])];
+      
+      const newWeekState = {
+        ...getInitialState(),
+        lastWeekStart: currentWeekStart,
+        archivedWeeks
+      };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newWeekState));
+      
+      // Async post archive to SQLite backend if online
+      try {
+        fetch(`${window.location.protocol}//${window.location.hostname}:4000/api/tickets/weekly-archive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(archivedRecord)
+        }).catch(() => {});
+      } catch {}
+
+      return newWeekState;
     }
+
     return state;
   } catch (e) {
     console.error('Failed to read queue storage:', e);
@@ -384,6 +426,46 @@ export const saveStoredState = (state) => {
     console.error('Failed to save queue storage:', e);
   }
 };
+
+// Manually trigger Saturday weekly reset with Database archiving
+export const resetWeeklyAgencyQueue = () => {
+  const state = getStoredState();
+  const currentWeekStart = getWeekSaturdayStart();
+  const previousTickets = state.tickets || [];
+
+  const archiveRecord = {
+    id: 'archive_' + Date.now(),
+    weekLabel: `Semaine archivée le ${new Date().toLocaleDateString('fr-FR')}`,
+    archivedAt: new Date().toISOString(),
+    totalTickets: previousTickets.length,
+    completedTickets: previousTickets.filter(t => t.status === 'COMPLETED').length,
+    noShowTickets: previousTickets.filter(t => t.status === 'NO_SHOW').length,
+    tickets: previousTickets
+  };
+
+  const updatedState = {
+    ...getInitialState(),
+    lastWeekStart: currentWeekStart,
+    archivedWeeks: [archiveRecord, ...(state.archivedWeeks || [])]
+  };
+
+  saveStoredState(updatedState);
+
+  // Send to server for SQLite database persistence
+  try {
+    fetch(`${window.location.protocol}//${window.location.hostname}:4000/api/tickets/weekly-archive`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(archiveRecord)
+    }).catch(() => {});
+  } catch {}
+
+  return updatedState;
+};
+
+// Alias pour rétrocompatibilité
+export const resetAgencyQueue = resetWeeklyAgencyQueue;
+
 
 // Create a new ticket (From Kiosk - No phone/email required)
 export const createTicket = (serviceCode, customerPhone = null, customerEmail = null, lang = 'fr') => {
@@ -615,17 +697,7 @@ export const updateTicketStatus = (ticketId, newStatus, extra = {}) => {
   saveStoredState(updatedState);
 };
 
-// Reset queue for agency (Admin tool)
-export const resetAgencyQueue = () => {
-  const state = getStoredState();
-  const newState = {
-    ...state,
-    dailyCounter: { A: 0, B: 0, C: 0, V: 0 },
-    lastCalledTicket: null,
-    tickets: []
-  };
-  saveStoredState(newState);
-};
+// Note: resetAgencyQueue is defined above as resetWeeklyAgencyQueue
 
 // Audio: Web Audio API Gong Chime
 export const playCallChime = () => {

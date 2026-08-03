@@ -101,3 +101,17 @@ model SyncOutbox {
   sentAt     DateTime?
 }
 
+model WeeklyArchive {
+  id               String   @id @default(uuid())
+  weekLabel        String   // ex: Semaine du Samedi 01/08/2026 au Vendredi 07/08/2026
+  startDate        DateTime
+  endDate          DateTime
+  totalTickets     Int      @default(0)
+  completedTickets Int      @default(0)
+  noShowTickets    Int      @default(0)
+  avgWaitMin       Int      @default(0)
+  ticketsJson      String   // Stockage sécurisé de l'ensemble des tickets de la semaine en JSON
+  createdAt        DateTime @default(now())
+}
+
+
