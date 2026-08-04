@@ -16,11 +16,20 @@ Le système est spécialement conçu pour le secteur de la microfinance en Afriq
 3. **Annonce Audio d'Appel au Guichet** :
    - *Sur la Borne* : Confirmation visuelle immédiate (sans synthèse vocale vocale sur borne).
    - *Au Guichet (Écran TV)* : Carillon Gong sonorisé bi-tonal + Synthèse vocale de passage (*"Ticket A-008, veuillez passer à la Caisse 1"*).
-4. **4 Services Simplifiés** :
-   - **A** : Dépôt & Retrait d'Espèces (Service N°1)
-   - **B** : Épargne & Tontine / Compte
-   - **C** : Crédit & Microcrédit
-   - **V** : Service Client & Prioritaire (VIP / Femmes commerçantes)
+4. **8 Services Spécialisés** :
+   - **D** : Dépôt
+   - **R** : Retrait
+   - **O** : Ouverture de compte
+   - **E** : Épargne
+   - **C** : Crédit
+   - **M** : Microcrédit & Remb.
+   - **S** : Service Client
+   - **H** : Handicap
+
+5. **Attribution Automatique Intelligente (Auto-Assign)** :
+   - Statut en ligne/hors ligne pour chaque caissier (bouton "Caisse Ouverte" / "Caisse Fermée").
+   - Les tickets générés sont instantanément assignés à une caisse libre et annoncés à l'écran, sans aucune intervention manuelle.
+   - S'il n'y a pas de caisse libre, ils sont mis en file d'attente classique.
 
 ---
 
@@ -58,10 +67,10 @@ graph TD
 - Grille en direct des 4 Caisses (Caisse 1 à Caisse 4).
 - Bannière d'appel clignotante avec carillon sonore et synthèse vocale Web Audio API / SpeechSynthesis.
 
-### 3.3 👨‍💼 Station Caissier & Widget Flottant Bureau (`AgentModule.jsx` & `FloatingTellerWidget.jsx`)
-- Sélection du caissier et affectation du guichet.
-- Contrôle d'appel en 1 clic : **Suivant**, **Rappeler**, **Absent (No-Show)**.
-- **Widget Bureau Indépendant** : Bouton détachable (<kbd>↗</kbd>) pour garder le contrôle de la file d'attente dans une petite fenêtre flottante compacte (`360px x 420px`), même lorsque le navigateur principal est réduit ou que le caissier travaille sur son logiciel métier (*Amplitude Core Banking*, *Excel*).
+### 3.3 👨🏽‍💼 Station Caissier & Widget Flottant Bureau (`AgentModule.jsx` & `FloatingTellerWidget.jsx`)
+- Statut de la caisse : **Caisse Ouverte (🟢)** ou **Caisse Fermée (🔴)**.
+- Contrôle d'appel complet : **Suivant**, **En traitement**, **Rappeler**, **Absent (No-Show)**, **Terminer**.
+- **Widget Bureau Indépendant** : Réservé à l'Agent. Bouton détachable (<kbd>↗</kbd>) pour garder le contrôle de la file d'attente dans une petite fenêtre flottante compacte (`360px x 420px`), même lorsque le navigateur principal est réduit ou que le caissier travaille sur son logiciel métier (*Amplitude Core Banking*, *Excel*).
 - URL dédiée autonome : `http://<IP_SERVEUR>:3000/?widgetOnly=true`.
 
 ### 3.4 👤 Page Profil Agent (`ProfilePage.jsx`)

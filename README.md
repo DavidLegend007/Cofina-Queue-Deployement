@@ -67,11 +67,20 @@ graph TD
 ## 🚀 LES MODULES DU SYSTÈME
 
 ### 1. 🖥️ Borne Tactile Kiosque (`KioskModule.jsx`)
-- Interface tactile grand format avec 4 boutons de services simplifiés :
-  - **A** : Dépôt & Retrait d'Espèces *(Theme Rouge Crimson `#D3122A`)*
-  - **B** : Épargne & Tontine / Compte *(Theme Bleu Océan `#1D4ED8`)*
-  - **C** : Crédit & Microcrédit *(Theme Ambre Doré `#B45309`)*
-  - **V** : Service Client & Prioritaire *(Theme Émeraude `#059669` + Badge VIP)*
+- 8 Services Spécialisés :
+   - **D** : Dépôt
+   - **R** : Retrait
+   - **O** : Ouverture de compte
+   - **E** : Épargne
+   - **C** : Crédit
+   - **M** : Microcrédit & Remb.
+   - **S** : Service Client
+   - **H** : Handicap
+
+- Attribution Automatique Intelligente (Auto-Assign) :
+   - Statut en ligne/hors ligne pour chaque caissier (bouton "Caisse Ouverte" / "Caisse Fermée").
+   - Les tickets générés sont instantanément assignés à une caisse libre et annoncés à l'écran, sans aucune intervention manuelle.
+   - S'il n'y a pas de caisse libre, ils sont mis en file d'attente classique.
 - Modal Ticket Style **Boarding Pass Premium** avec ligne perforée et suivi du rang sur mobile.
 - Auto-réinitialisation dynamique après 15 secondes d'inactivité.
 
@@ -80,11 +89,11 @@ graph TD
 - Bannière d'appel clignotante avec animation visuelle d'urgence.
 - Synthèse vocale Web Audio (`SpeechSynthesis`) et Carillon Gong bi-tonal.
 
-### 3. 👨‍💼 Station Caissier & Widget Bureau Indépendant (`AgentModule.jsx` & `FloatingTellerWidget.jsx`)
-- Sélection du caissier et affectation du numéro de guichet.
-- Contrôle d'appel en 1-clic : **Suivant**, **Rappeler**, **Absent (No-Show)**.
-- Chronomètre de traitement par client et suivi du délai moyen d'attente.
-- **Widget bureau indépendant** (`?widgetOnly=true` à `360x420px`) permettant de contrôler la file même si le navigateur principal est réduit.
+### 3. 👨🏽‍💼 Station Caissier & Widget Flottant Bureau (`AgentModule.jsx` & `FloatingTellerWidget.jsx`)
+- Statut de la caisse : **Caisse Ouverte (🟢)** ou **Caisse Fermée (🔴)**.
+- Contrôle d'appel complet : **Suivant**, **En traitement**, **Rappeler**, **Absent (No-Show)**, **Terminer**.
+- **Widget Bureau Indépendant** : Réservé à l'Agent. Bouton détachable (<kbd>↗</kbd>) pour garder le contrôle de la file d'attente dans une petite fenêtre flottante compacte (`360px x 420px`), même lorsque le navigateur principal est réduit ou que le caissier travaille sur son logiciel métier (*Amplitude Core Banking*, *Excel*).
+- URL dédiée autonome : `http://<IP_SERVEUR>:3000/?widgetOnly=true`.
 
 ### 4. 👤 Profils Agents & Administration (`ProfilePage.jsx` & `AdminModule.jsx`)
 - Visualisation et édition des profils caissiers (Nom, Titre, Avatar emoji / photo).

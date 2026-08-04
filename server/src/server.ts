@@ -72,7 +72,7 @@ async function getCurrentWeekState() {
     }
   });
 
-  const dailyCounters: Record<string, number> = { A: 0, B: 0, C: 0, V: 0 };
+  const dailyCounters: Record<string, number> = { D: 0, R: 0, O: 0, E: 0, C: 0, M: 0, S: 0, H: 0 };
   tickets.forEach(t => {
     const code = t.serviceCode;
     const match = t.ticketNumber.match(/-(\d+)$/);

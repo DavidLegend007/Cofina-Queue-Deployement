@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import QRCode from 'qrcode';
 import { createTicket, COFINA_SERVICES } from '../services/queueStore';
 
 /* ─── Design tokens (COFINA Brand Theme) ─────────────── */
@@ -23,22 +24,26 @@ const MD = {
 
 /* ─── 8 operations COFINA ────────────────────────────────────────────────── */
 const OPERATIONS = [
-  { id: 'op-depot',     code: 'A', label: 'Dépôt',               icon: 'payments',      filled: true,  primary: true  },
-  { id: 'op-retrait',   code: 'A', label: 'Retrait',             icon: 'money',         filled: false, primary: false },
-  { id: 'op-ouverture', code: 'B', label: 'Ouverture de compte', icon: 'person_add',    filled: false, primary: false },
+  { id: 'op-depot',     code: 'D', label: 'Dépôt',               icon: 'payments',      filled: true,  primary: true  },
+  { id: 'op-retrait',   code: 'R', label: 'Retrait',             icon: 'money',         filled: false, primary: false },
+  { id: 'op-ouverture', code: 'O', label: 'Ouverture de compte', icon: 'person_add',    filled: false, primary: false },
+  { id: 'op-epargne',   code: 'E', label: 'Épargne',             icon: 'savings',       filled: false, primary: false },
   { id: 'op-credit',    code: 'C', label: 'Crédit',              icon: 'credit_card',   filled: false, primary: false },
-  { id: 'op-epargne',   code: 'B', label: 'Épargne',             icon: 'savings',       filled: false, primary: false },
-  { id: 'op-remb',      code: 'C', label: 'Remboursement',       icon: 'receipt_long',  filled: false, primary: false },
-  { id: 'op-conseil',   code: 'V', label: 'Conseiller',          icon: 'support_agent', filled: false, primary: false },
-  { id: 'op-autres',    code: 'V', label: 'Autres services',     icon: 'apps',          filled: false, primary: false },
+  { id: 'op-remb',      code: 'M', label: 'Microcrédit & Remb.', icon: 'receipt_long',  filled: false, primary: false },
+  { id: 'op-conseil',   code: 'S', label: 'Service Client',      icon: 'support_agent', filled: false, primary: false },
+  { id: 'op-handicap',  code: 'H', label: 'Mobilité réduite',    icon: 'accessible',    filled: false, primary: false },
 ];
 
 /* ─── Thème couleur par service (Boarding Pass style) ─────────────────────── */
 const SERVICE_THEMES = {
-  A: { color: '#D3122A', gradient: 'linear-gradient(135deg, #D3122A 0%, #920020 100%)', bg: '#FFF0F0', border: '#fca5a5', emoji: '💵', vip: false },
-  B: { color: '#1D4ED8', gradient: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', bg: '#EFF6FF', border: '#93c5fd', emoji: '🏦', vip: false },
+  D: { color: '#D3122A', gradient: 'linear-gradient(135deg, #D3122A 0%, #920020 100%)', bg: '#FFF0F0', border: '#fca5a5', emoji: '💵', vip: false },
+  R: { color: '#D3122A', gradient: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)', bg: '#FEF2F2', border: '#fca5a5', emoji: '💸', vip: false },
+  O: { color: '#2563EB', gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', bg: '#EFF6FF', border: '#93c5fd', emoji: '🏦', vip: false },
+  E: { color: '#2563EB', gradient: 'linear-gradient(135deg, #60A5FA 0%, #2563EB 100%)', bg: '#EFF6FF', border: '#93c5fd', emoji: '🐷', vip: false },
   C: { color: '#B45309', gradient: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)', bg: '#FFFBEB', border: '#fcd34d', emoji: '📋', vip: false },
-  V: { color: '#059669', gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', bg: '#ECFDF5', border: '#6ee7b7', emoji: '⭐', vip: true  },
+  M: { color: '#B45309', gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', bg: '#FFFBEB', border: '#fcd34d', emoji: '🤝', vip: false },
+  S: { color: '#059669', gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', bg: '#ECFDF5', border: '#6ee7b7', emoji: '⭐', vip: true  },
+  H: { color: '#6D28D9', gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)', bg: '#F5F3FF', border: '#C4B5FD', emoji: '♿', vip: true  },
 };
 
 /* ─── Textes bilingues ────────────────────────────────────────────────────── */
@@ -57,7 +62,7 @@ const TEXTS = {
     audioNotice:    "Ticket créé, veuillez prendre place en salle d'attente",
     processingText: 'Génération de votre ticket…',
     qrHeader:       'TICKET NUMÉRIQUE (QR CODE)',
-    qrSub:          'Scannez le QR Code ci-dessous avec votre téléphone',
+    qrSub:          'Ouvrez l\'appareil photo de votre téléphone ou une application lecteur QR et visez ce code pour suivre votre rang',
     scanBtn:        'Scanner le QR Code (Mobile)',
     printBtn:       'Imprimer le ticket papier',
     printingText:   'Impression thermique 80mm en cours…',
@@ -77,7 +82,7 @@ const TEXTS = {
     audioNotice:    'Ticket issued, please have a seat in the waiting area',
     processingText: 'Generating your ticket…',
     qrHeader:       'DIGITAL TICKET (QR CODE)',
-    qrSub:          'Scan the QR Code below with your phone camera',
+    qrSub:          'Open your phone\'s camera or a QR scanner app and point it at this code to track your turn',
     scanBtn:        'Scan QR Code (Mobile)',
     printBtn:       'Print paper ticket',
     printingText:   '80mm thermal printing in progress…',
@@ -104,46 +109,15 @@ const MatIcon = ({ name, filled = false, size = 48 }) => (
   </span>
 );
 
-/* ─── QR Code SVG ─────────────────────────────────────────────────── */
-function QRCodeSVG({ value = '', size = 150 }) {
-  const cells = 21;
-  const cs = size / cells;
-  const seed = value.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  const finderBlocks = (rOff, cOff) => {
-    const pts = [];
-    for (let r = 0; r < 7; r++) {
-      for (let c = 0; c < 7; c++) {
-        const onEdge = r === 0 || r === 6 || c === 0 || c === 6;
-        const onCenter = r >= 2 && r <= 4 && c >= 2 && c <= 4;
-        if (onEdge || onCenter) pts.push([r + rOff, c + cOff]);
-      }
-    }
-    return pts;
-  };
-  const fixed = new Set([
-    ...finderBlocks(0, 0),
-    ...finderBlocks(0, 14),
-    ...finderBlocks(14, 0),
-  ].map(([r, c]) => `${r},${c}`));
-
-  const modules = [];
-  for (let r = 0; r < cells; r++) {
-    for (let c = 0; c < cells; c++) {
-      const key = `${r},${c}`;
-      const on = fixed.has(key)
-        ? true
-        : ((seed * (r + 1) * 31 + (c + 1) * 17) % 100) > 45;
-      if (on) modules.push([r, c]);
-    }
-  }
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} xmlns="http://www.w3.org/2000/svg">
-      <rect width={size} height={size} fill="white" />
-      {modules.map(([r, c]) => (
-        <rect key={`${r}-${c}`} x={c * cs} y={r * cs} width={cs} height={cs} fill="#1a1c1d" />
-      ))}
-    </svg>
-  );
+/* ─── Real QR Code ─────────────────────────────────────────────────── */
+function RealQRCode({ value = '', size = 150 }) {
+  const [src, setSrc] = useState('');
+  useEffect(() => {
+    QRCode.toDataURL(value, { width: size, margin: 1, color: { dark: '#1e40af', light: '#ffffff' } })
+      .then(setSrc)
+      .catch(console.error);
+  }, [value, size]);
+  return src ? <img src={src} alt="QR Code" width={size} height={size} style={{ borderRadius: '8px' }} /> : <div style={{ width: size, height: size }} />;
 }
 
 /* ─── CSS ─────────────────────────────────────────────────────────────────── */
@@ -258,9 +232,9 @@ const buildCSS = () => `
   /* ── Premium Ticket Card — Boarding Pass Style ───────────────────────── */
   .bn-ticket-card {
     background:#ffffff; border-radius:24px; overflow:hidden;
-    max-width:430px; width:100%;
+    max-width:780px; width:100%;
     box-shadow:0 28px 72px rgba(0,0,0,.32), 0 0 0 1px rgba(255,255,255,.08);
-    display:flex; flex-direction:column;
+    display:flex; flex-direction:row;
     animation:scaleUp .35s cubic-bezier(.175,.885,.32,1.275) forwards;
   }
 
@@ -294,10 +268,25 @@ const buildCSS = () => `
   }
   .bn-perf-circle {
     width:22px; height:22px; border-radius:50%; flex-shrink:0;
-    background:rgba(26,28,29,.62);
+    background:rgba(26,28,29,.65);
   }
   .bn-perforated-line {
     flex:1; border-top:2px dashed #e2e8f0;
+  }
+  
+  .bn-perforated-vertical {
+    display:flex; flex-direction:column; align-items:center; position:relative;
+    width: 0px; z-index: 2;
+  }
+  .bn-perf-circle-v {
+    width:22px; height:22px; border-radius:50%; flex-shrink:0;
+    background:rgba(26,28,29,.65);
+    position:absolute; left:-11px;
+  }
+  .bn-perf-circle-v:first-child { top:-11px; }
+  .bn-perf-circle-v:last-child { bottom:-11px; }
+  .bn-perforated-line-v {
+    flex:1; border-left:2px dashed #cbd5e1;
   }
 
   /* Body */
@@ -429,7 +418,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   const [isPrinting,     setIsPrinting]     = useState(false);
   const [printed,        setIsPrinted]      = useState(false);
   const [scanned,        setIsScanned]      = useState(false);
-  const [resetCountdown, setResetCountdown] = useState(15);
+  const [resetCountdown, setResetCountdown] = useState(30);
   const [showHelp,       setShowHelp]       = useState(false);
   const [clockTime,      setClockTime]      = useState(new Date());
   const [waitingCount,   setWaitingCount]   = useState(0);
@@ -445,10 +434,10 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   /* Countdown auto-reset */
   useEffect(() => {
     if (!issuedTicket) return;
-    setResetCountdown(15);
+    setResetCountdown(30);
     const id = setInterval(() => {
       setResetCountdown(prev => {
-        if (prev <= 1) { handleReset(); return 15; }
+        if (prev <= 1) { handleReset(); return 30; }
         return prev - 1;
       });
     }, 1000);
@@ -501,7 +490,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
     setIsPrinting(false);
     setIsPrinted(false);
     setIsScanned(false);
-    setResetCountdown(15);
+    setResetCountdown(30);
   };
 
   return (
@@ -602,59 +591,37 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
           <div className="bn-overlay" onClick={handleReset}>
             <div className="bn-ticket-card" onClick={e => e.stopPropagation()}>
 
-              {/* ── BANDEAU GRADIENT THÉMATIQUE ── */}
-              <div className="bn-ticket-banner" style={{ background: theme.gradient }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <img src="/COFINA.png" alt="Cofina" className="bn-ticket-banner-logo" />
-                  <span className="bn-ticket-banner-agency">📍 {agencyName}</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
-                  <span className="bn-ticket-service-badge">
-                    {theme.emoji} {issuedTicket.serviceName}
-                  </span>
-                  {theme.vip && (
-                    <span className="bn-ticket-vip-badge">★ ACCÈS PRIORITAIRE VIP</span>
-                  )}
-                </div>
-              </div>
-
-              {/* ── LIGNE PERFORÉE ── */}
-              <div className="bn-perforated">
-                <div className="bn-perf-circle" />
-                <div className="bn-perforated-line" />
-                <div className="bn-perf-circle" />
-              </div>
-
-              {/* ── CORPS DU TICKET ── */}
-              <div className="bn-ticket-body">
-
-                {/* Numéro de passage */}
-                <div className="bn-ticket-number-box">
-                  <span className="bn-receipt-label">{txt.ticketLabel}</span>
-                  <div className="bn-receipt-number" style={{ color: theme.color }}>
-                    {issuedTicket.ticketNumber}
+              {/* ── SECTION GAUCHE (INFOS TICKET) ── */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div className="bn-ticket-banner" style={{ background: theme.gradient }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    <img src="/COFINA.png" alt="Cofina" className="bn-ticket-banner-logo" />
+                    <span className="bn-ticket-banner-agency">📍 {agencyName}</span>
                   </div>
-                  <p className="bn-receipt-service">{issuedTicket.operationLabel}</p>
-                  <p className="bn-ticket-date">
-                    {dateStr.charAt(0).toUpperCase() + dateStr.slice(1)} · {timeStr}
-                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
+                    <span className="bn-ticket-service-badge">
+                      {theme.emoji} {issuedTicket.serviceName}
+                    </span>
+                    {theme.vip && (
+                      <span className="bn-ticket-vip-badge">★ ACCÈS PRIORITAIRE VIP</span>
+                    )}
+                  </div>
                 </div>
 
-                {/* QR Code — moyen principal */}
-                <div className="bn-qr-section">
-                  <div className="bn-qr-title">
-                    <span>📱</span>
-                    <span>Suivez votre rang sur mobile</span>
+                <div className="bn-ticket-body" style={{ flex: 1, justifyContent: 'center' }}>
+                  <div className="bn-ticket-number-box">
+                    <span className="bn-receipt-label">{txt.ticketLabel}</span>
+                    <div className="bn-receipt-number" style={{ color: theme.color }}>
+                      {issuedTicket.ticketNumber}
+                    </div>
+                    <p className="bn-receipt-service">{issuedTicket.operationLabel}</p>
+                    <p className="bn-ticket-date">
+                      {dateStr.charAt(0).toUpperCase() + dateStr.slice(1)} · {timeStr}
+                    </p>
                   </div>
-                  <div className="bn-qr-box">
-                    <QRCodeSVG value={`https://cofina.tg/q/${issuedTicket.ticketNumber}`} size={118} />
-                  </div>
-                  <div className="bn-qr-pulse">
-                    <div className="bn-pulse-dot" />
-                    <span>SUIVI EN DIRECT · SCAN CAMÉRA</span>
-                  </div>
+                  
                   {waitingCount >= 0 && (
-                    <div className="bn-wait-info">
+                    <div className="bn-wait-info" style={{ marginTop: '16px' }}>
                       {waitingCount === 0
                         ? '🎉 Vous êtes le prochain ! Approchez-vous d\'un guichet.'
                         : `👥 ~${waitingCount} personne${waitingCount > 1 ? 's' : ''} avant vous · Attente estimée ~${estWait} min`
@@ -662,32 +629,51 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                     </div>
                   )}
                 </div>
+
+                <div className="bn-ticket-footer" style={{ paddingBottom: '24px' }}>
+                  <button
+                    type="button"
+                    className={`bn-print-action-btn ${printed ? 'printed' : ''}`}
+                    onClick={handlePrintTicket}
+                    disabled={isPrinting}
+                  >
+                    <MatIcon name={printed ? 'check_circle' : 'print'} size={15} />
+                    <span>
+                      {isPrinting ? 'Impression en cours…' : printed ? '✓ Reçu papier imprimé !' : '🖨️ Imprimer un reçu papier (Optionnel)'}
+                    </span>
+                  </button>
+                  <button className="bn-finish-btn" onClick={handleReset}>
+                    <span>TERMINER ({resetCountdown}s)</span>
+                    <MatIcon name="arrow_forward" size={15} />
+                  </button>
+                </div>
               </div>
 
-              {/* ── LIGNE PERFORÉE ── */}
-              <div className="bn-perforated">
-                <div className="bn-perf-circle" />
-                <div className="bn-perforated-line" />
-                <div className="bn-perf-circle" />
+              {/* ── LIGNE PERFORÉE VERTICALE ── */}
+              <div className="bn-perforated-vertical">
+                <div className="bn-perf-circle-v" />
+                <div className="bn-perforated-line-v" />
+                <div className="bn-perf-circle-v" />
               </div>
 
-              {/* ── PIED DU TICKET ── */}
-              <div className="bn-ticket-footer">
-                <button
-                  type="button"
-                  className={`bn-print-action-btn ${printed ? 'printed' : ''}`}
-                  onClick={handlePrintTicket}
-                  disabled={isPrinting}
-                >
-                  <MatIcon name={printed ? 'check_circle' : 'print'} size={15} />
-                  <span>
-                    {isPrinting ? 'Impression en cours…' : printed ? '✓ Reçu papier imprimé !' : '🖨️ Imprimer un reçu papier (Optionnel)'}
-                  </span>
-                </button>
-                <button className="bn-finish-btn" onClick={handleReset}>
-                  <span>TERMINER ({resetCountdown}s)</span>
-                  <MatIcon name="arrow_forward" size={15} />
-                </button>
+              {/* ── SECTION DROITE (QR CODE) ── */}
+              <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', padding: '32px 24px', background: '#f8faff', justifyContent: 'center' }}>
+                <div className="bn-qr-section" style={{ border: 'none', background: 'transparent', padding: 0 }}>
+                  <div className="bn-qr-title" style={{ fontSize: '13px', marginBottom: '12px' }}>
+                    <span>📱</span>
+                    <span>TICKET NUMÉRIQUE</span>
+                  </div>
+                  <div className="bn-qr-box" style={{ padding: '16px' }}>
+                    <RealQRCode value={`https://cofina.tg/q/${issuedTicket.ticketNumber}`} size={160} />
+                  </div>
+                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#1e40af', textAlign: 'center', margin: '20px 0', lineHeight: '1.5' }}>
+                    {txt.qrSub}
+                  </p>
+                  <div className="bn-qr-pulse">
+                    <div className="bn-pulse-dot" />
+                    <span>SUIVI EN DIRECT SUR MOBILE</span>
+                  </div>
+                </div>
               </div>
 
             </div>

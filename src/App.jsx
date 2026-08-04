@@ -90,6 +90,7 @@ export default function App() {
         <FloatingTellerWidget 
           lang={lang}
           tickets={storeState.tickets || []}
+          onlineCounters={storeState.onlineCounters || []}
           agencyName={currentAgency.name}
           onStateChange={() => updateLocalState()}
           isStandalone={true}
@@ -169,6 +170,7 @@ export default function App() {
           <AgentModule 
             agencyName={currentAgency.name}
             tickets={storeState.tickets || []}
+            onlineCounters={storeState.onlineCounters || []}
             lang={lang}
           />
         )}
@@ -183,11 +185,12 @@ export default function App() {
         )}
       </main>
 
-      {/* GLOBAL FLOATING TELLER WIDGET (OVERLAY ACCESSIBLE FROM ANY SCREEN) */}
-      {showFloatingWidget && (
+      {/* GLOBAL FLOATING TELLER WIDGET (ONLY ON AGENT PAGE OR EXPLICITLY SHOWN) */}
+      {showFloatingWidget && activeModule === 'agent' && (
         <FloatingTellerWidget 
           lang={lang}
           tickets={storeState.tickets || []}
+          onlineCounters={storeState.onlineCounters || []}
           agencyName={currentAgency.name}
           onStateChange={() => updateLocalState()}
         />

@@ -16,6 +16,7 @@ import {
   X, 
   Building2,
   RefreshCw,
+  Check,
   Search,
   CreditCard,
   DollarSign,
@@ -26,13 +27,15 @@ import {
   callNextTicket, 
   recallTicket, 
   updateTicketStatus, 
-  getStoredAgentProfiles 
+  getStoredAgentProfiles,
+  toggleCounterStatus
 } from '../services/queueStore';
 import { translations } from '../services/translations';
 
 export default function FloatingTellerWidget({ 
   lang = 'fr', 
   tickets = [], 
+  onlineCounters = [],
   agencyName = 'Agence Siège Kodjoviakopé',
   onStateChange = () => {},
   isStandalone = false
@@ -70,6 +73,13 @@ export default function FloatingTellerWidget({
   );
 
   const waitingTickets = tickets.filter(tk => tk.status === 'WAITING');
+  
+  const isOnline = onlineCounters.includes(counterNumber);
+
+  const handleToggleOnline = () => {
+    toggleCounterStatus(counterNumber, !isOnline);
+    onStateChange();
+  };
 
   // Service timer
   useEffect(() => {
@@ -112,6 +122,13 @@ export default function FloatingTellerWidget({
   const handleNoShow = () => {
     if (activeTicket) {
       updateTicketStatus(activeTicket.id, 'NO_SHOW');
+      onStateChange();
+    }
+  };
+
+  const handleStartProcessing = () => {
+    if (activeTicket) {
+      updateTicketStatus(activeTicket.id, 'IN_PROGRESS');
       onStateChange();
     }
   };
@@ -294,6 +311,16 @@ export default function FloatingTellerWidget({
                 </select>
               </div>
 
+              <button 
+                type="button" 
+                className={`widget-btn-toggle ${isOnline ? 'online' : 'offline'}`}
+                onClick={handleToggleOnline}
+                title="Basculer le statut de la Caisse (Ouverte / Fermée)"
+              >
+                <div className={`status-dot ${isOnline ? 'dot-online' : 'dot-offline'}`}></div>
+                <span>{isOnline ? 'Ouverte' : 'Fermée'}</span>
+              </button>
+
               <div className="widget-waiting-badge">
                 <span className="pulse-indicator"></span>
                 <span><strong>{waitingTickets.length}</strong> {t.agentWaitingCount}</span>
@@ -339,6 +366,15 @@ export default function FloatingTellerWidget({
               </button>
 
               <button 
+                className="widget-btn btn-processing"
+                onClick={handleStartProcessing}
+                disabled={!activeTicket || activeTicket.status === 'IN_PROGRESS'}
+              >
+                <Check size={16} />
+                <span>En traitement</span>
+              </button>
+
+              <button 
                 className="widget-btn btn-recall"
                 onClick={handleRecall}
                 disabled={!activeTicket}
@@ -346,7 +382,7 @@ export default function FloatingTellerWidget({
                 <Volume2 size={16} />
                 <span>{t.widgetBtnRecall}</span>
               </button>
-
+              
               <button 
                 className="widget-btn btn-noshow"
                 onClick={handleNoShow}
@@ -567,6 +603,46 @@ export default function FloatingTellerWidget({
           outline: none;
         }
 
+        .widget-btn-toggle {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.25rem 0.5rem;
+          border-radius: 99px;
+          border: 1px solid transparent;
+          font-size: 0.7rem;
+          font-weight: 800;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .widget-btn-toggle.online {
+          background: #ECFDF5;
+          color: #059669;
+          border-color: #A7F3D0;
+        }
+
+        .widget-btn-toggle.offline {
+          background: #FEF2F2;
+          color: #DC2626;
+          border-color: #FECACA;
+        }
+
+        .status-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+        }
+
+        .dot-online {
+          background: #10B981;
+          box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+        }
+
+        .dot-offline {
+          background: #EF4444;
+        }
+
         .widget-waiting-badge {
           display: flex;
           align-items: center;
@@ -718,6 +794,17 @@ export default function FloatingTellerWidget({
 
         .btn-call-next:hover {
           background: #B91C1C;
+        }
+
+        .btn-processing {
+          grid-column: span 2;
+          background: #E0F2FE;
+          color: #0284C7;
+          border: 1px solid #BAE6FD;
+        }
+
+        .btn-processing:hover:not(:disabled) {
+          background: #BAE6FD;
         }
 
         .btn-recall {

@@ -1,21 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  User, 
-  Megaphone, 
-  RotateCw, 
-  ArrowRight, 
-  CheckCircle2, 
-  Clock, 
-  Filter, 
-  Layers, 
-  FileDown, 
-  Edit3, 
-  X, 
-  Check, 
-  Users, 
-  Sparkles,
-  Award,
-  ChevronRight
+  User, Megaphone, RotateCw, ArrowRight, CheckCircle2, Clock, Filter, Layers, 
+  FileDown, Edit3, X, Check, Users, Sparkles, Award, ChevronRight, Play, UserX 
 } from 'lucide-react';
 import { 
   INITIAL_AGENTS,
@@ -25,12 +11,14 @@ import {
   recallTicket, 
   processNextTicket,
   updateTicketStatus,
-  exportAgencyDataCSV 
+  exportAgencyDataCSV,
+  generateSimulationTickets,
+  toggleCounterStatus
 } from '../services/queueStore';
 import { translations } from '../services/translations';
 import ProfilePage from './ProfilePage';
 
-export default function AgentModule({ agencyName, tickets, lang = 'fr' }) {
+export default function AgentModule({ agencyName, tickets, onlineCounters = [], lang = 'fr' }) {
   const t = translations[lang] || translations.fr;
   // Agent profiles list from stored state
   const [agentsList, setAgentsList] = useState(() => getStoredAgentProfiles());
@@ -53,6 +41,12 @@ export default function AgentModule({ agencyName, tickets, lang = 'fr' }) {
   // Profile Full Page State
   const [isProfilePageOpen, setIsProfilePageOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const isOnline = onlineCounters.includes(counterNumber);
+
+  const handleToggleOnline = () => {
+    toggleCounterStatus(counterNumber, !isOnline);
+  };
 
   const selectedAgent = agentsList.find(a => a.id === selectedAgentId) || agentsList[0];
 
@@ -111,6 +105,14 @@ export default function AgentModule({ agencyName, tickets, lang = 'fr' }) {
     setCurrentTicket(nextTicket);
   };
 
+  // ACTION: Simulation instantanée (Générer des tickets de test)
+  const handleSimulate = () => {
+    generateSimulationTickets();
+    setTimeout(() => {
+      handleSuivant();
+    }, 150);
+  };
+
   // ACTION: Rappeler
   const handleRappeler = () => {
     if (currentTicket) {
@@ -122,6 +124,21 @@ export default function AgentModule({ agencyName, tickets, lang = 'fr' }) {
   const handleNoShow = () => {
     if (currentTicket) {
       updateTicketStatus(currentTicket.id, 'NO_SHOW');
+      setCurrentTicket(null);
+    }
+  };
+
+  // ACTION: En traitement
+  const handleEnTraitement = () => {
+    if (currentTicket) {
+      updateTicketStatus(currentTicket.id, 'IN_PROGRESS');
+    }
+  };
+
+  // ACTION: Terminer
+  const handleTerminer = () => {
+    if (currentTicket) {
+      updateTicketStatus(currentTicket.id, 'COMPLETED');
       setCurrentTicket(null);
     }
   };
@@ -146,6 +163,18 @@ export default function AgentModule({ agencyName, tickets, lang = 'fr' }) {
   const formattedTimeStr = currentTime.toLocaleTimeString('fr-FR', { 
     hour: '2-digit', minute: '2-digit', second: '2-digit' 
   });
+
+  if (isProfilePageOpen) {
+    return (
+      <ProfilePage
+        agentId={selectedAgent.id}
+        agencyName={agencyName}
+        tickets={tickets}
+        onClose={handleProfileClose}
+        lang={lang}
+      />
+    );
+  }
 
   return (
     <div className="agent-container">
@@ -192,12 +221,33 @@ export default function AgentModule({ agencyName, tickets, lang = 'fr' }) {
           </div>
         </div>
 
+        {/* Status Toggle */}
+        <div className="counter-status-toggle">
+          <button 
+            type="button" 
+            className={`btn-toggle-status ${isOnline ? 'online' : 'offline'}`}
+            onClick={handleToggleOnline}
+          >
+            <div className={`status-dot ${isOnline ? 'dot-online' : 'dot-offline'}`}></div>
+            <span>{isOnline ? 'Caisse Ouverte' : 'Caisse Fermée'}</span>
+          </button>
+        </div>
+
         {/* Clock with Seconds & Profile Button */}
         <div className="topbar-actions">
           <div className="agent-clock-badge">
             <Clock size={15} />
             <span className="agent-clock-time">{formattedTimeStr}</span>
           </div>
+
+          <button 
+            type="button"
+            className="btn-simulate-quick"
+            onClick={handleSimulate}
+            title="Générer 5 tickets de test instantanément pour la simulation"
+          >
+            <Sparkles size={16} /> ⚡ Simulation (+5 Tickets)
+          </button>
 
           <button 
             type="button"
@@ -244,37 +294,6 @@ export default function AgentModule({ agencyName, tickets, lang = 'fr' }) {
                 </div>
               </div>
 
-              {/* Simplified Action Buttons Row */}
-              <div className="simplified-actions-bar">
-                <button
-                  type="button"
-                  className="btn-action btn-recall"
-                  onClick={handleRappeler}
-                >
-                  <RotateCw size={22} />
-                  <span>Rappeler</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="btn-action btn-next-primary"
-                  onClick={handleSuivant}
-                >
-                  <span>Suivant</span>
-                  <ArrowRight size={26} />
-                </button>
-              </div>
-
-              {/* Minimal secondary action */}
-              <div className="secondary-options">
-                <button 
-                  type="button" 
-                  className="btn-no-show"
-                  onClick={handleNoShow}
-                >
-                  Client Absent (No Show)
-                </button>
-              </div>
             </div>
           ) : (
             <div className="idle-workspace">
@@ -285,20 +304,73 @@ export default function AgentModule({ agencyName, tickets, lang = 'fr' }) {
               <p>
                 {waitingTickets.length > 0
                   ? `Il y a ${waitingTickets.length} client(s) en attente.`
-                  : "Aucun client en attente pour le moment."}
+                  : "Aucun client en attente pour le moment. Cliquez sur le bouton ci-dessous pour démarrer une simulation avec 5 tickets de test."}
               </p>
 
-              <button
-                type="button"
-                className="btn-call-first-big"
-                onClick={handleSuivant}
-                disabled={waitingTickets.length === 0}
-              >
-                <span>Appeler Client Suivant</span>
-                <ArrowRight size={24} />
-              </button>
+              {waitingTickets.length === 0 && (
+                <button
+                  type="button"
+                  className="btn-call-first-big btn-sim-highlight"
+                  onClick={handleSimulate}
+                >
+                  <Sparkles size={24} />
+                  <span>⚡ Lancer une Simulation (Générer 5 Tickets Test)</span>
+                </button>
+              )}
             </div>
           )}
+
+          {/* Action Buttons Grid (Always Visible) */}
+          <div className="agent-actions-grid" style={{ marginTop: 'auto', paddingTop: '2rem' }}>
+            <button
+              type="button"
+              className="btn-action btn-next-primary"
+              onClick={handleSuivant}
+            >
+              <Play size={22} />
+              <span>Suivant</span>
+            </button>
+            
+            <button
+              type="button"
+              className="btn-action btn-processing"
+              onClick={handleEnTraitement}
+              disabled={!currentTicket || currentTicket.status === 'IN_PROGRESS'}
+            >
+              <Check size={22} />
+              <span>En traitement</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn-action btn-recall"
+              onClick={handleRappeler}
+              disabled={!currentTicket}
+            >
+              <RotateCw size={20} />
+              <span>Rappeler</span>
+            </button>
+            
+            <button 
+              type="button" 
+              className="btn-action btn-noshow"
+              onClick={handleNoShow}
+              disabled={!currentTicket}
+            >
+              <UserX size={20} />
+              <span>Absent</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn-action btn-complete"
+              onClick={handleTerminer}
+              disabled={!currentTicket}
+            >
+              <CheckCircle2 size={22} />
+              <span>Terminer</span>
+            </button>
+          </div>
         </main>
 
         {/* Right Column: Queue Sidebar */}
@@ -542,6 +614,73 @@ export default function AgentModule({ agencyName, tickets, lang = 'fr' }) {
           color: #0F172A;
         }
 
+        .counter-status-toggle {
+          display: flex;
+          align-items: center;
+          margin: 0 1rem;
+        }
+
+        .btn-toggle-status {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 1rem;
+          border-radius: 99px;
+          border: 1px solid transparent;
+          font-weight: 800;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-toggle-status.online {
+          background: #ECFDF5;
+          color: #059669;
+          border-color: #A7F3D0;
+        }
+
+        .btn-toggle-status.offline {
+          background: #FEF2F2;
+          color: #DC2626;
+          border-color: #FECACA;
+        }
+
+        .status-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+
+        .dot-online {
+          background: #10B981;
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+        }
+
+        .dot-offline {
+          background: #EF4444;
+        }
+
+        .btn-simulate-quick {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.45rem;
+          background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+          color: #FFFFFF;
+          border: none;
+          padding: 0.5rem 0.9rem;
+          border-radius: 12px;
+          font-weight: 700;
+          font-size: 0.82rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+        }
+
+        .btn-simulate-quick:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+        }
+
         .btn-profile-edit {
           display: inline-flex;
           align-items: center;
@@ -668,61 +807,83 @@ export default function AgentModule({ agencyName, tickets, lang = 'fr' }) {
           color: #334155;
         }
 
-        .simplified-actions-bar {
+        .agent-actions-grid {
           display: grid;
-          grid-template-columns: 1fr 2fr;
-          gap: 1rem;
+          grid-template-columns: 1fr 1fr;
+          gap: 0.75rem;
         }
 
         .btn-action {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 0.75rem;
-          padding: 1.1rem;
-          border-radius: 14px;
+          gap: 0.5rem;
+          padding: 1rem;
+          border-radius: 12px;
           font-weight: 800;
-          font-size: 1.1rem;
+          font-size: 1rem;
           cursor: pointer;
           border: none;
           transition: all 0.2s;
         }
 
-        .btn-recall {
-          background: #F1F5F9;
-          color: #334155;
-        }
-
-        .btn-recall:hover {
-          background: #E2E8F0;
+        .btn-action:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
         .btn-next-primary {
+          grid-column: span 2;
           background: linear-gradient(135deg, #D3122A, #B90E23);
           color: #FFFFFF;
-          box-shadow: 0 8px 24px rgba(211, 18, 42, 0.35);
+          box-shadow: 0 4px 12px rgba(211, 18, 42, 0.25);
         }
 
         .btn-next-primary:hover {
           transform: translateY(-2px);
-          box-shadow: 0 12px 30px rgba(211, 18, 42, 0.45);
+          box-shadow: 0 6px 16px rgba(211, 18, 42, 0.35);
         }
 
-        .secondary-options {
-          text-align: center;
+        .btn-processing {
+          grid-column: span 2;
+          background: #E0F2FE;
+          color: #0284C7;
+          border: 1px solid #BAE6FD;
         }
 
-        .btn-no-show {
-          background: transparent;
-          border: none;
-          color: #94A3B8;
-          font-size: 0.85rem;
-          font-weight: 700;
-          cursor: pointer;
-          text-decoration: underline;
+        .btn-processing:hover:not(:disabled) {
+          background: #BAE6FD;
         }
 
-        .btn-no-show:hover { color: #DC2626; }
+        .btn-recall {
+          background: #F1F5F9;
+          color: #334155;
+          border: 1px solid #CBD5E1;
+        }
+
+        .btn-recall:hover:not(:disabled) {
+          background: #E2E8F0;
+        }
+
+        .btn-noshow {
+          background: #FEF2F2;
+          color: #DC2626;
+          border: 1px solid #FCA5A5;
+        }
+
+        .btn-noshow:hover:not(:disabled) {
+          background: #FEE2E2;
+        }
+
+        .btn-complete {
+          grid-column: span 2;
+          background: #0F172A;
+          color: #FFFFFF;
+        }
+
+        .btn-complete:hover:not(:disabled) {
+          background: #1E293B;
+        }
 
         .idle-workspace {
           text-align: center;
@@ -756,6 +917,17 @@ export default function AgentModule({ agencyName, tickets, lang = 'fr' }) {
           font-weight: 800;
           cursor: pointer;
           box-shadow: 0 8px 24px rgba(211, 18, 42, 0.35);
+          transition: all 0.2s;
+        }
+
+        .btn-call-first-big.btn-sim-highlight {
+          background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+          box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-call-first-big.btn-sim-highlight:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 28px rgba(37, 99, 235, 0.5);
         }
 
         .btn-call-first-big:disabled {

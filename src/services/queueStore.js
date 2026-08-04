@@ -77,45 +77,16 @@ export const exportAgencyDataCSV = (tickets, agencyName) => {
   document.body.removeChild(link);
 };
 
-// 4 Services SIMPLIFIÉS et pertinents pour la Microfinance à Lomé
+// 8 Services pour la Microfinance
 export const COFINA_SERVICES = [
-  {
-    code: 'A',
-    name: 'Dépôt & Retrait d\'Espèces',
-    description: 'Versements urgents, retraits caisse, dépôts de marché',
-    color: '#D3122A',
-    avgTimeMin: 3,
-    icon: 'Banknote',
-    badge: 'Service N°1'
-  },
-  {
-    code: 'B',
-    name: 'Épargne & Tontine / Compte',
-    description: 'Versements tontine, ouvertures de compte, livrets',
-    color: '#2563EB',
-    avgTimeMin: 8,
-    icon: 'UserPlus',
-    badge: 'Épargne'
-  },
-  {
-    code: 'C',
-    name: 'Crédit & Microcrédit',
-    description: 'Demandes de prêts commerçants, remboursements dossiers',
-    color: '#D97706',
-    avgTimeMin: 10,
-    icon: 'Briefcase',
-    badge: 'Financement'
-  },
-  {
-    code: 'V',
-    name: 'Service Client & Prioritaire',
-    description: 'Mamans commerçantes, VIP, renseignements & réclamations',
-    color: '#059669',
-    isPriority: true,
-    avgTimeMin: 4,
-    icon: 'Crown',
-    badge: 'Prioritaire'
-  }
+  { code: 'D', name: 'Dépôt', description: 'Versements urgents, dépôts de marché', color: '#D3122A', avgTimeMin: 3, icon: 'Banknote', badge: 'Dépôt' },
+  { code: 'R', name: 'Retrait', description: 'Retraits caisse', color: '#D3122A', avgTimeMin: 3, icon: 'Money', badge: 'Retrait' },
+  { code: 'O', name: 'Ouverture de compte', description: 'Nouveaux livrets', color: '#2563EB', avgTimeMin: 12, icon: 'UserPlus', badge: 'Compte' },
+  { code: 'E', name: 'Épargne', description: 'Versements tontine', color: '#2563EB', avgTimeMin: 6, icon: 'PiggyBank', badge: 'Épargne' },
+  { code: 'C', name: 'Crédit', description: 'Demandes de prêts', color: '#D97706', avgTimeMin: 15, icon: 'Briefcase', badge: 'Financement' },
+  { code: 'M', name: 'Microcrédit & Remb.', description: 'Remboursements', color: '#D97706', avgTimeMin: 8, icon: 'Receipt', badge: 'Remboursement' },
+  { code: 'S', name: 'Service Client', description: 'Renseignements', color: '#059669', isPriority: true, avgTimeMin: 5, icon: 'Support', badge: 'Assistance' },
+  { code: 'H', name: 'Handicap', description: 'Mobilité réduite', color: '#8B5CF6', isPriority: true, avgTimeMin: 5, icon: 'Accessible', badge: 'Handicap' }
 ];
 
 // 4 CAISSES / CAISSIERS
@@ -272,12 +243,13 @@ const getInitialState = () => {
   return {
     currentAgencyId: 'AGC-01',
     agencyName: 'Agence Siège Kodjoviakopé (Lomé)',
-    dailyCounter: { A: 8, B: 3, C: 4, V: 2 },
+    dailyCounter: { D: 0, R: 0, O: 0, E: 0, C: 0, M: 0, S: 0, H: 0 },
+    onlineCounters: [],
     lastCalledTicket: {
       id: 'seed-called-1',
-      ticketNumber: 'A-008',
-      serviceCode: 'A',
-      serviceName: 'Dépôt & Retrait d\'Espèces',
+      ticketNumber: 'D-001',
+      serviceCode: 'D',
+      serviceName: 'Dépôt',
       counterNumber: 1,
       agentName: 'Mensah Koffi',
       calledAt: makeTime(1),
@@ -286,9 +258,9 @@ const getInitialState = () => {
     tickets: [
       {
         id: 'seed-waiting-1',
-        ticketNumber: 'V-002',
-        serviceCode: 'V',
-        serviceName: 'Service Client & Prioritaire',
+        ticketNumber: 'S-001',
+        serviceCode: 'S',
+        serviceName: 'Service Client',
         priority: true,
         customerPhone: null,
         status: 'WAITING',
@@ -298,9 +270,9 @@ const getInitialState = () => {
       },
       {
         id: 'seed-waiting-2',
-        ticketNumber: 'A-009',
-        serviceCode: 'A',
-        serviceName: 'Dépôt & Retrait d\'Espèces',
+        ticketNumber: 'D-002',
+        serviceCode: 'D',
+        serviceName: 'Dépôt',
         priority: false,
         customerPhone: null,
         status: 'WAITING',
@@ -310,9 +282,9 @@ const getInitialState = () => {
       },
       {
         id: 'seed-waiting-3',
-        ticketNumber: 'B-004',
-        serviceCode: 'B',
-        serviceName: 'Épargne & Tontine / Compte',
+        ticketNumber: 'E-001',
+        serviceCode: 'E',
+        serviceName: 'Épargne',
         priority: false,
         customerPhone: null,
         status: 'WAITING',
@@ -322,9 +294,9 @@ const getInitialState = () => {
       },
       {
         id: 'seed-called-1',
-        ticketNumber: 'A-008',
-        serviceCode: 'A',
-        serviceName: 'Dépôt & Retrait d\'Espèces',
+        ticketNumber: 'D-001',
+        serviceCode: 'D',
+        serviceName: 'Dépôt',
         counterNumber: 1,
         agentId: 'AGT-01',
         agentName: 'Mensah Koffi',
@@ -335,9 +307,9 @@ const getInitialState = () => {
       },
       {
         id: 'seed-inprog-1',
-        ticketNumber: 'A-007',
-        serviceCode: 'A',
-        serviceName: 'Dépôt & Retrait d\'Espèces',
+        ticketNumber: 'R-001',
+        serviceCode: 'R',
+        serviceName: 'Retrait',
         counterNumber: 2,
         agentId: 'AGT-02',
         agentName: 'Amégadjie Afiwa',
@@ -476,13 +448,31 @@ export const resetWeeklyAgencyQueue = () => {
 export const resetAgencyQueue = resetWeeklyAgencyQueue;
 
 
-// Create a new ticket (From Kiosk - No phone/email required)
+// Toggle Counter Online Status
+export const toggleCounterStatus = (counterNumber, isOnline) => {
+  const state = getStoredState();
+  let onlineCounters = state.onlineCounters || [];
+  
+  if (isOnline) {
+    if (!onlineCounters.includes(counterNumber)) {
+      onlineCounters = [...onlineCounters, counterNumber].sort();
+    }
+  } else {
+    onlineCounters = onlineCounters.filter(c => c !== counterNumber);
+  }
+
+  const updatedState = { ...state, onlineCounters };
+  saveStoredState(updatedState);
+};
+
+// Create a new ticket (From Kiosk)
 export const createTicket = (serviceCode, customerPhone = null, customerEmail = null, lang = 'fr') => {
   const state = getStoredState();
   const service = COFINA_SERVICES.find(s => s.code === serviceCode) || COFINA_SERVICES[0];
 
   const currentCount = (state.dailyCounter[serviceCode] || 0) + 1;
   const ticketNumber = `${serviceCode}-${String(currentCount).padStart(3, '0')}`;
+  const now = new Date().toISOString();
 
   const newTicket = {
     id: 't_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
@@ -496,10 +486,32 @@ export const createTicket = (serviceCode, customerPhone = null, customerEmail = 
     counterNumber: null,
     agentId: null,
     agentName: null,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
     calledAt: null,
     completedAt: null
   };
+
+  // AUTO-ASSIGN LOGIC (Find a free, online counter)
+  const activeCounters = new Set(
+    state.tickets
+      .filter(t => t.status === 'CALLED' || t.status === 'IN_PROGRESS')
+      .map(t => t.counterNumber)
+  );
+
+  let freeCounter = null;
+  const onlineCounters = state.onlineCounters || [];
+  for (const counter of onlineCounters) {
+    if (!activeCounters.has(counter)) {
+      freeCounter = counter;
+      break;
+    }
+  }
+
+  if (freeCounter) {
+    newTicket.status = 'CALLED';
+    newTicket.counterNumber = freeCounter;
+    newTicket.calledAt = now;
+  }
 
   const updatedState = {
     ...state,
@@ -510,11 +522,27 @@ export const createTicket = (serviceCode, customerPhone = null, customerEmail = 
     tickets: [newTicket, ...state.tickets]
   };
 
+  if (freeCounter) {
+    updatedState.lastCalledTicket = newTicket;
+  }
+
   saveStoredState(updatedState);
   
-  // (Note: Voice synthesis on kiosk creation removed per requirement - voice remains active on teller call)
+  if (freeCounter) {
+    playCallChime();
+    speakTicketCall(newTicket.ticketNumber, freeCounter, lang);
+  }
 
   return newTicket;
+};
+
+// Generate 4-5 test tickets for quick Teller Simulation
+export const generateSimulationTickets = () => {
+  createTicket('S'); // Prioritaire (Client VIP)
+  createTicket('D'); // Dépôt
+  createTicket('E'); // Épargne
+  createTicket('C'); // Crédit
+  createTicket('R'); // Retrait
 };
 
 // Call Next Ticket (From Teller Workstation - Caisse 1-4)

@@ -9,6 +9,7 @@ import {
   Users
 } from 'lucide-react';
 import { translations } from '../services/translations';
+import { COFINA_SERVICES } from '../services/queueStore';
 
 export default function DisplayModule({ agencyName, tickets, lastCalledTicket, lang = 'fr' }) {
   const t = translations[lang] || translations.fr;

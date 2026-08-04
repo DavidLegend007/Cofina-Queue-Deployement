@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",
+    "cofina-queue-v1": "file:..",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
