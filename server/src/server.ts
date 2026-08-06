@@ -4,10 +4,23 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import os from 'os';
 
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'cofina_edge_togo_secret_key_2026';
 const AGENT_PASSWORD = process.env.AGENT_PASSWORD || 'cofina2026';
+
+function getLocalIpAddress() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] || []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
 
 const prisma = new PrismaClient();
 const app = express();
@@ -21,6 +34,10 @@ const io = new Server(httpServer, {
 
 app.use(cors());
 app.use(express.json());
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', agency: 'Kodjoviakopé (Lomé)', timestamp: new Date() });
+});
 
 // JWT Authentication Middleware for Protected Teller/Agent Routes
 function authenticateToken(req: any, res: any, next: any) {
@@ -424,12 +441,19 @@ io.on('connection', async (socket) => {
   });
 });
 
-httpServer.listen(PORT, () => {
+httpServer.listen(Number(PORT), '0.0.0.0', () => {
+  const localIp = getLocalIpAddress();
   console.log(`====================================================`);
   console.log(`🚀 SERVEUR EDGE COFINA TOGO — PERSISTANCE SQLITE ACTIVE`);
   console.log(`📍 Agence : Kodjoviakopé, Lomé`);
-  console.log(`🌐 REST & Socket.io Server : http://localhost:${PORT}`);
-  console.log(`💚 Health Monitoring : http://localhost:${PORT}/health`);
+  console.log(`🌐 Serveur Local (Host) : http://localhost:${PORT}`);
+  console.log(`🌐 Serveur Réseau (LAN)  : http://${localIp}:${PORT}`);
+  console.log(`----------------------------------------------------`);
+  console.log(`📲 ADRESSES POUR LES AUTRES MACHINES DU RÉSEAU LOCAL :`);
+  console.log(`   👉 Borne Tactile   : http://${localIp}:3000/?kiosk`);
+  console.log(`   👉 Écran TV        : http://${localIp}:3000/?display`);
+  console.log(`   👉 Espace Caissier : http://${localIp}:3000/?agent`);
+  console.log(`   👉 Admin / Config  : http://${localIp}:3000/?admin`);
   console.log(`====================================================`);
 });
 

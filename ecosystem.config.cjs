@@ -5,6 +5,7 @@ module.exports = {
       script: "./server/dist/server.js",
       cwd: "./",
       instances: 1,
+      exec_mode: "fork",
       autorestart: true,
       watch: false,
       max_memory_restart: "500M",
@@ -19,7 +20,9 @@ module.exports = {
       args: "preview --host --port 3000",
       cwd: "./",
       instances: 1,
+      exec_mode: "fork",
       autorestart: true,
+      watch: false,
       env: {
         NODE_ENV: "production"
       }
