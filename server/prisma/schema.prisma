@@ -82,6 +82,7 @@ model Ticket {
 
   createdAt         DateTime  @default(now())
   calledAt          DateTime?
+  startedAt         DateTime?
   completedAt       DateTime?
   satisfactionScore Int?
 

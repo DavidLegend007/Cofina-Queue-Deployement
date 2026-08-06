@@ -1,7 +1,7 @@
 # 🏦 COFINA QUEUE SYSTEM V1 — Système de Gestion de File d'Attente Edge Local
 
 <p align="center">
-  <img src="public/COFINA.png" alt="Cofina Togo Logo" width="220"/>
+  <img src="public/cofina.jpeg" alt="Cofina Togo Logo" width="220"/>
 </p>
 
 <p align="center">
@@ -67,17 +67,23 @@ graph TD
 ## 🚀 LES MODULES DU SYSTÈME
 
 ### 1. 🖥️ Borne Tactile Kiosque (`KioskModule.jsx`)
-- 8 Services Spécialisés :
-   - **D** : Dépôt
-   - **R** : Retrait
-   - **O** : Ouverture de compte
-   - **E** : Épargne
-   - **C** : Crédit
-   - **M** : Microcrédit & Remb.
-   - **S** : Service Client
-   - **H** : Handicap
+- **12 Services Officiels COFINA Togo (avec 12 Icônes Uniques)** :
+   - **D** : Dépôt (💵 Banknote)
+   - **R** : Retrait (👛 Wallet)
+   - **TN** : Transfert national (📤 Send)
+   - **TI** : Transfert international (🌐 Globe)
+   - **O** : Ouverture de compte (👤 UserPlus)
+   - **RC** : Remise de chèque (📑 FileCheck)
+   - **V** : Virement (🔄 ArrowRightLeft)
+   - **DR** : Demande de Relevé (📄 FileText)
+   - **CM** : COFINA Mobile+ (📱 Smartphone)
+   - **C** : Crédit (💳 CreditCard)
+   - **PC** : Parler à un conseiller (🎧 Headphones)
+   - **PMR** : Mobilité Réduite (♿ Accessibility - Prioritaire)
 
-- Attribution Automatique Intelligente (Auto-Assign) :
+- **Sélecteur Multilingue & Assistance Client** :
+   - Traduction instantanée FR / EN.
+   - Pop-up d'orientation avec contact d'assistance au **92686060**.
    - Statut en ligne/hors ligne pour chaque caissier (bouton "Caisse Ouverte" / "Caisse Fermée").
    - Les tickets générés sont instantanément assignés à une caisse libre et annoncés à l'écran, sans aucune intervention manuelle.
    - S'il n'y a pas de caisse libre, ils sont mis en file d'attente classique.

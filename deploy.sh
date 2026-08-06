@@ -33,7 +33,7 @@ npm --prefix server run build
 npm run build
 
 echo "⚡ 4/5 Démarrage des processus avec PM2..."
-pm2 start ecosystem.config.js || pm2 restart ecosystem.config.js
+npx pm2 start ecosystem.config.cjs || pm2 restart ecosystem.config.js
 pm2 save
 
 echo "=================================================================="

@@ -15,12 +15,28 @@ import {
 } from './services/queueStore';
 
 export default function App() {
-  const [activeModule, setActiveModule] = useState('kiosk');
+  // Parse URL search parameters for dedicated hardware boot (Borne, Écran TV, Agent, etc.)
+  const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+
+  const isWidgetOnly = urlParams.has('widgetOnly') || urlParams.get('mode') === 'widget';
+  const isKioskOnly = urlParams.has('kioskOnly') || urlParams.has('kiosk') || urlParams.get('mode') === 'kiosk';
+  const isDisplayOnly = urlParams.has('displayOnly') || urlParams.has('display') || urlParams.get('mode') === 'display';
+  const isAgentOnly = urlParams.has('agentOnly') || urlParams.has('agent') || urlParams.get('mode') === 'agent';
+  const isAdminOnly = urlParams.has('adminOnly') || urlParams.has('admin') || urlParams.get('mode') === 'admin';
+
+  // Hide Navbar & Footer for clean hardware screens (Kiosk will now keep the Navbar as requested)
+  const hideNav = urlParams.has('hideNav') || urlParams.has('clean') || isDisplayOnly;
+
+  const [activeModule, setActiveModule] = useState(() => {
+    if (isDisplayOnly) return 'display';
+    if (isAgentOnly) return 'agent';
+    if (isAdminOnly) return 'admin';
+    if (isKioskOnly) return 'kiosk';
+    return 'kiosk';
+  });
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showFloatingWidget, setShowFloatingWidget] = useState(true);
 
-  // Standalone popout window detection (?widgetOnly=true)
-  const isWidgetOnly = typeof window !== 'undefined' && window.location.search.includes('widgetOnly=true');
   
   // Persisted language state ('fr' | 'en')
   const [lang, setLang] = useState(() => {
@@ -62,7 +78,23 @@ export default function App() {
 
     // Subscribe to real-time Socket.io state changes
     const unsubscribeSocket = subscribeStateChange((newState) => {
-      setStoreState(newState);
+      setStoreState(prev => {
+        // If this is a partial metadata update (e.g. counter status toggle),
+        // merge into existing state to preserve tickets from Socket.io.
+        if (newState._partialUpdate) {
+          return { ...prev, ...newState, _partialUpdate: undefined };
+        }
+        // Full state update: preserve lastCalledTicket across reconnects.
+        const lastCalled = newState.lastCalledTicket
+          || (newState.tickets || []).find(t => t.status === 'CALLED')
+          || prev.lastCalledTicket
+          || null;
+        // Also preserve tickets if the new state has none (metadata-only path)
+        const tickets = (newState.tickets && newState.tickets.length > 0)
+          ? newState.tickets
+          : (prev.tickets || []);
+        return { ...newState, tickets, lastCalledTicket: lastCalled };
+      });
     });
 
     // BroadcastChannel listener
@@ -135,20 +167,22 @@ export default function App() {
 
   return (
     <div className="cofina-app-root">
-      <Navbar 
-        activeModule={activeModule}
-        setActiveModule={setActiveModule}
-        currentAgencyId={agencyId}
-        setAgencyId={handleSetAgencyId}
-        soundEnabled={soundEnabled}
-        setSoundEnabled={setSoundEnabled}
-        lang={lang}
-        setLang={handleSetLang}
-        showFloatingWidget={showFloatingWidget}
-        setShowFloatingWidget={setShowFloatingWidget}
-      />
+      {!hideNav && (
+        <Navbar 
+          activeModule={activeModule}
+          setActiveModule={setActiveModule}
+          currentAgencyId={agencyId}
+          setAgencyId={handleSetAgencyId}
+          soundEnabled={soundEnabled}
+          setSoundEnabled={setSoundEnabled}
+          lang={lang}
+          setLang={handleSetLang}
+          showFloatingWidget={showFloatingWidget}
+          setShowFloatingWidget={setShowFloatingWidget}
+        />
+      )}
 
-      <main className="main-content-area">
+      <main className="main-content-area" style={{ paddingBottom: hideNav ? '0' : '2rem' }}>
         {activeModule === 'kiosk' && (
           <KioskModule 
             agencyName={currentAgency.name}
@@ -196,17 +230,19 @@ export default function App() {
         />
       )}
 
-      <footer className="cofina-global-footer">
-        <div className="footer-content">
-          <div className="footer-left">
-            <img src="/COFINA.png" alt="Cofina Logo" className="footer-logo" />
-            <span>© 2026 Groupe Cofina — Compagnie Financière Africaine. Tous droits réservés.</span>
+      {!hideNav && (
+        <footer className="cofina-global-footer">
+          <div className="footer-content">
+            <div className="footer-left">
+              <img src="/cofina.jpeg" alt="Cofina Logo" className="footer-logo" />
+              <span>© 2026 Groupe Cofina — Compagnie Financière Africaine. Tous droits réservés.</span>
+            </div>
+            <div className="footer-right">
+              <span className="footer-tag">SOCLE V1 OPERATIONAL — EDGE LOCAL NETWORK</span>
+            </div>
           </div>
-          <div className="footer-right">
-            <span className="footer-tag">SOCLE V1 OPERATIONAL — EDGE LOCAL NETWORK</span>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
 
       <style>{`
         .cofina-app-root {

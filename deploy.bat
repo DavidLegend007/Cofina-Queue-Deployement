@@ -7,7 +7,9 @@ echo ==================================================================
 echo 🚀 DÉPLOIEMENT DU SYSTÈME DE FILE D'ATTENTE COFINA TOGO (V1 EDGE)
 echo ==================================================================
 
-echo 📦 1/4 Installation des dependances...
+echo 📦 1/4 Arret des processus en cours et installation des dependances...
+call npx pm2 kill >nul 2>&1
+taskkill /F /IM node.exe >nul 2>&1
 call npm install
 call npm --prefix server install
 
@@ -20,7 +22,7 @@ call npm --prefix server run build
 call npm run build
 
 echo ⚡ 4/4 Demarrage avec PM2...
-call npx pm2 start ecosystem.config.js
+call npx pm2 start ecosystem.config.cjs
 call npx pm2 save
 
 echo ==================================================================

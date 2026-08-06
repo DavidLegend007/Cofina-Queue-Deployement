@@ -40,7 +40,6 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
 
   // Profile Full Page State
   const [isProfilePageOpen, setIsProfilePageOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const isOnline = onlineCounters.includes(counterNumber);
 
@@ -93,8 +92,11 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
   ).sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt));
 
   // ACTION: Suivant
-  const handleSuivant = () => {
-    const nextTicket = processNextTicket(
+  // BUG FIX: On ne force plus setCurrentTicket(nextTicket) localement.
+  // Le useEffect sur `tickets` (ligne 62) le mettra à jour automatiquement
+  // via Socket.io quand le serveur broadcast ticket_called — pas de race condition.
+  const handleSuivant = async () => {
+    await processNextTicket(
       selectedAgent.id,
       selectedAgent.name,
       counterNumber,
@@ -102,43 +104,45 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
       currentTicket?.id || null,
       lang
     );
-    setCurrentTicket(nextTicket);
+    // currentTicket will be updated by the Socket.io listener in App.jsx -> useEffect(tickets)
   };
 
-  // ACTION: Simulation instantanée (Générer des tickets de test)
-  const handleSimulate = () => {
-    generateSimulationTickets();
-    setTimeout(() => {
-      handleSuivant();
-    }, 150);
-  };
+
 
   // ACTION: Rappeler
-  const handleRappeler = () => {
+  const handleRappeler = async () => {
     if (currentTicket) {
-      recallTicket(currentTicket.id, lang);
+      await recallTicket(currentTicket.id, lang);
     }
   };
 
-  // ACTION: Marquer Absent (No Show)
-  const handleNoShow = () => {
+  // ACTION: Marquer Absent (No Show) et passer directement au ticket suivant
+  const handleNoShow = async () => {
     if (currentTicket) {
-      updateTicketStatus(currentTicket.id, 'NO_SHOW');
+      await updateTicketStatus(currentTicket.id, 'NO_SHOW');
       setCurrentTicket(null);
+      await processNextTicket(
+        selectedAgent.id,
+        selectedAgent.name,
+        counterNumber,
+        serviceFilter,
+        null,
+        lang
+      );
     }
   };
 
   // ACTION: En traitement
-  const handleEnTraitement = () => {
+  const handleEnTraitement = async () => {
     if (currentTicket) {
-      updateTicketStatus(currentTicket.id, 'IN_PROGRESS');
+      await updateTicketStatus(currentTicket.id, 'IN_PROGRESS');
     }
   };
 
   // ACTION: Terminer
-  const handleTerminer = () => {
+  const handleTerminer = async () => {
     if (currentTicket) {
-      updateTicketStatus(currentTicket.id, 'COMPLETED');
+      await updateTicketStatus(currentTicket.id, 'COMPLETED');
       setCurrentTicket(null);
     }
   };
@@ -177,7 +181,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
   }
 
   return (
-    <div className="agent-container">
+    <div className="agent-container animate-fade-in">
       {/* Top Header Bar with Realtime Clock */}
       <header className="cashier-topbar glass-card">
         <div className="agent-identity">
@@ -242,19 +246,10 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
 
           <button 
             type="button"
-            className="btn-simulate-quick"
-            onClick={handleSimulate}
-            title="Générer 5 tickets de test instantanément pour la simulation"
-          >
-            <Sparkles size={16} /> ⚡ Simulation (+5 Tickets)
-          </button>
-
-          <button 
-            type="button"
             className="btn-profile-edit"
             onClick={openProfileModal}
           >
-            <Edit3 size={16} /> Mon Profil
+            <Edit3 size={15} /> Profil
           </button>
 
           <button 
@@ -263,7 +258,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
             onClick={() => exportAgencyDataCSV(tickets, agencyName)}
             title="Exporter l'historique de la journée au format CSV"
           >
-            <FileDown size={16} /> Export CSV
+            <FileDown size={15} /> Export CSV
           </button>
         </div>
       </header>
@@ -275,9 +270,21 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           {currentTicket ? (
             <div className="current-client-card">
               <div className="client-card-header">
-                <div className="live-status-pill">
-                  <span className="pulse-dot"></span>
-                  CLIENT EN CAISSE
+                <div 
+                  className="live-status-pill"
+                  style={{
+                    background: currentTicket.status === 'IN_PROGRESS' ? 'rgba(37,99,235,0.12)' : 'rgba(16,185,129,0.12)',
+                    color: currentTicket.status === 'IN_PROGRESS' ? '#2563EB' : '#059669',
+                    border: `1px solid ${currentTicket.status === 'IN_PROGRESS' ? 'rgba(37,99,235,0.25)' : 'rgba(16,185,129,0.25)'}`
+                  }}
+                >
+                  <span 
+                    className="pulse-dot"
+                    style={{
+                      background: currentTicket.status === 'IN_PROGRESS' ? '#2563EB' : '#10B981'
+                    }}
+                  ></span>
+                  {currentTicket.status === 'IN_PROGRESS' ? 'CLIENT EN TRAITEMENT' : 'TICKET APPELÉ'}
                 </div>
                 <div className="guichet-badge">
                   GUICHET {counterNumber}
@@ -298,78 +305,72 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           ) : (
             <div className="idle-workspace">
               <div className="idle-hero-icon">
-                <Sparkles size={48} className="cofina-red-icn" />
+                <Sparkles size={40} className="cofina-red-icn" />
               </div>
               <h2>Guichet {counterNumber} Disponible</h2>
               <p>
                 {waitingTickets.length > 0
                   ? `Il y a ${waitingTickets.length} client(s) en attente.`
-                  : "Aucun client en attente pour le moment. Cliquez sur le bouton ci-dessous pour démarrer une simulation avec 5 tickets de test."}
+                  : "Aucun client en attente pour le moment."}
               </p>
-
-              {waitingTickets.length === 0 && (
-                <button
-                  type="button"
-                  className="btn-call-first-big btn-sim-highlight"
-                  onClick={handleSimulate}
-                >
-                  <Sparkles size={24} />
-                  <span>⚡ Lancer une Simulation (Générer 5 Tickets Test)</span>
-                </button>
-              )}
             </div>
           )}
 
           {/* Action Buttons Grid (Always Visible) */}
-          <div className="agent-actions-grid" style={{ marginTop: 'auto', paddingTop: '2rem' }}>
+          <div className="agent-actions-grid" style={{ marginTop: 'auto', paddingTop: '1.5rem' }}>
             <button
               type="button"
               className="btn-action btn-next-primary"
               onClick={handleSuivant}
+              title="Appeler le prochain ticket de la file"
             >
               <Play size={22} />
               <span>Suivant</span>
             </button>
-            
-            <button
-              type="button"
-              className="btn-action btn-processing"
-              onClick={handleEnTraitement}
-              disabled={!currentTicket || currentTicket.status === 'IN_PROGRESS'}
-            >
-              <Check size={22} />
-              <span>En traitement</span>
-            </button>
-
             <button
               type="button"
               className="btn-action btn-recall"
               onClick={handleRappeler}
               disabled={!currentTicket}
+              title="Rappeler vocalement le ticket à l'écran TV"
             >
               <RotateCw size={20} />
               <span>Rappeler</span>
             </button>
-            
-            <button 
-              type="button" 
-              className="btn-action btn-noshow"
+            <button
+              type="button"
+              className="btn-action btn-absent"
               onClick={handleNoShow}
               disabled={!currentTicket}
+              title="Marquer le client comme absent"
             >
               <UserX size={20} />
               <span>Absent</span>
             </button>
-
-            <button
-              type="button"
-              className="btn-action btn-complete"
-              onClick={handleTerminer}
-              disabled={!currentTicket}
-            >
-              <CheckCircle2 size={22} />
-              <span>Terminer</span>
-            </button>
+            {currentTicket && currentTicket.status === 'CALLED' && (
+              <button
+                type="button"
+                className="btn-action btn-processing"
+                onClick={handleEnTraitement}
+                style={{ gridColumn: 'span 2' }}
+                title="Démarrer le traitement du client arrivé au guichet"
+              >
+                <Clock size={20} />
+                <span>Démarrer le Traitement</span>
+              </button>
+            )}
+            {currentTicket && currentTicket.status === 'IN_PROGRESS' && (
+              <button
+                type="button"
+                className="btn-action btn-complete"
+                onClick={handleTerminer}
+                style={{ gridColumn: 'span 2' }}
+                title="Clôturer le service du ticket actuel"
+              >
+                <CheckCircle2 size={20} />
+                <span>Terminer le Service</span>
+              </button>
+            )}
           </div>
         </main>
 
@@ -377,7 +378,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
         <aside className="queue-sidebar-panel glass-card">
           <div className="filter-services-bar">
             <span className="sidebar-title">
-              <Filter size={16} /> Filtrer par Service :
+              <Filter size={15} /> Filtrer par Service :
             </span>
             <div className="filter-chips">
               <button
@@ -486,10 +487,10 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
         />
       )}
 
-      {/* Styled CSS */}
+      {/* Styled CSS 2026 */}
       <style>{`
         .agent-container {
-          max-width: 1400px;
+          max-width: 1440px;
           margin: 1.5rem auto;
           padding: 0 1.5rem;
           display: flex;
@@ -503,9 +504,10 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           align-items: center;
           justify-content: space-between;
           padding: 1.25rem 2rem;
-          border-radius: var(--radius-lg);
+          border-radius: 20px;
           background: #FFFFFF;
           border: 1px solid #E2E8F0;
+          box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.04);
         }
 
         .agent-identity {
@@ -525,6 +527,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           justify-content: center;
           font-size: 1.6rem;
           overflow: hidden;
+          box-shadow: 0 4px 10px rgba(211, 18, 42, 0.15);
         }
 
         .agent-avatar-img-top {
@@ -552,7 +555,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
         .agency-location-tag {
           font-size: 0.78rem;
           color: #64748B;
-          font-weight: 600;
+          font-weight: 700;
         }
 
         .counter-picker {
@@ -563,7 +566,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
 
         .picker-label {
           font-size: 0.82rem;
-          font-weight: 700;
+          font-weight: 800;
           color: #64748B;
         }
 
@@ -573,21 +576,22 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
         }
 
         .counter-pill {
-          padding: 0.45rem 0.9rem;
+          padding: 0.45rem 0.95rem;
           border-radius: 99px;
           border: 1px solid #CBD5E1;
           background: #F8FAFC;
           color: #475569;
-          font-weight: 700;
+          font-weight: 800;
           font-size: 0.82rem;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
         }
 
         .counter-pill.active {
           background: #0F172A;
           color: #FFFFFF;
           border-color: #0F172A;
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
         }
 
         .topbar-actions {
@@ -630,7 +634,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           font-weight: 800;
           font-size: 0.85rem;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
         }
 
         .btn-toggle-status.online {
@@ -653,7 +657,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
 
         .dot-online {
           background: #10B981;
-          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+          box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
         }
 
         .dot-offline {
@@ -669,10 +673,10 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           border: none;
           padding: 0.5rem 0.9rem;
           border-radius: 12px;
-          font-weight: 700;
+          font-weight: 800;
           font-size: 0.82rem;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
           box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
         }
 
@@ -690,10 +694,10 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           border: 1px solid #FECACA;
           font-weight: 800;
           font-size: 0.82rem;
-          padding: 0.5rem 1rem;
+          padding: 0.5rem 0.9rem;
           border-radius: 10px;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
         }
 
         .btn-profile-edit:hover {
@@ -708,11 +712,17 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           background: #F8FAFC;
           color: #475569;
           border: 1px solid #CBD5E1;
-          font-weight: 700;
+          font-weight: 800;
           font-size: 0.82rem;
-          padding: 0.5rem 1rem;
+          padding: 0.5rem 0.9rem;
           border-radius: 10px;
           cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .btn-export-csv:hover {
+          border-color: #0F172A;
+          color: #0F172A;
         }
 
         .cashier-grid {
@@ -723,10 +733,10 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
 
         .glass-card {
           background: #FFFFFF;
-          border-radius: 20px;
+          border-radius: 24px;
           border: 1px solid #E2E8F0;
           padding: 1.75rem;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+          box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.04);
         }
 
         .active-client-panel {
@@ -752,19 +762,17 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           display: inline-flex;
           align-items: center;
           gap: 0.5rem;
-          background: #DEF7EC;
-          color: #03543F;
-          font-weight: 800;
+          font-weight: 900;
           font-size: 0.78rem;
           padding: 0.4rem 0.85rem;
           border-radius: 99px;
+          letter-spacing: 0.05em;
         }
 
         .pulse-dot {
           width: 8px;
           height: 8px;
           border-radius: 50%;
-          background: #10B981;
         }
 
         .guichet-badge {
@@ -774,6 +782,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           font-size: 0.82rem;
           padding: 0.4rem 0.85rem;
           border-radius: 8px;
+          letter-spacing: 0.05em;
         }
 
         .client-hero {
@@ -782,8 +791,8 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
         }
 
         .service-name-tag {
-          font-size: 1.1rem;
-          font-weight: 700;
+          font-size: 1.15rem;
+          font-weight: 800;
           color: #64748B;
         }
 
@@ -805,6 +814,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           border-radius: 99px;
           font-size: 0.9rem;
           color: #334155;
+          font-weight: 700;
         }
 
         .agent-actions-grid {
@@ -819,12 +829,12 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           justify-content: center;
           gap: 0.5rem;
           padding: 1rem;
-          border-radius: 12px;
+          border-radius: 14px;
           font-weight: 800;
           font-size: 1rem;
           cursor: pointer;
           border: none;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
         }
 
         .btn-action:disabled {
@@ -836,12 +846,12 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           grid-column: span 2;
           background: linear-gradient(135deg, #D3122A, #B90E23);
           color: #FFFFFF;
-          box-shadow: 0 4px 12px rgba(211, 18, 42, 0.25);
+          box-shadow: 0 8px 24px rgba(211, 18, 42, 0.35);
         }
 
         .btn-next-primary:hover {
           transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(211, 18, 42, 0.35);
+          box-shadow: 0 12px 28px rgba(211, 18, 42, 0.45);
         }
 
         .btn-processing {
@@ -863,6 +873,28 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
 
         .btn-recall:hover:not(:disabled) {
           background: #E2E8F0;
+        }
+
+        .btn-absent {
+          background: rgba(249, 115, 22, 0.12);
+          color: #C2410C;
+          border: 1px solid rgba(249, 115, 22, 0.3);
+        }
+
+        .btn-absent:hover:not(:disabled) {
+          background: rgba(249, 115, 22, 0.22);
+          color: #9A3412;
+        }
+
+        .btn-complete {
+          background: linear-gradient(135deg, #10B981, #059669);
+          color: #FFFFFF;
+          box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-complete:hover:not(:disabled) {
+          background: linear-gradient(135deg, #059669, #047857);
+          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
         }
 
         .btn-noshow {
@@ -917,7 +949,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           font-weight: 800;
           cursor: pointer;
           box-shadow: 0 8px 24px rgba(211, 18, 42, 0.35);
-          transition: all 0.2s;
+          transition: all 0.2s ease;
         }
 
         .btn-call-first-big.btn-sim-highlight {
@@ -928,12 +960,6 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
         .btn-call-first-big.btn-sim-highlight:hover {
           transform: translateY(-2px);
           box-shadow: 0 12px 28px rgba(37, 99, 235, 0.5);
-        }
-
-        .btn-call-first-big:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-          box-shadow: none;
         }
 
         .queue-sidebar-panel {
@@ -964,14 +990,15 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
         }
 
         .filter-chip {
-          padding: 0.35rem 0.75rem;
+          padding: 0.38rem 0.8rem;
           border-radius: 8px;
           border: 1px solid #E2E8F0;
           background: #F8FAFC;
           font-size: 0.78rem;
-          font-weight: 700;
+          font-weight: 800;
           color: #475569;
           cursor: pointer;
+          transition: all 0.15s ease;
         }
 
         .filter-chip.active {
@@ -998,7 +1025,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           border-radius: 9px;
           border: none;
           background: transparent;
-          font-weight: 700;
+          font-weight: 800;
           font-size: 0.82rem;
           color: #64748B;
           cursor: pointer;
@@ -1073,7 +1100,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
 
         .row-service-name {
           font-size: 0.82rem;
-          font-weight: 700;
+          font-weight: 800;
           color: #1E293B;
         }
 
@@ -1085,7 +1112,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
         .status-done-tag {
           font-size: 0.72rem;
           color: #10B981;
-          font-weight: 700;
+          font-weight: 800;
           display: flex;
           align-items: center;
           gap: 0.25rem;
@@ -1094,7 +1121,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
         .status-wait-tag {
           font-size: 0.72rem;
           color: #D97706;
-          font-weight: 700;
+          font-weight: 800;
         }
 
         .empty-state {
@@ -1115,4 +1142,3 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
     </div>
   );
 }
-

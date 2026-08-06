@@ -2,7 +2,7 @@ import base64
 import os
 import subprocess
 
-logo_path = r"d:\Cofina\COFINA.png"
+logo_path = r"d:\Cofina\COFINA.jpeg"
 borne32_path = r"d:\Cofina\public\Borne 32 pouces.jpg"
 borne55_path = r"d:\Cofina\public\Borne 55 pouces.jpg"
 
@@ -245,7 +245,7 @@ html_content = f"""<!DOCTYPE html>
   <!-- PAGE 1 : Présentation & Volet Logiciel -->
   <div class="header-container">
     <div>
-      {"<img src='data:image/png;base64," + logo_base64 + "' class='logo-img' alt='COFINA Logo' />" if logo_base64 else "<h2>COFINA</h2>"}
+      {"<img src='data:image/jpeg;base64," + logo_base64 + "' class='logo-img' alt='COFINA Logo' />" if logo_base64 else "<h2>COFINA</h2>"}
     </div>
     <div class="header-title">
       <h1>Budget Projet</h1>

@@ -6,12 +6,21 @@ import {
   Sparkles, 
   Tv, 
   CheckCircle2, 
-  Users
+  Users,
+  ShieldCheck,
+  Megaphone
 } from 'lucide-react';
 import { translations } from '../services/translations';
 import { COFINA_SERVICES } from '../services/queueStore';
 
 export default function DisplayModule({ agencyName, tickets, lastCalledTicket, lang = 'fr' }) {
+  const [currentTime, setCurrentTime] = React.useState(new Date());
+
+  React.useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const t = translations[lang] || translations.fr;
   const activeTickets = tickets.filter(t => t.status === 'CALLED' || t.status === 'IN_PROGRESS');
   const waitingTickets = tickets.filter(t => t.status === 'WAITING');
@@ -22,12 +31,12 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
   });
 
   return (
-    <div className="disp-root">
+    <div className="disp-root animate-fade-in">
       {/* ── TOP HEADER ── */}
       <header className="disp-header">
         <div className="disp-hdr-left">
           <div className="disp-logo-box">
-            <img src="/COFINA.png" alt="Cofina Logo" className="disp-logo-img" />
+            <img src="/cofina.jpeg" alt="Cofina Logo" className="disp-logo-img" />
           </div>
           <div className="disp-hdr-title">
             <h1 className="disp-agency">{agencyName}</h1>
@@ -41,17 +50,17 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
             <span>{t.soundActive}</span>
           </div>
           <div className="disp-clock">
-            {new Date().toLocaleTimeString(lang === 'en' ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            {currentTime.toLocaleTimeString(lang === 'en' ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </div>
         </div>
       </header>
 
       {/* ── MAIN SPOTLIGHT BANNER (LAST CALLED) ── */}
       {lastCalledTicket ? (
-        <section className="disp-hero-call animate-pop">
+        <section className="disp-hero-call animate-scale-up">
           <div className="disp-call-left">
             <span className="disp-call-badge">
-              <Sparkles size={18} /> {t.displayNowCalling}
+              <Sparkles size={16} /> {t.displayNowCalling}
             </span>
             <div className="disp-call-ticket">{lastCalledTicket.ticketNumber}</div>
             <div className="disp-call-service">{lastCalledTicket.serviceName}</div>
@@ -64,15 +73,15 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
           <div className="disp-call-right">
             <span className="disp-call-dest-lbl">{t.displayGoToCounter}</span>
             <div className="disp-call-counter">{t.displayCounter} {lastCalledTicket.counterNumber}</div>
-            <div className="disp-call-agent">Teller : {lastCalledTicket.agentName || 'Cofina Agent'}</div>
+            <div className="disp-call-agent">Caissier : {lastCalledTicket.agentName || 'Agent Cofina'}</div>
           </div>
         </section>
       ) : (
         <section className="disp-hero-empty">
-          <div className="disp-empty-icon"><Tv size={42} /></div>
+          <div className="disp-empty-icon"><Tv size={36} /></div>
           <div className="disp-empty-txt">
             <h2>EN ATTENTE D'UN NOUVEL APPEL</h2>
-            <p>Veuillez consulter les numéros ci-dessous et vous tenir prêt</p>
+            <p>Veuillez vous installer en salle d'attente. Votre numéro sera annoncé à l'écran.</p>
           </div>
         </section>
       )}
@@ -87,7 +96,7 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
               <h2>CAISSES EN SERVICE</h2>
               <span className="disp-pulse-green">● EN DIRECT</span>
             </div>
-            <span className="disp-sec-sub">Postes 1 à 4</span>
+            <span className="disp-sec-sub">Guichets 1 à 4</span>
           </div>
 
           <div className="disp-counters-grid">
@@ -96,7 +105,7 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
               return (
                 <div key={num} className={`disp-caisse-card ${cur ? 'active-caisse' : 'idle-caisse'}`}>
                   <div className="caisse-top">
-                    <span className="caisse-num-badge">CAISSE {num}</span>
+                    <span className="caisse-num-badge">GUICHET {num}</span>
                     {cur && <span className="caisse-status-dot">En traitement</span>}
                   </div>
 
@@ -157,7 +166,7 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
                 </span>
               ))}
               {tickets.filter(t => t.status === 'COMPLETED').length === 0 && (
-                <span className="disp-chip-none">Aucun ticket traité aujourd'hui</span>
+                <span className="disp-chip-none">Aucun ticket encore clôturé aujourd'hui</span>
               )}
             </div>
           </div>
@@ -167,24 +176,24 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
 
       {/* ── FOOTER TICKER ── */}
       <footer className="disp-footer">
-        <div className="disp-foot-tag">INFORMATION</div>
+        <div className="disp-foot-tag">INFORMATION AGENT</div>
         <div className="disp-foot-marquee">
           <marquee scrollamount="5">
-            Bienvenue chez COFINA Togo • Pour vos dépôts, retraits et ouvertures de compte, nos équipes vous accueillent • Pensez à préparer votre pièce d'identité • Merci de patienter en salle d'attente
+            Cher Client, N'attendez plus, créez votre alias PI-SPI Cofina ! Simple, rapide et sécurisé. Suivez les étapes: https://bit.ly/4baN7O 0. Assistance au 92686060. • Bienvenue chez COFINA Togo • Pour vos dépôts, retraits et ouvertures de compte, nos caisses vous accueillent • Pensez à préparer votre pièce d'identité
           </marquee>
         </div>
       </footer>
 
-      {/* ── LIGHT STYLES ── */}
+      {/* ── STYLES LUMINEUX HAUTE VISIBILITÉ (LIGHT MODE) ── */}
       <style>{`
         .disp-root {
           min-height: 100vh;
-          background: #F4F6F9;
+          background: #F8FAFC;
           color: #0F172A;
-          padding: 1.25rem 2rem;
+          padding: 1.5rem 2.5rem;
           display: flex;
           flex-direction: column;
-          gap: 1.25rem;
+          gap: 1.5rem;
           font-family: var(--font-body, 'Inter', system-ui, sans-serif);
           box-sizing: border-box;
         }
@@ -195,10 +204,10 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
           align-items: center;
           justify-content: space-between;
           background: #FFFFFF;
-          padding: 1rem 1.75rem;
-          border-radius: 16px;
+          padding: 1.1rem 2rem;
+          border-radius: 20px;
           border: 1px solid #E2E8F0;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+          box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.04);
         }
 
         .disp-hdr-left {
@@ -225,7 +234,7 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         }
 
         .disp-agency {
-          font-size: 1.3rem;
+          font-size: 1.35rem;
           font-weight: 900;
           color: #0F172A;
           margin: 0;
@@ -233,10 +242,11 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         }
 
         .disp-sub {
-          font-size: 0.75rem;
-          font-weight: 700;
+          font-size: 0.78rem;
+          font-weight: 800;
           color: #D3122A;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
         }
 
         .disp-hdr-right {
@@ -248,13 +258,13 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         .disp-badge-audio {
           display: flex;
           align-items: center;
-          gap: 0.45rem;
-          background: #FEF2F2;
+          gap: 0.5rem;
+          background: #FFF5F5;
           border: 1px solid #FECACA;
           color: #D3122A;
-          font-size: 0.75rem;
+          font-size: 0.78rem;
           font-weight: 800;
-          padding: 0.45rem 0.9rem;
+          padding: 0.45rem 1rem;
           border-radius: 99px;
         }
 
@@ -268,65 +278,64 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         }
 
         .disp-clock {
-          font-size: 1.8rem;
+          font-family: monospace;
+          font-size: 2rem;
           font-weight: 900;
           color: #0F172A;
-          letter-spacing: -0.02em;
+          letter-spacing: -0.03em;
         }
 
         /* HERO SPOTLIGHT BANNER */
         .disp-hero-call {
           background: linear-gradient(135deg, #D3122A 0%, #B90E23 100%);
-          border-radius: 20px;
-          padding: 1.75rem 3rem;
+          border-radius: 24px;
+          padding: 2rem 3.5rem;
           display: flex;
           align-items: center;
           justify-content: space-between;
           color: #FFFFFF;
-          box-shadow: 0 12px 30px rgba(211, 18, 42, 0.35);
-          animation: popBanner 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        @keyframes popBanner {
-          from { transform: scale(0.97); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
+          box-shadow: 0 16px 36px rgba(211, 18, 42, 0.35);
+          border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .disp-call-badge {
           display: inline-flex;
           align-items: center;
-          gap: 0.4rem;
+          gap: 0.45rem;
           background: rgba(0, 0, 0, 0.25);
-          font-size: 0.8rem;
+          backdrop-filter: blur(8px);
+          font-size: 0.82rem;
           font-weight: 800;
-          padding: 0.35rem 0.85rem;
+          padding: 0.4rem 1rem;
           border-radius: 99px;
-          margin-bottom: 0.4rem;
-          letter-spacing: 0.05em;
+          margin-bottom: 0.5rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
         }
 
         .disp-call-ticket {
-          font-size: 5rem;
+          font-size: 5.5rem;
           font-weight: 900;
           line-height: 1;
-          letter-spacing: -0.03em;
+          letter-spacing: -0.04em;
+          text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
         }
 
         .disp-call-service {
-          font-size: 1.2rem;
-          font-weight: 600;
-          opacity: 0.92;
+          font-size: 1.3rem;
+          font-weight: 700;
+          opacity: 0.95;
           margin-top: 0.2rem;
         }
 
         .disp-call-arrow {
-          animation: slideArrow 1s infinite alternate ease-in-out;
+          animation: slideArrow 1s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
           color: rgba(255, 255, 255, 0.9);
         }
 
         @keyframes slideArrow {
-          from { transform: translateX(-8px); }
-          to { transform: translateX(8px); }
+          from { transform: translateX(-10px); }
+          to { transform: translateX(10px); }
         }
 
         .disp-call-right {
@@ -334,30 +343,33 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         }
 
         .disp-call-dest-lbl {
-          font-size: 0.82rem;
+          font-size: 0.85rem;
           font-weight: 800;
           opacity: 0.9;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
         }
 
         .disp-call-counter {
-          font-size: 3.8rem;
+          font-size: 4.2rem;
           font-weight: 900;
           line-height: 1;
           margin-top: 0.1rem;
+          text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
         }
 
         .disp-call-agent {
-          font-size: 0.95rem;
+          font-size: 1rem;
           opacity: 0.9;
-          margin-top: 0.3rem;
+          margin-top: 0.4rem;
+          font-weight: 600;
         }
 
         .disp-hero-empty {
           background: #FFFFFF;
-          border: 1px solid #E2E8F0;
-          border-radius: 20px;
-          padding: 2rem;
+          border: 1.5px dashed #CBD5E1;
+          border-radius: 24px;
+          padding: 2.2rem;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -378,14 +390,14 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         }
 
         .disp-empty-txt h2 {
-          font-size: 1.25rem;
+          font-size: 1.3rem;
           font-weight: 800;
           color: #0F172A;
-          margin: 0 0 0.2rem;
+          margin: 0 0 0.25rem;
         }
 
         .disp-empty-txt p {
-          font-size: 0.88rem;
+          font-size: 0.9rem;
           color: #64748B;
           margin: 0;
         }
@@ -393,8 +405,8 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         /* GRID LAYOUT */
         .disp-grid {
           display: grid;
-          grid-template-columns: 2fr 1fr;
-          gap: 1.5rem;
+          grid-template-columns: 2.2fr 1fr;
+          gap: 1.75rem;
           flex: 1;
         }
 
@@ -402,34 +414,34 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 1rem;
-          padding-bottom: 0.5rem;
+          margin-bottom: 1.25rem;
+          padding-bottom: 0.6rem;
           border-bottom: 2px solid #E2E8F0;
         }
 
         .disp-sec-title {
           display: flex;
           align-items: center;
-          gap: 0.6rem;
+          gap: 0.75rem;
         }
 
         .disp-sec-title h2 {
-          font-size: 1rem;
+          font-size: 1.05rem;
           font-weight: 800;
           color: #0F172A;
           margin: 0;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.06em;
         }
 
         .disp-pulse-green {
-          font-size: 0.72rem;
+          font-size: 0.75rem;
           font-weight: 800;
           color: #10B981;
         }
 
         .disp-sec-sub {
-          font-size: 0.8rem;
+          font-size: 0.82rem;
           color: #94A3B8;
           font-weight: 600;
         }
@@ -438,26 +450,26 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         .disp-counters-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
-          gap: 1.25rem;
+          gap: 1.5rem;
         }
 
         .disp-caisse-card {
           background: #FFFFFF;
-          border-radius: 16px;
-          padding: 1.5rem;
+          border-radius: 20px;
+          padding: 1.75rem;
           border: 1.5px solid #E2E8F0;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+          box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.03);
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          min-height: 150px;
+          min-height: 170px;
           transition: all 0.2s ease;
         }
 
         .disp-caisse-card.active-caisse {
           border-color: #D3122A;
           background: #FFFFFF;
-          box-shadow: 0 8px 24px rgba(211, 18, 42, 0.12);
+          box-shadow: 0 12px 30px rgba(211, 18, 42, 0.12);
         }
 
         .caisse-top {
@@ -467,58 +479,59 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         }
 
         .caisse-num-badge {
-          font-size: 0.85rem;
+          font-size: 0.88rem;
           font-weight: 900;
           color: #D3122A;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.06em;
         }
 
         .caisse-status-dot {
-          font-size: 0.72rem;
-          font-weight: 700;
+          font-size: 0.75rem;
+          font-weight: 800;
           background: #DEF7EC;
           color: #03543F;
-          padding: 0.2rem 0.6rem;
+          border: 1px solid #A7F3D0;
+          padding: 0.25rem 0.75rem;
           border-radius: 99px;
         }
 
         .caisse-ticket {
-          font-size: 3rem;
+          font-size: 3.5rem;
           font-weight: 900;
           color: #0F172A;
           line-height: 1;
-          margin: 0.4rem 0 0.2rem;
-          letter-spacing: -0.02em;
+          margin: 0.5rem 0 0.2rem;
+          letter-spacing: -0.03em;
         }
 
         .caisse-service {
-          font-size: 0.85rem;
+          font-size: 0.9rem;
           color: #64748B;
           font-weight: 600;
         }
 
         .caisse-idle-body {
           margin-top: 1.5rem;
-          color: #CBD5E1;
-          font-size: 0.95rem;
+          color: #94A3B8;
+          font-size: 1rem;
           font-weight: 700;
           text-align: center;
-          padding: 1rem 0;
+          padding: 1.1rem 0;
           background: #F8FAFC;
-          border-radius: 10px;
-          border: 1px dashed #E2E8F0;
+          border-radius: 14px;
+          border: 1px dashed #CBD5E1;
         }
 
         /* SIDEBAR FILE D'ATTENTE */
         .disp-col-side {
           background: #FFFFFF;
-          border-radius: 20px;
-          padding: 1.5rem;
+          border-radius: 22px;
+          padding: 1.75rem;
           border: 1px solid #E2E8F0;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+          box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.03);
           display: flex;
           flex-direction: column;
-          gap: 1.25rem;
+          gap: 1.4rem;
         }
 
         .disp-count-chip {
@@ -527,45 +540,47 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
           gap: 0.4rem;
           background: #EFF6FF;
           color: #1D4ED8;
-          font-size: 0.78rem;
+          border: 1px solid #BFDBFE;
+          font-size: 0.8rem;
           font-weight: 800;
-          padding: 0.3rem 0.75rem;
+          padding: 0.35rem 0.85rem;
           border-radius: 99px;
         }
 
         .disp-services-list {
           display: flex;
           flex-direction: column;
-          gap: 0.75rem;
+          gap: 0.85rem;
         }
 
         .disp-svc-row {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0.75rem 1rem;
+          padding: 0.85rem 1.1rem;
           background: #F8FAFC;
-          border-radius: 12px;
+          border-radius: 14px;
           border: 1px solid #F1F5F9;
         }
 
         .disp-svc-info {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
+          gap: 0.85rem;
         }
 
         .disp-svc-badge {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
           color: #FFFFFF;
           font-weight: 900;
-          font-size: 1rem;
+          font-size: 1.05rem;
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
 
         .disp-svc-names {
@@ -574,25 +589,26 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         }
 
         .disp-svc-name {
-          font-size: 0.85rem;
-          font-weight: 700;
+          font-size: 0.88rem;
+          font-weight: 800;
           color: #0F172A;
         }
 
         .disp-svc-time {
-          font-size: 0.72rem;
+          font-size: 0.75rem;
           color: #94A3B8;
           display: flex;
           align-items: center;
-          gap: 0.25rem;
+          gap: 0.3rem;
+          font-weight: 600;
         }
 
         .disp-svc-cnt {
-          width: 32px;
-          height: 32px;
+          width: 34px;
+          height: 34px;
           border-radius: 50%;
-          font-weight: 800;
-          font-size: 0.88rem;
+          font-weight: 900;
+          font-size: 0.92rem;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -601,6 +617,7 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         .cnt-has {
           background: #D3122A;
           color: #FFFFFF;
+          box-shadow: 0 4px 12px rgba(211, 18, 42, 0.3);
         }
 
         .cnt-empty {
@@ -611,38 +628,40 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         /* RECENTLY COMPLETED */
         .disp-completed-box {
           margin-top: auto;
-          padding-top: 1rem;
+          padding-top: 1.1rem;
           border-top: 1px solid #F1F5F9;
         }
 
         .disp-comp-hdr {
-          font-size: 0.75rem;
+          font-size: 0.78rem;
           font-weight: 800;
           color: #94A3B8;
           text-transform: uppercase;
-          margin-bottom: 0.6rem;
+          margin-bottom: 0.75rem;
+          letter-spacing: 0.05em;
         }
 
         .disp-comp-chips {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.4rem;
+          gap: 0.45rem;
         }
 
         .disp-chip-done {
           display: inline-flex;
           align-items: center;
-          gap: 0.3rem;
+          gap: 0.35rem;
           background: #DEF7EC;
           color: #03543F;
-          font-size: 0.78rem;
+          border: 1px solid #A7F3D0;
+          font-size: 0.8rem;
           font-weight: 800;
-          padding: 0.3rem 0.65rem;
-          border-radius: 8px;
+          padding: 0.35rem 0.75rem;
+          border-radius: 10px;
         }
 
         .disp-chip-none {
-          font-size: 0.78rem;
+          font-size: 0.8rem;
           color: #CBD5E1;
         }
 
@@ -651,24 +670,25 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
           display: flex;
           align-items: center;
           background: #0F172A;
-          border-radius: 14px;
+          border-radius: 16px;
           overflow: hidden;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.08);
         }
 
         .disp-foot-tag {
           background: #D3122A;
           color: #FFFFFF;
           font-weight: 900;
-          font-size: 0.8rem;
-          padding: 0.75rem 1.25rem;
+          font-size: 0.82rem;
+          padding: 0.85rem 1.4rem;
           white-space: nowrap;
+          letter-spacing: 0.05em;
         }
 
         .disp-foot-marquee {
           flex: 1;
           color: #F8FAFC;
-          font-size: 0.88rem;
+          font-size: 0.92rem;
           font-weight: 600;
           padding-right: 1rem;
         }
@@ -682,4 +702,3 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
     </div>
   );
 }
-

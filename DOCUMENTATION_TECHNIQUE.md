@@ -16,15 +16,23 @@ Le système est spécialement conçu pour le secteur de la microfinance en Afriq
 3. **Annonce Audio d'Appel au Guichet** :
    - *Sur la Borne* : Confirmation visuelle immédiate (sans synthèse vocale vocale sur borne).
    - *Au Guichet (Écran TV)* : Carillon Gong sonorisé bi-tonal + Synthèse vocale de passage (*"Ticket A-008, veuillez passer à la Caisse 1"*).
-4. **8 Services Spécialisés** :
-   - **D** : Dépôt
-   - **R** : Retrait
-   - **O** : Ouverture de compte
-   - **E** : Épargne
-   - **C** : Crédit
-   - **M** : Microcrédit & Remb.
-   - **S** : Service Client
-   - **H** : Handicap
+4. **12 Services Officiels COFINA Togo (avec 12 Icônes Uniques)** :
+   - **D** : Dépôt (💵 Banknote)
+   - **R** : Retrait (👛 Wallet)
+   - **TN** : Transfert national (📤 Send)
+   - **TI** : Transfert international (🌐 Globe)
+   - **O** : Ouverture de compte (👤 UserPlus)
+   - **RC** : Remise de chèque (📑 FileCheck)
+   - **V** : Virement (🔄 ArrowRightLeft)
+   - **DR** : Demande de Relevé (📄 FileText)
+   - **CM** : COFINA Mobile+ (📱 Smartphone)
+   - **C** : Crédit (💳 CreditCard)
+   - **PC** : Parler à un conseiller (🎧 Headphones)
+   - **PMR** : Mobilité Réduite (♿ Accessibility - Prioritaire)
+
+5. **Suivi du Temps de Traitement (`startedAt` $\rightarrow$ `completedAt`)** :
+   - Traçabilité précise de la durée de chaque opération en caisse (début de prise en charge `IN_PROGRESS` et clôture `COMPLETED`).
+   - Calcul et exportation CSV des métriques de temps d'attente et de temps de service.
 
 5. **Attribution Automatique Intelligente (Auto-Assign)** :
    - Statut en ligne/hors ligne pour chaque caissier (bouton "Caisse Ouverte" / "Caisse Fermée").

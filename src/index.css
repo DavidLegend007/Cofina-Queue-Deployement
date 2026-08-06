@@ -1,51 +1,66 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   GROUPE COFINA TOGO — SYSTEME DE GESTION DE FILE D'ATTENTE (KODJOVIAKOPÉ)
+   GROUPE COFINA — DESIGN SYSTEM 2026 (Linear, Apple, Vercel & Stripe Style)
    ========================================================================== */
 
 :root {
+  /* Brand Core Colors */
   --cofina-red: #D3122A;
-  --cofina-red-dark: #A80B1E;
-  --cofina-red-light: #FFF0F2;
-  --cofina-red-border: rgba(211, 18, 42, 0.25);
-  
-  --cofina-dark: #2D3136;
-  --cofina-dark-deep: #1A1D20;
-  --cofina-dark-surface: #363B41;
+  --cofina-red-dark: #9F0B1E;
+  --cofina-red-light: #FFF1F2;
+  --cofina-red-border: rgba(211, 18, 42, 0.2);
+  --cofina-red-glow: rgba(211, 18, 42, 0.35);
 
-  --cofina-bg: #F4F6F9;
+  /* Obsidian & Charcoal Dark Palette */
+  --cofina-obsidian: #090D16;
+  --cofina-slate-deep: #0F172A;
+  --cofina-slate-card: #1E293B;
+  --cofina-slate-border: rgba(255, 255, 255, 0.08);
+
+  /* Light Theme Surfaces & Grayscale */
+  --cofina-bg: #F8FAFC;
   --cofina-card: #FFFFFF;
   --cofina-border: #E2E8F0;
-  
-  --cofina-text-primary: #1E293B;
-  --cofina-text-secondary: #64748B;
+  --cofina-border-subtle: #F1F5F9;
+
+  /* Typography Colors */
+  --cofina-text-primary: #0F172A;
+  --cofina-text-secondary: #475569;
   --cofina-text-muted: #94A3B8;
 
+  /* Status Tokens */
   --status-waiting: #F59E0B;
-  --status-called: #3B82F6;
+  --status-called: #2563EB;
   --status-in-progress: #10B981;
-  --status-completed: #6B7280;
+  --status-completed: #64748B;
   --status-cancelled: #EF4444;
 
-  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-heading: 'Montserrat', sans-serif;
+  /* Typography Families */
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Plus Jakarta Sans', 'Inter', sans-serif;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  /* Radius System */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+  --radius-pill: 9999px;
 
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 8px 16px -4px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 20px 30px -10px rgba(0, 0, 0, 0.12);
-  --shadow-red: 0 10px 25px -5px rgba(211, 18, 42, 0.35);
+  /* Elevation & Shadows */
+  --shadow-subtle: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.03);
+  --shadow-floating: 0 20px 40px -15px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.05);
+  --shadow-glow-red: 0 12px 30px -5px rgba(211, 18, 42, 0.4);
 
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Transitions */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-spring: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+/* Global Reset & Base Styles */
 * {
   margin: 0;
   padding: 0;
@@ -53,99 +68,105 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-body {
+html, body {
   font-family: var(--font-main);
   background-color: var(--cofina-bg);
   color: var(--cofina-text-primary);
   line-height: 1.5;
   min-height: 100vh;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
-  font-weight: 700;
-  color: var(--cofina-dark);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--cofina-text-primary);
 }
 
-/* Glassmorphism utility */
+/* Glassmorphism Utilities */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: var(--shadow-md);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: var(--shadow-card);
 }
 
 .glass-dark {
-  background: rgba(45, 49, 54, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #FFFFFF;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
-/* Cofina Button Styles */
+/* Button Component System */
 .btn-cofina-primary {
   background: linear-gradient(135deg, var(--cofina-red) 0%, var(--cofina-red-dark) 100%);
   color: #FFFFFF;
   font-family: var(--font-heading);
   font-weight: 700;
+  font-size: 0.92rem;
   border: none;
   border-radius: var(--radius-md);
-  padding: 0.85rem 1.75rem;
+  padding: 0.85rem 1.6rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.6rem;
-  box-shadow: var(--shadow-red);
-  transition: var(--transition-normal);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  box-shadow: var(--shadow-glow-red);
+  transition: var(--transition-smooth);
 }
 
 .btn-cofina-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 14px 28px -5px rgba(211, 18, 42, 0.45);
+  box-shadow: 0 16px 32px -5px rgba(211, 18, 42, 0.5);
 }
 
 .btn-cofina-primary:active {
-  transform: translateY(1px);
+  transform: scale(0.98);
 }
 
 .btn-cofina-secondary {
-  background: var(--cofina-dark);
+  background: #0F172A;
   color: #FFFFFF;
   font-family: var(--font-heading);
-  font-weight: 600;
+  font-weight: 700;
   border: none;
   border-radius: var(--radius-md);
   padding: 0.85rem 1.5rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  transition: var(--transition-normal);
+  transition: var(--transition-smooth);
 }
 
 .btn-cofina-secondary:hover {
-  background: var(--cofina-dark-surface);
+  background: #1E293B;
   transform: translateY(-1px);
 }
 
 .btn-cofina-outline {
-  background: transparent;
-  color: var(--cofina-dark);
-  border: 2px solid var(--cofina-border);
-  font-weight: 600;
+  background: #FFFFFF;
+  color: #334155;
+  border: 1px solid var(--cofina-border);
+  font-weight: 700;
+  font-size: 0.88rem;
   border-radius: var(--radius-md);
   padding: 0.75rem 1.25rem;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  transition: var(--transition-normal);
+  transition: var(--transition-smooth);
+  box-shadow: var(--shadow-subtle);
 }
 
 .btn-cofina-outline:hover {
@@ -154,11 +175,19 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--cofina-red-light);
 }
 
-/* Pulsing Badge for Status */
+/* Status Indicators */
+.pulse-dot-green {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
 .pulse-indicator {
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   position: relative;
 }
@@ -190,44 +219,44 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Call Alert Animation for Public Display */
-@keyframes flash-call {
+/* Call Alert Animation for Public TV Screen */
+@keyframes flash-call-glow {
   0%, 100% {
-    background-color: var(--cofina-red);
-    box-shadow: 0 0 40px rgba(211, 18, 42, 0.6);
+    background-color: #D3122A;
+    box-shadow: 0 0 50px rgba(211, 18, 42, 0.7);
   }
   50% {
-    background-color: var(--cofina-dark);
-    box-shadow: 0 0 10px rgba(45, 49, 54, 0.4);
+    background-color: #0F172A;
+    box-shadow: 0 0 15px rgba(15, 23, 42, 0.4);
   }
 }
 
 .calling-active {
-  animation: flash-call 1.2s infinite ease-in-out;
+  animation: flash-call-glow 1.2s infinite ease-in-out;
 }
 
-/* Custom Scrollbars */
+/* Custom Sleek Scrollbars */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.03);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #CBD5E1;
-  border-radius: 4px;
+  border-radius: 99px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94A3B8;
 }
 
-/* Animations */
+/* Micro-Animations & Utilities */
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out forwards;
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-scale-up {
@@ -235,11 +264,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes scaleUp {
-  from { opacity: 0; transform: scale(0.92); }
+  from { opacity: 0; transform: scale(0.95); }
   to { opacity: 1; transform: scale(1); }
 }

@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'cofina_edge_togo_secret_key_2026';
+const AGENT_PASSWORD = process.env.AGENT_PASSWORD || 'cofina2026';
 
 const prisma = new PrismaClient();
 const app = express();
@@ -20,6 +21,24 @@ const io = new Server(httpServer, {
 
 app.use(cors());
 app.use(express.json());
+
+// JWT Authentication Middleware for Protected Teller/Agent Routes
+function authenticateToken(req: any, res: any, next: any) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Accès non autorisé : Jeton de connexion (Token) manquant' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+    if (err) {
+      return res.status(403).json({ error: 'Jeton de connexion invalide ou expiré' });
+    }
+    req.user = user;
+    next();
+  });
+}
 
 // Helper: Ensure default agency exists in SQLite DB
 async function getOrCreateDefaultAgency() {
@@ -57,7 +76,7 @@ function getWeekStartDate() {
   return mon;
 }
 
-// Helper: Get active weekly state (tickets & counters starting from Saturday)
+// Helper: Get active weekly state (tickets & counters from Monday 00h00 to Saturday 14h00)
 async function getCurrentWeekState() {
   const startOfWeek = getWeekStartDate();
 
@@ -72,16 +91,21 @@ async function getCurrentWeekState() {
     }
   });
 
-  const dailyCounters: Record<string, number> = { D: 0, R: 0, O: 0, E: 0, C: 0, M: 0, S: 0, H: 0 };
-  tickets.forEach(t => {
-    const code = t.serviceCode;
-    const match = t.ticketNumber.match(/-(\d+)$/);
-    if (match) {
-      const num = parseInt(match[1], 10);
-      if (!dailyCounters[code] || num > dailyCounters[code]) {
-        dailyCounters[code] = num;
+  const counts = await prisma.ticket.groupBy({
+    by: ['serviceCode'],
+    where: {
+      createdAt: {
+        gte: startOfWeek
       }
+    },
+    _count: {
+      id: true
     }
+  });
+
+  const dailyCounters: Record<string, number> = { D: 0, R: 0, O: 0, E: 0, C: 0, M: 0, S: 0, H: 0 };
+  counts.forEach(c => {
+    dailyCounters[c.serviceCode] = c._count.id;
   });
 
   return { tickets, dailyCounters, weekStartDate: startOfWeek.toISOString() };
@@ -120,26 +144,79 @@ app.get('/api/tickets', async (req, res) => {
   }
 });
 
+// Public Endpoint (Kiosk ticket creation) with Prisma Transaction to prevent Race Conditions
 app.post('/api/tickets/create', async (req, res) => {
   try {
-    const { serviceCode, serviceName, isPriority, customerPhone, customerEmail } = req.body;
-    const agency = await getOrCreateDefaultAgency();
-
-    const { dailyCounters } = await getTodayState();
-    const currentCount = (dailyCounters[serviceCode] || 0) + 1;
-    const ticketNumber = `${serviceCode}-${String(currentCount).padStart(3, '0')}`;
-
-    const newTicket = await prisma.ticket.create({
-      data: {
-        ticketNumber,
-        serviceCode,
-        serviceName: serviceName || 'Dépôt & Retrait d\'Espèces',
-        priority: !!isPriority,
-        customerPhone: customerPhone || null,
-        customerEmail: customerEmail || null,
-        status: 'WAITING',
-        agencyId: agency.id
+    const { ticketNumber: inputTicketNumber, serviceCode, serviceName, isPriority, customerPhone, customerEmail } = req.body;
+    
+    const newTicket = await prisma.$transaction(async (tx) => {
+      let agency = await tx.agency.findFirst({ where: { code: 'AGC-01' } });
+      if (!agency) {
+        agency = await tx.agency.create({
+          data: {
+            code: 'AGC-01',
+            name: 'Agence Siège Kodjoviakopé (Lomé)',
+            city: 'Lomé',
+            address: 'Rue de la Paix, Kodjoviakopé'
+          }
+        });
       }
+
+      let ticketNumber = inputTicketNumber;
+      if (!ticketNumber) {
+        const startOfWeek = getWeekStartDate();
+        // Find all tickets of this service created in the active week
+        const existingTickets = await tx.ticket.findMany({
+          where: {
+            serviceCode,
+            createdAt: { gte: startOfWeek }
+          },
+          select: { ticketNumber: true }
+        });
+
+        let maxSeq = 0;
+        existingTickets.forEach(t => {
+          const match = t.ticketNumber.match(/-(\d+)$/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxSeq) maxSeq = num;
+          }
+        });
+
+        let nextSeq = maxSeq + 1;
+        ticketNumber = `${serviceCode}-${String(nextSeq).padStart(3, '0')}`;
+
+        // Uniqueness check: ensure ticketNumber cannot be duplicated in the active week
+        let exists = await tx.ticket.findFirst({
+          where: {
+            ticketNumber,
+            createdAt: { gte: startOfWeek }
+          }
+        });
+        while (exists) {
+          nextSeq++;
+          ticketNumber = `${serviceCode}-${String(nextSeq).padStart(3, '0')}`;
+          exists = await tx.ticket.findFirst({
+            where: {
+              ticketNumber,
+              createdAt: { gte: startOfWeek }
+            }
+          });
+        }
+      }
+
+      return await tx.ticket.create({
+        data: {
+          ticketNumber,
+          serviceCode,
+          serviceName: serviceName || 'Dépôt & Retrait d\'Espèces',
+          priority: !!isPriority,
+          customerPhone: customerPhone || null,
+          customerEmail: customerEmail || null,
+          status: 'WAITING',
+          agencyId: agency.id
+        }
+      });
     });
 
     const updatedState = await getTodayState();
@@ -154,17 +231,17 @@ app.post('/api/tickets/create', async (req, res) => {
   }
 });
 
-app.post('/api/tickets/call-next', async (req, res) => {
+// Protected Agent Endpoint: Call Next Ticket
+app.post('/api/tickets/call-next', authenticateToken, async (req, res) => {
   try {
     const { agentId, agentName, counterNumber, serviceFilter } = req.body;
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const startOfWeek = getWeekStartDate();
 
     const waiting = await prisma.ticket.findMany({
       where: {
         status: 'WAITING',
-        createdAt: { gte: startOfDay },
+        createdAt: { gte: startOfWeek },
         ...(serviceFilter && serviceFilter !== 'ALL' ? { serviceCode: serviceFilter } : {})
       },
       orderBy: [
@@ -180,12 +257,20 @@ app.post('/api/tickets/call-next', async (req, res) => {
     const ticketToCall = waiting[0];
     const now = new Date();
 
+    let validAgentId: string | null = null;
+    if (agentId) {
+      const existingAgent = await prisma.agent.findUnique({ where: { id: agentId } });
+      if (existingAgent) {
+        validAgentId = existingAgent.id;
+      }
+    }
+
     const updatedTicket = await prisma.ticket.update({
       where: { id: ticketToCall.id },
       data: {
         status: 'CALLED',
         counterNumber: counterNumber || 1,
-        agentId: agentId || null,
+        agentId: validAgentId,
         agentName: agentName || 'Caissier',
         calledAt: now
       }
@@ -203,7 +288,8 @@ app.post('/api/tickets/call-next', async (req, res) => {
   }
 });
 
-app.post('/api/tickets/update-status', async (req, res) => {
+// Protected Agent Endpoint: Update Ticket Status
+app.post('/api/tickets/update-status', authenticateToken, async (req, res) => {
   try {
     const { ticketId, status, extra } = req.body;
     const now = new Date();
@@ -212,6 +298,7 @@ app.post('/api/tickets/update-status', async (req, res) => {
       where: { id: ticketId },
       data: {
         status,
+        ...(status === 'IN_PROGRESS' ? { startedAt: now } : {}),
         ...(status === 'COMPLETED' ? { completedAt: now } : {}),
         ...(extra || {})
       }
@@ -226,7 +313,8 @@ app.post('/api/tickets/update-status', async (req, res) => {
   }
 });
 
-app.post('/api/tickets/recall', async (req, res) => {
+// Protected Agent Endpoint: Recall Ticket
+app.post('/api/tickets/recall', authenticateToken, async (req, res) => {
   try {
     const { ticketId } = req.body;
     const now = new Date();
@@ -245,8 +333,8 @@ app.post('/api/tickets/recall', async (req, res) => {
   }
 });
 
-// Weekly Archiving Endpoints (Saturday Reset & DB Backup)
-app.post('/api/tickets/weekly-archive', async (req, res) => {
+// Protected Admin Endpoint: Weekly Archiving
+app.post('/api/tickets/weekly-archive', authenticateToken, async (req, res) => {
   try {
     const { weekLabel, startDate, endDate, totalTickets, completedTickets, noShowTickets, avgWaitMin, tickets } = req.body;
 
@@ -275,6 +363,23 @@ app.post('/api/tickets/weekly-archive', async (req, res) => {
   }
 });
 
+app.get('/api/reload-clients', (req, res) => {
+  io.emit('reload_page');
+  res.json({ message: 'Ordre de rafraîchissement envoyé à tous les écrans en direct' });
+});
+
+// Protected Admin Endpoint: Reset All Tickets
+app.post('/api/tickets/reset-all', authenticateToken, async (req, res) => {
+  try {
+    await prisma.ticket.deleteMany({});
+    const cleanState = { tickets: [], dailyCounters: { D: 0, R: 0, O: 0, E: 0, C: 0, M: 0, S: 0, H: 0 }, lastCalledTicket: null };
+    io.emit('init_state', cleanState);
+    res.json({ message: 'Tous les tickets de démonstration ont été supprimés avec succès.' });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/tickets/weekly-archives', async (req, res) => {
   try {
     const archives = await prisma.weeklyArchive.findMany({
@@ -289,7 +394,7 @@ app.get('/api/tickets/weekly-archives', async (req, res) => {
 // JWT Auth Login Endpoint for Tellers/Agents
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
-  if (password === 'cofina2026') {
+  if (password === AGENT_PASSWORD) {
     const token = jwt.sign({ username, role: 'AGENT', agency: 'KODJOVIAKOPE' }, JWT_SECRET, { expiresIn: '12h' });
     return res.json({ token, username });
   }
@@ -306,6 +411,13 @@ io.on('connection', async (socket) => {
   } catch (e) {
     console.error('Socket init error:', e);
   }
+
+  // REMOVED: socket.on('sync_state') to prevent split-brain architecture.
+  // The server SQLite DB is now the single source of truth.
+
+  socket.on('trigger_reload', () => {
+    io.emit('reload_page');
+  });
 
   socket.on('disconnect', () => {
     console.log(`[Socket.io LAN] Client déconnecté : ${socket.id}`);

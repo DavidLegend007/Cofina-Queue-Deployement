@@ -1,6 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import QRCode from 'qrcode';
+import { 
+  Banknote, 
+  Wallet,
+  Send,
+  Globe,
+  UserPlus, 
+  FileCheck,
+  ArrowRightLeft,
+  FileText,
+  Smartphone,
+  CreditCard, 
+  Headphones, 
+  Accessibility,
+  HelpCircle,
+  X,
+  Printer,
+  CheckCircle2,
+  ArrowRight,
+  Clock
+} from 'lucide-react';
 import { createTicket, COFINA_SERVICES } from '../services/queueStore';
 
 /* ─── Design tokens (COFINA Brand Theme) ─────────────── */
@@ -22,42 +42,41 @@ const MD = {
   onSecondaryContainer:    '#646464',
 };
 
-/* ─── 8 operations COFINA ────────────────────────────────────────────────── */
-const OPERATIONS = [
-  { id: 'op-depot',     code: 'D', label: 'Dépôt',               icon: 'payments',      filled: true,  primary: true  },
-  { id: 'op-retrait',   code: 'R', label: 'Retrait',             icon: 'money',         filled: false, primary: false },
-  { id: 'op-ouverture', code: 'O', label: 'Ouverture de compte', icon: 'person_add',    filled: false, primary: false },
-  { id: 'op-epargne',   code: 'E', label: 'Épargne',             icon: 'savings',       filled: false, primary: false },
-  { id: 'op-credit',    code: 'C', label: 'Crédit',              icon: 'credit_card',   filled: false, primary: false },
-  { id: 'op-remb',      code: 'M', label: 'Microcrédit & Remb.', icon: 'receipt_long',  filled: false, primary: false },
-  { id: 'op-conseil',   code: 'S', label: 'Service Client',      icon: 'support_agent', filled: false, primary: false },
-  { id: 'op-handicap',  code: 'H', label: 'Mobilité réduite',    icon: 'accessible',    filled: false, primary: false },
-];
+/* ─── 12 operations COFINA issues de COFINA_SERVICES ───────────────────────── */
+const OPERATIONS = COFINA_SERVICES.map(s => ({
+  id: `op-${s.code.toLowerCase()}`,
+  code: s.code,
+  label: s.name,
+  iconName: s.icon
+}));
 
-/* ─── Thème couleur par service (Boarding Pass style) ─────────────────────── */
 const SERVICE_THEMES = {
-  D: { color: '#D3122A', gradient: 'linear-gradient(135deg, #D3122A 0%, #920020 100%)', bg: '#FFF0F0', border: '#fca5a5', emoji: '💵', vip: false },
-  R: { color: '#D3122A', gradient: 'linear-gradient(135deg, #EF4444 0%, #B91C1C 100%)', bg: '#FEF2F2', border: '#fca5a5', emoji: '💸', vip: false },
-  O: { color: '#2563EB', gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', bg: '#EFF6FF', border: '#93c5fd', emoji: '🏦', vip: false },
-  E: { color: '#2563EB', gradient: 'linear-gradient(135deg, #60A5FA 0%, #2563EB 100%)', bg: '#EFF6FF', border: '#93c5fd', emoji: '🐷', vip: false },
-  C: { color: '#B45309', gradient: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)', bg: '#FFFBEB', border: '#fcd34d', emoji: '📋', vip: false },
-  M: { color: '#B45309', gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', bg: '#FFFBEB', border: '#fcd34d', emoji: '🤝', vip: false },
-  S: { color: '#059669', gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', bg: '#ECFDF5', border: '#6ee7b7', emoji: '⭐', vip: true  },
-  H: { color: '#6D28D9', gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)', bg: '#F5F3FF', border: '#C4B5FD', emoji: '♿', vip: true  },
+  D:   { color: '#D3122A', gradient: 'linear-gradient(135deg, #D3122A 0%, #920020 100%)', bg: '#FFF5F5', border: '#FECACA', iconBg: 'rgba(211,18,42,0.12)' },
+  R:   { color: '#F97316', gradient: 'linear-gradient(135deg, #F97316 0%, #C2410C 100%)', bg: '#FFF7ED', border: '#FFEDD5', iconBg: 'rgba(249,115,22,0.12)' },
+  TN:  { color: '#2563EB', gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', bg: '#EFF6FF', border: '#BFDBFE', iconBg: 'rgba(37,99,235,0.12)' },
+  TI:  { color: '#06B6D4', gradient: 'linear-gradient(135deg, #06B6D4 0%, #0E7490 100%)', bg: '#ECFEFF', border: '#A5F3FC', iconBg: 'rgba(6,182,212,0.12)' },
+  O:   { color: '#10B981', gradient: 'linear-gradient(135deg, #10B981 0%, #047857 100%)', bg: '#ECFDF5', border: '#A7F3D0', iconBg: 'rgba(16,185,129,0.12)' },
+  RC:  { color: '#D97706', gradient: 'linear-gradient(135deg, #F59E0B 0%, #B45309 100%)', bg: '#FFFBEB', border: '#FDE68A', iconBg: 'rgba(217,119,6,0.12)' },
+  V:   { color: '#8B5CF6', gradient: 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)', bg: '#F5F3FF', border: '#DDD6FE', iconBg: 'rgba(139,92,246,0.12)' },
+  DR:  { color: '#EC4899', gradient: 'linear-gradient(135deg, #EC4899 0%, #BE185D 100%)', bg: '#FDF2F8', border: '#FBCFE8', iconBg: 'rgba(236,72,153,0.12)' },
+  CM:  { color: '#D3122A', gradient: 'linear-gradient(135deg, #D3122A 0%, #920020 100%)', bg: '#FFF5F5', border: '#FECACA', iconBg: 'rgba(211,18,42,0.12)' },
+  C:   { color: '#F59E0B', gradient: 'linear-gradient(135deg, #F59E0B 0%, #B45309 100%)', bg: '#FFFBEB', border: '#FDE68A', iconBg: 'rgba(245,158,11,0.12)' },
+  PC:  { color: '#3B82F6', gradient: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)', bg: '#EFF6FF', border: '#BFDBFE', iconBg: 'rgba(59,130,246,0.12)' },
+  PMR: { color: '#10B981', gradient: 'linear-gradient(135deg, #10B981 0%, #047857 100%)', bg: '#ECFDF5', border: '#A7F3D0', iconBg: 'rgba(16,185,129,0.12)' },
 };
 
 /* ─── Textes bilingues ────────────────────────────────────────────────────── */
 const TEXTS = {
   fr: {
-    welcomeTitle:   'Bienvenue chez COFINA',
-    welcomeSub:     'Veuillez sélectionner votre opération',
+    welcomeTitle:   'BIENVENUE A COFINA Togo',
+    welcomeSub:     'Institution Panafricaine de la Finance Inclusive.\nVeuillez sélectionner votre opération',
     helpBtn:        "Besoin d'aide ?",
     ticketLabel:    'VOTRE NUMÉRO DE PASSAGE',
     waitNotice:     "Veuillez vous asseoir en salle d'attente. Votre numéro sera annoncé à l'écran TV.",
     resetText:      "Retour à l'accueil dans",
     finishBtn:      "TERMINER / RETOUR À L'ACCUEIL",
-    helpTitle:      'Assistance Guichet Cofina',
-    helpBody:       "Un agent d'accueil COFINA est disponible dans le hall pour vous guider et vous aider dans votre démarche.",
+    helpTitle:      'Assistance & Orientation Client',
+    helpBody:       "Veuillez vous adresser directement à l'un de nos agents d'accueil présents dans le hall pour vous guider et vous assister dans vos démarches. Vous pouvez également contacter notre Assistance au 92686060.",
     closeBtn:       'Fermer',
     audioNotice:    "Ticket créé, veuillez prendre place en salle d'attente",
     processingText: 'Génération de votre ticket…',
@@ -69,15 +88,15 @@ const TEXTS = {
     printedText:    '✓ Ticket Papier Imprimé !',
   },
   en: {
-    welcomeTitle:   'Welcome to COFINA',
-    welcomeSub:     'Please select your transaction',
+    welcomeTitle:   'WELCOME TO COFINA Togo',
+    welcomeSub:     'Pan-African Institution of Inclusive Finance.\nPlease select your operation',
     helpBtn:        'Need help?',
     ticketLabel:    'YOUR TICKET NUMBER',
     waitNotice:     'Please take a seat. Your number will be displayed on the TV screen.',
     resetText:      'Returning home in',
     finishBtn:      'FINISH / RETURN TO HOME',
-    helpTitle:      'Cofina Help Center',
-    helpBody:       'A COFINA welcoming agent is available in the lobby to assist and guide you.',
+    helpTitle:      'Customer Support & Guidance',
+    helpBody:       'Please speak directly with one of our welcoming agents available in the lobby to guide and assist you with your request. You can also contact our Support line at 92686060.',
     closeBtn:       'Close',
     audioNotice:    'Ticket issued, please have a seat in the waiting area',
     processingText: 'Generating your ticket…',
@@ -90,24 +109,26 @@ const TEXTS = {
   },
 };
 
-/* ─── Material Symbol helper ──────────────────────────────────────────────── */
-const MatIcon = ({ name, filled = false, size = 48 }) => (
-  <span
-    className="material-symbols-outlined"
-    style={{
-      fontSize: size,
-      fontVariationSettings: filled
-        ? "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48"
-        : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 48",
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    }}
-  >
-    {name}
-  </span>
-);
+/* ─── Lucide Icon helper ─────────────────────────────────────────────────── */
+const ICON_COMPONENTS = {
+  Banknote,
+  Wallet,
+  Send,
+  Globe,
+  UserPlus,
+  FileCheck,
+  ArrowRightLeft,
+  FileText,
+  Smartphone,
+  CreditCard,
+  Headphones,
+  Accessibility
+};
+
+function ServiceLucideIcon({ name, size = 44, color }) {
+  const IconComp = ICON_COMPONENTS[name] || Banknote;
+  return <IconComp size={size} color={color} />;
+}
 
 /* ─── Real QR Code ─────────────────────────────────────────────────── */
 function RealQRCode({ value = '', size = 150 }) {
@@ -123,7 +144,6 @@ function RealQRCode({ value = '', size = 150 }) {
 /* ─── CSS ─────────────────────────────────────────────────────────────────── */
 const buildCSS = () => `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap');
-  @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap');
 
   .bn-root {
     min-height:100vh; display:flex; flex-direction:column;
@@ -413,6 +433,7 @@ const buildCSS = () => `
 
 /* ─── COMPOSANT PRINCIPAL ────────────────────────────────────────────────── */
 export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr' }) {
+  const [currentLang,    setCurrentLang]    = useState(lang);
   const [issuedTicket,   setIssuedTicket]   = useState(null);
   const [isSubmitting,   setIsSubmitting]   = useState(false);
   const [isPrinting,     setIsPrinting]     = useState(false);
@@ -429,7 +450,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
     return () => clearInterval(timer);
   }, []);
 
-  const txt = TEXTS[lang] || TEXTS.fr;
+  const txt = TEXTS[currentLang] || TEXTS.fr;
 
   /* Countdown auto-reset */
   useEffect(() => {
@@ -444,31 +465,34 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
     return () => clearInterval(id);
   }, [issuedTicket]);
 
-  const handleCardTap = (op) => {
+  const handleCardTap = async (op) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     setIsPrinting(false);
     setIsPrinted(false);
     setIsScanned(false);
 
-    setTimeout(() => {
-      // Capture waiting count before creating ticket to show queue position
-      let waitingBefore = 0;
-      try {
-        const raw = localStorage.getItem('cofina_queue_v1_store_togo');
-        const stored = raw ? JSON.parse(raw) : null;
-        if (stored && Array.isArray(stored.tickets)) {
-          waitingBefore = stored.tickets.filter(t => t.status === 'WAITING').length;
-        }
-      } catch {}
-      setWaitingCount(waitingBefore);
+    // Capture waiting count before creating ticket to show queue position
+    let waitingBefore = 0;
+    try {
+      const raw = localStorage.getItem('cofina_queue_v1_store_togo');
+      const stored = raw ? JSON.parse(raw) : null;
+      if (stored && Array.isArray(stored.tickets)) {
+        waitingBefore = stored.tickets.filter(t => t.status === 'WAITING').length;
+      }
+    } catch {}
+    setWaitingCount(waitingBefore);
 
-      const ticket = createTicket(op.code, null, null, lang);
+    try {
+      const ticket = await createTicket(op.code, null, null, currentLang);
       setIssuedTicket({ ...ticket, operationLabel: op.label, op });
       setIsSubmitting(false);
       try { confetti({ particleCount: 65, spread: 75, origin: { y: 0.65 } }); } catch {}
       if (onTicketGenerated) onTicketGenerated(ticket);
-    }, 300);
+    } catch (error) {
+      console.error('Failed to create ticket', error);
+      setIsSubmitting(false);
+    }
   };
 
   const handlePrintTicket = () => {
@@ -499,7 +523,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
 
       {/* HEADER KIOSK CLEARED (NO CLOCK FOR CLIENT KIOSK) */}
       <header className="bn-header">
-        <img src="/COFINA.png" alt="Cofina Logo" className="bn-header-logo" />
+        <img src="/cofina.jpeg" alt="Cofina Logo" className="bn-header-logo" />
         <div className="bn-agency-badge">
           <span>📍 {agencyName}</span>
         </div>
@@ -513,56 +537,104 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
             alignItems: 'center',
             gap: '8px',
             background: '#FFF5F5',
-            border: '1px solid #FECACA',
+            border: '1.5px solid #FECACA',
             padding: '6px 18px',
             borderRadius: '99px',
             marginBottom: '16px',
             color: '#D3122A',
-            fontWeight: '700',
+            fontWeight: '800',
             fontFamily: 'monospace',
-            fontSize: '18px'
+            fontSize: '17px',
+            boxShadow: '0 2px 10px rgba(211, 18, 42, 0.08)'
           }}>
-            <span>⏱️ {clockTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+            <Clock size={18} />
+            <span>{clockTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
           </div>
           <h1>{txt.welcomeTitle}</h1>
           <p>{txt.welcomeSub}</p>
         </div>
 
         <div className="bn-grid">
-          {OPERATIONS.map(op => (
-            <button
-              key={op.id}
-              className="bn-card"
-              onClick={() => handleCardTap(op)}
-              disabled={isSubmitting}
-            >
-              <div className="bn-card-overlay" />
-              <div className={op.primary ? 'bn-icon-primary' : 'bn-icon-neutral'}>
-                <MatIcon name={op.icon} filled={op.filled} size={48} />
-              </div>
-              <span className="bn-card-label">{op.label}</span>
-            </button>
-          ))}
+          {OPERATIONS.map(op => {
+            const theme = SERVICE_THEMES[op.code] || SERVICE_THEMES.D;
+            return (
+              <button
+                key={op.id}
+                className="bn-card"
+                onClick={() => handleCardTap(op)}
+                disabled={isSubmitting}
+                style={{
+                  borderColor: theme.border,
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                <div className="bn-card-overlay" style={{ background: theme.color }} />
+                
+                {/* Code Chip Badge */}
+                <span 
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    background: theme.color,
+                    color: '#FFFFFF',
+                    fontWeight: '900',
+                    fontSize: '12px',
+                    padding: '3px 10px',
+                    borderRadius: '99px',
+                    fontFamily: 'monospace',
+                    letterSpacing: '0.05em',
+                    boxShadow: `0 2px 8px ${theme.color}40`
+                  }}
+                >
+                  {op.code}
+                </span>
+
+                {/* Service Icon Container with Service Color */}
+                <div 
+                  style={{
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '50%',
+                    background: theme.bg,
+                    color: theme.color,
+                    border: `2px solid ${theme.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    zIndex: 1,
+                    boxShadow: `0 6px 18px ${theme.color}25`
+                  }}
+                >
+                  <ServiceLucideIcon name={op.iconName} size={44} color={theme.color} />
+                </div>
+                <span className="bn-card-label" style={{ color: '#1A1C1D' }}>
+                  {op.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </main>
 
       {/* FOOTER */}
       <footer className="bn-footer">
         <button className="bn-help-btn" onClick={() => setShowHelp(true)}>
-          <MatIcon name="help_outline" size={20} />
+          <HelpCircle size={20} />
           <span>{txt.helpBtn}</span>
         </button>
 
         <div className="bn-lang-toggle">
           <button
-            className={`bn-lang-btn ${lang === 'fr' ? 'active' : 'inactive'}`}
-            onClick={() => setLang('fr')}
+            className={`bn-lang-btn ${currentLang === 'fr' ? 'active' : 'inactive'}`}
+            onClick={() => setCurrentLang('fr')}
           >
             FR
           </button>
           <button
-            className={`bn-lang-btn ${lang === 'en' ? 'active' : 'inactive'}`}
-            onClick={() => setLang('en')}
+            className={`bn-lang-btn ${currentLang === 'en' ? 'active' : 'inactive'}`}
+            onClick={() => setCurrentLang('en')}
           >
             EN
           </button>
@@ -581,7 +653,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
 
       {/* MODAL TICKET PREMIUM — BOARDING PASS COFINA */}
       {issuedTicket && (() => {
-        const theme = SERVICE_THEMES[issuedTicket.serviceCode] || SERVICE_THEMES.A;
+        const theme = SERVICE_THEMES[issuedTicket.serviceCode] || SERVICE_THEMES.D;
         const now = new Date();
         const dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
         const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -595,7 +667,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <div className="bn-ticket-banner" style={{ background: theme.gradient }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <img src="/COFINA.png" alt="Cofina" className="bn-ticket-banner-logo" />
+                    <img src="/cofina.jpeg" alt="Cofina" className="bn-ticket-banner-logo" />
                     <span className="bn-ticket-banner-agency">📍 {agencyName}</span>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
@@ -609,12 +681,33 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                 </div>
 
                 <div className="bn-ticket-body" style={{ flex: 1, justifyContent: 'center' }}>
-                  <div className="bn-ticket-number-box">
+                  <div className="bn-ticket-number-box" style={{ borderColor: theme.border }}>
+                    {/* Icone de Service Couleur sur le Ticket */}
+                    <div 
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '50%',
+                        background: theme.bg,
+                        color: theme.color,
+                        border: `2px solid ${theme.border}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 8px auto',
+                        boxShadow: `0 4px 14px ${theme.color}25`
+                      }}
+                    >
+                      <ServiceLucideIcon name={issuedTicket.op?.iconName || 'Banknote'} size={32} color={theme.color} />
+                    </div>
+
                     <span className="bn-receipt-label">{txt.ticketLabel}</span>
                     <div className="bn-receipt-number" style={{ color: theme.color }}>
                       {issuedTicket.ticketNumber}
                     </div>
-                    <p className="bn-receipt-service">{issuedTicket.operationLabel}</p>
+                    <p className="bn-receipt-service" style={{ color: theme.color, fontWeight: '700' }}>
+                      {issuedTicket.operationLabel}
+                    </p>
                     <p className="bn-ticket-date">
                       {dateStr.charAt(0).toUpperCase() + dateStr.slice(1)} · {timeStr}
                     </p>
@@ -637,14 +730,14 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                     onClick={handlePrintTicket}
                     disabled={isPrinting}
                   >
-                    <MatIcon name={printed ? 'check_circle' : 'print'} size={15} />
+                    {printed ? <CheckCircle2 size={16} /> : <Printer size={16} />}
                     <span>
                       {isPrinting ? 'Impression en cours…' : printed ? '✓ Reçu papier imprimé !' : '🖨️ Imprimer un reçu papier (Optionnel)'}
                     </span>
                   </button>
                   <button className="bn-finish-btn" onClick={handleReset}>
                     <span>TERMINER ({resetCountdown}s)</span>
-                    <MatIcon name="arrow_forward" size={15} />
+                    <ArrowRight size={16} />
                   </button>
                 </div>
               </div>
@@ -686,7 +779,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
         <div className="bn-help-overlay" onClick={() => setShowHelp(false)}>
           <div className="bn-help-modal" onClick={e => e.stopPropagation()}>
             <button className="bn-help-close" onClick={() => setShowHelp(false)}>
-              <MatIcon name="close" size={24} />
+              <X size={24} />
             </button>
             <h2>{txt.helpTitle}</h2>
             <p style={{ margin: '16px 0 24px 0', color: MD.onSurfaceVariant, lineHeight: 1.5 }}>

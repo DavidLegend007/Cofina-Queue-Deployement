@@ -4,7 +4,8 @@ import {
   Play, 
   Volume2, 
   UserX, 
-  CheckCircle, 
+  CheckCircle,
+  CheckCircle2, 
   ChevronDown, 
   ChevronUp, 
   Maximize2, 
@@ -24,7 +25,8 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { 
-  callNextTicket, 
+  processNextTicket,
+  generateSimulationTickets,
   recallTicket, 
   updateTicketStatus, 
   getStoredAgentProfiles,
@@ -105,11 +107,14 @@ export default function FloatingTellerWidget({
   };
 
   const handleCallNext = () => {
-    // If active ticket, complete it first
-    if (activeTicket) {
-      updateTicketStatus(activeTicket.id, 'COMPLETED');
-    }
-    callNextTicket(selectedAgent.id, selectedAgent.name, counterNumber, 'ALL', lang);
+    processNextTicket(
+      selectedAgent.id,
+      selectedAgent.name,
+      counterNumber,
+      'ALL',
+      activeTicket?.id || null,
+      lang
+    );
     onStateChange();
   };
 
@@ -119,10 +124,11 @@ export default function FloatingTellerWidget({
     }
   };
 
-  const handleNoShow = () => {
+  const handleNoShow = async () => {
     if (activeTicket) {
-      updateTicketStatus(activeTicket.id, 'NO_SHOW');
+      await updateTicketStatus(activeTicket.id, 'NO_SHOW');
       onStateChange();
+      await handleCallNext();
     }
   };
 
@@ -301,7 +307,12 @@ export default function FloatingTellerWidget({
                 <label>Guichet :</label>
                 <select 
                   value={counterNumber} 
-                  onChange={(e) => setCounterNumber(Number(e.target.value))}
+                  onChange={(e) => {
+                    const num = Number(e.target.value);
+                    setCounterNumber(num);
+                    const ag = profiles.find(p => p.defaultCounter === num) || profiles[0];
+                    if (ag) setSelectedAgentId(ag.id);
+                  }}
                   className="widget-select"
                 >
                   <option value={1}>Caisse 1</option>
@@ -366,15 +377,6 @@ export default function FloatingTellerWidget({
               </button>
 
               <button 
-                className="widget-btn btn-processing"
-                onClick={handleStartProcessing}
-                disabled={!activeTicket || activeTicket.status === 'IN_PROGRESS'}
-              >
-                <Check size={16} />
-                <span>En traitement</span>
-              </button>
-
-              <button 
                 className="widget-btn btn-recall"
                 onClick={handleRecall}
                 disabled={!activeTicket}
@@ -382,24 +384,37 @@ export default function FloatingTellerWidget({
                 <Volume2 size={16} />
                 <span>{t.widgetBtnRecall}</span>
               </button>
-              
+
               <button 
-                className="widget-btn btn-noshow"
+                className="widget-btn btn-absent"
                 onClick={handleNoShow}
                 disabled={!activeTicket}
               >
                 <UserX size={16} />
-                <span>{t.widgetBtnNoShow}</span>
+                <span>Absent</span>
               </button>
 
-              <button 
-                className="widget-btn btn-complete"
-                onClick={handleComplete}
-                disabled={!activeTicket}
-              >
-                <CheckCircle size={16} />
-                <span>{t.widgetBtnComplete}</span>
-              </button>
+              {activeTicket && activeTicket.status === 'CALLED' && (
+                <button 
+                  className="widget-btn btn-processing"
+                  onClick={handleStartProcessing}
+                  style={{ gridColumn: 'span 2' }}
+                >
+                  <Clock size={16} />
+                  <span>Démarrer le Traitement</span>
+                </button>
+              )}
+
+              {activeTicket && activeTicket.status === 'IN_PROGRESS' && (
+                <button 
+                  className="widget-btn btn-complete"
+                  onClick={handleComplete}
+                  style={{ gridColumn: 'span 2' }}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>Terminer le Service</span>
+                </button>
+              )}
             </div>
 
             {/* FOOTER METIER DEMO TIP */}

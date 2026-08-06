@@ -52,20 +52,33 @@ ${isEn ? 'Welcome! Please take a seat in the waiting room.\nYour number will be 
 export const exportAgencyDataCSV = (tickets, agencyName) => {
   if (!tickets || tickets.length === 0) return;
   
-  const headers = ["ID Ticket", "Numéro", "Code Service", "Nom Service", "Prioritaire", "Statut", "Caisse", "Caissier", "Créé Le", "Appelé Le", "Terminé Le"];
-  const rows = tickets.map(t => [
-    t.id,
-    t.ticketNumber,
-    t.serviceCode,
-    `"${t.serviceName}"`,
-    t.priority ? "Oui" : "Non",
-    t.status,
-    t.counterNumber || "-",
-    `"${t.agentName || "-"}"`,
-    t.createdAt || "-",
-    t.calledAt || "-",
-    t.completedAt || "-"
-  ]);
+  const headers = ["ID Ticket", "Numéro", "Code Service", "Nom Service", "Prioritaire", "Statut", "Caisse", "Caissier", "Créé Le", "Appelé Le", "Début Traitement", "Terminé Le", "Attente (min)", "Traitement (min)"];
+  const rows = tickets.map(t => {
+    const waitMin = (t.calledAt && t.createdAt) 
+      ? Math.round(((new Date(t.calledAt) - new Date(t.createdAt)) / 1000) / 60) 
+      : "-";
+    const startRef = t.startedAt || t.calledAt;
+    const serviceMin = (t.completedAt && startRef) 
+      ? Math.round(((new Date(t.completedAt) - new Date(startRef)) / 1000) / 60) 
+      : "-";
+
+    return [
+      t.id,
+      t.ticketNumber,
+      t.serviceCode,
+      `"${t.serviceName}"`,
+      t.priority ? "Oui" : "Non",
+      t.status,
+      t.counterNumber || "-",
+      `"${t.agentName || "-"}"`,
+      t.createdAt || "-",
+      t.calledAt || "-",
+      t.startedAt || "-",
+      t.completedAt || "-",
+      waitMin,
+      serviceMin
+    ];
+  });
 
   const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
   const encodedUri = encodeURI(csvContent);
@@ -77,16 +90,19 @@ export const exportAgencyDataCSV = (tickets, agencyName) => {
   document.body.removeChild(link);
 };
 
-// 8 Services pour la Microfinance
 export const COFINA_SERVICES = [
-  { code: 'D', name: 'Dépôt', description: 'Versements urgents, dépôts de marché', color: '#D3122A', avgTimeMin: 3, icon: 'Banknote', badge: 'Dépôt' },
-  { code: 'R', name: 'Retrait', description: 'Retraits caisse', color: '#D3122A', avgTimeMin: 3, icon: 'Money', badge: 'Retrait' },
-  { code: 'O', name: 'Ouverture de compte', description: 'Nouveaux livrets', color: '#2563EB', avgTimeMin: 12, icon: 'UserPlus', badge: 'Compte' },
-  { code: 'E', name: 'Épargne', description: 'Versements tontine', color: '#2563EB', avgTimeMin: 6, icon: 'PiggyBank', badge: 'Épargne' },
-  { code: 'C', name: 'Crédit', description: 'Demandes de prêts', color: '#D97706', avgTimeMin: 15, icon: 'Briefcase', badge: 'Financement' },
-  { code: 'M', name: 'Microcrédit & Remb.', description: 'Remboursements', color: '#D97706', avgTimeMin: 8, icon: 'Receipt', badge: 'Remboursement' },
-  { code: 'S', name: 'Service Client', description: 'Renseignements', color: '#059669', isPriority: true, avgTimeMin: 5, icon: 'Support', badge: 'Assistance' },
-  { code: 'H', name: 'Handicap', description: 'Mobilité réduite', color: '#8B5CF6', isPriority: true, avgTimeMin: 5, icon: 'Accessible', badge: 'Handicap' }
+  { code: 'D', name: 'Dépôt', description: 'Versements', color: '#D3122A', avgTimeMin: 3, icon: 'Banknote', badge: 'Dépôt' },
+  { code: 'R', name: 'Retrait', description: 'Retraits caisse', color: '#F97316', avgTimeMin: 3, icon: 'Wallet', badge: 'Retrait' },
+  { code: 'TN', name: 'Transfert national', description: 'Envoi/Réception', color: '#2563EB', avgTimeMin: 5, icon: 'Send', badge: 'Transfert' },
+  { code: 'TI', name: 'Transfert international', description: 'Envoi/Réception', color: '#06B6D4', avgTimeMin: 8, icon: 'Globe', badge: 'Transfert' },
+  { code: 'O', name: 'Ouverture de compte', description: 'Nouveaux comptes', color: '#10B981', avgTimeMin: 15, icon: 'UserPlus', badge: 'Compte' },
+  { code: 'RC', name: 'Remise de chèque', description: 'Dépôt chèque', color: '#D97706', avgTimeMin: 4, icon: 'FileCheck', badge: 'Chèque' },
+  { code: 'V', name: 'Virement', description: 'Virement bancaire', color: '#8B5CF6', avgTimeMin: 5, icon: 'ArrowRightLeft', badge: 'Virement' },
+  { code: 'DR', name: 'Demande de Relevé', description: 'Relevé de compte', color: '#EC4899', avgTimeMin: 3, icon: 'FileText', badge: 'Relevé' },
+  { code: 'CM', name: 'COFINA Mobile+', description: 'Assistance mobile', color: '#D3122A', avgTimeMin: 5, icon: 'Smartphone', badge: 'Digital' },
+  { code: 'C', name: 'Crédit', description: 'Demande de prêt', color: '#F59E0B', avgTimeMin: 20, icon: 'CreditCard', badge: 'Crédit' },
+  { code: 'PC', name: 'Parler à un conseiller', description: 'Assistance client', color: '#3B82F6', avgTimeMin: 15, icon: 'Headphones', badge: 'Conseil' },
+  { code: 'PMR', name: 'Mobilité Réduite', description: 'Accès prioritaire', color: '#10B981', avgTimeMin: 5, icon: 'Accessibility', badge: 'Priorité', isPriority: true }
 ];
 
 // 4 CAISSES / CAISSIERS
@@ -228,6 +244,12 @@ if (typeof window !== 'undefined') {
       notifySubscribers(newState);
     });
 
+    socket.on('reload_page', () => {
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
+    });
+
   } catch (e) {
     console.warn('Socket.io connection initialization skipped:', e);
   }
@@ -235,90 +257,15 @@ if (typeof window !== 'undefined') {
 
 
 
-// Initial sample seed if storage is empty
+// Initial state (clean empty state for live production)
 const getInitialState = () => {
-  const now = new Date();
-  const makeTime = (minutesAgo) => new Date(now.getTime() - minutesAgo * 60000).toISOString();
-
   return {
     currentAgencyId: 'AGC-01',
     agencyName: 'Agence Siège Kodjoviakopé (Lomé)',
     dailyCounter: { D: 0, R: 0, O: 0, E: 0, C: 0, M: 0, S: 0, H: 0 },
-    onlineCounters: [],
-    lastCalledTicket: {
-      id: 'seed-called-1',
-      ticketNumber: 'D-001',
-      serviceCode: 'D',
-      serviceName: 'Dépôt',
-      counterNumber: 1,
-      agentName: 'Mensah Koffi',
-      calledAt: makeTime(1),
-      status: 'CALLED'
-    },
-    tickets: [
-      {
-        id: 'seed-waiting-1',
-        ticketNumber: 'S-001',
-        serviceCode: 'S',
-        serviceName: 'Service Client',
-        priority: true,
-        customerPhone: null,
-        status: 'WAITING',
-        createdAt: makeTime(12),
-        calledAt: null,
-        completedAt: null
-      },
-      {
-        id: 'seed-waiting-2',
-        ticketNumber: 'D-002',
-        serviceCode: 'D',
-        serviceName: 'Dépôt',
-        priority: false,
-        customerPhone: null,
-        status: 'WAITING',
-        createdAt: makeTime(8),
-        calledAt: null,
-        completedAt: null
-      },
-      {
-        id: 'seed-waiting-3',
-        ticketNumber: 'E-001',
-        serviceCode: 'E',
-        serviceName: 'Épargne',
-        priority: false,
-        customerPhone: null,
-        status: 'WAITING',
-        createdAt: makeTime(5),
-        calledAt: null,
-        completedAt: null
-      },
-      {
-        id: 'seed-called-1',
-        ticketNumber: 'D-001',
-        serviceCode: 'D',
-        serviceName: 'Dépôt',
-        counterNumber: 1,
-        agentId: 'AGT-01',
-        agentName: 'Mensah Koffi',
-        status: 'CALLED',
-        createdAt: makeTime(15),
-        calledAt: makeTime(1),
-        completedAt: null
-      },
-      {
-        id: 'seed-inprog-1',
-        ticketNumber: 'R-001',
-        serviceCode: 'R',
-        serviceName: 'Retrait',
-        counterNumber: 2,
-        agentId: 'AGT-02',
-        agentName: 'Amégadjie Afiwa',
-        status: 'IN_PROGRESS',
-        createdAt: makeTime(22),
-        calledAt: makeTime(8),
-        completedAt: null
-      }
-    ]
+    onlineCounters: [1],
+    lastCalledTicket: null,
+    tickets: []
   };
 };
 
@@ -355,39 +302,19 @@ export const getStoredState = () => {
 
     const state = JSON.parse(raw);
     
-    // Auto-detect weekly turnover (Saturday 14h / Monday morning): archive previous week and reset tickets counter
+    // BUG FIX (Bug 6): The old code attempted to archive tickets from localStorage.
+    // Since tickets now live in SQLite, localStorage.tickets is always empty — archiving
+    // it would produce empty WeeklyArchive records. Weekly archiving is now done
+    // exclusively via resetWeeklyAgencyQueue() which calls the server SQLite API.
+    // We only update the lastWeekStart marker so this block doesn't trigger every read.
     if (!state || !state.lastWeekStart || state.lastWeekStart !== currentWeekStart) {
-      const previousTickets = state.tickets || [];
-      const archivedRecord = {
-        id: 'archive_' + Date.now(),
-        weekLabel: `Semaine du Lundi ${state.lastWeekStart || 'Précédente'} au Samedi 14h (${currentWeekStart})`,
-        archivedAt: new Date().toISOString(),
-        totalTickets: previousTickets.length,
-        completedTickets: previousTickets.filter(t => t.status === 'COMPLETED').length,
-        noShowTickets: previousTickets.filter(t => t.status === 'NO_SHOW').length,
-        tickets: previousTickets
+      const updatedState = {
+        ...state,
+        tickets: [], // tickets come from server, not localStorage
+        lastWeekStart: currentWeekStart
       };
-
-      const archivedWeeks = [archivedRecord, ...(state.archivedWeeks || [])];
-      
-      const newWeekState = {
-        ...getInitialState(),
-        lastWeekStart: currentWeekStart,
-        archivedWeeks
-      };
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newWeekState));
-      
-      // Async post archive to SQLite backend if online
-      try {
-        fetch(`${window.location.protocol}//${window.location.hostname}:4000/api/tickets/weekly-archive`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(archivedRecord)
-        }).catch(() => {});
-      } catch {}
-
-      return newWeekState;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedState));
+      return updatedState;
     }
 
     return state;
@@ -397,11 +324,57 @@ export const getStoredState = () => {
   }
 };
 
-export const saveStoredState = (state) => {
+// Auth helpers for JWT protected endpoints
+export const getAuthToken = async () => {
+  let token = typeof window !== 'undefined' ? localStorage.getItem('cofina_jwt_token') : null;
+  if (!token) {
+    try {
+      const res = await fetch(`${SERVER_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'agent', password: 'cofina2026' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        token = data.token;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('cofina_jwt_token', token);
+        }
+      }
+    } catch (e) {
+      console.error('Auto login failed:', e);
+    }
+  }
+  return token;
+};
+
+export const getAuthHeaders = async () => {
+  const token = await getAuthToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
+
+export const saveStoredState = (state, notify = true) => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    // BUG FIX (Bug 4): Only save non-ticket metadata to localStorage.
+    // Tickets come from the server (SQLite) via Socket.io — storing them
+    // in localStorage was the root cause of the split-brain state issue.
+    // We keep onlineCounters, currentAgencyId, lang prefs, lastWeekStart.
+    const metaOnly = {
+      currentAgencyId: state.currentAgencyId,
+      agencyName: state.agencyName,
+      lastWeekStart: state.lastWeekStart,
+      onlineCounters: state.onlineCounters || [],
+      archivedWeeks: state.archivedWeeks || []
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(metaOnly));
     if (broadcastChannel) {
       broadcastChannel.postMessage({ type: 'STATE_UPDATED', payload: state });
+    }
+    if (notify) {
+      notifySubscribers(state);
     }
   } catch (e) {
     console.error('Failed to save queue storage:', e);
@@ -409,50 +382,70 @@ export const saveStoredState = (state) => {
 };
 
 // Manually trigger Saturday weekly reset with Database archiving
-export const resetWeeklyAgencyQueue = () => {
-  const state = getStoredState();
-  const currentWeekStart = getWeekSaturdayStart();
-  const previousTickets = state.tickets || [];
-
-  const archiveRecord = {
-    id: 'archive_' + Date.now(),
-    weekLabel: `Semaine archivée le ${new Date().toLocaleDateString('fr-FR')}`,
-    archivedAt: new Date().toISOString(),
-    totalTickets: previousTickets.length,
-    completedTickets: previousTickets.filter(t => t.status === 'COMPLETED').length,
-    noShowTickets: previousTickets.filter(t => t.status === 'NO_SHOW').length,
-    tickets: previousTickets
-  };
-
-  const updatedState = {
-    ...getInitialState(),
-    lastWeekStart: currentWeekStart,
-    archivedWeeks: [archiveRecord, ...(state.archivedWeeks || [])]
-  };
-
-  saveStoredState(updatedState);
-
-  // Send to server for SQLite database persistence
+// BUG FIX (Bug 3): Archive now fetches tickets from the SERVER (SQLite),
+// not from localStorage (which is empty since migration to server-side state).
+export const resetWeeklyAgencyQueue = async () => {
   try {
-    fetch(`${window.location.protocol}//${window.location.hostname}:4000/api/tickets/weekly-archive`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(archiveRecord)
-    }).catch(() => {});
-  } catch {}
+    const headers = await getAuthHeaders();
 
-  return updatedState;
+    // 1. Fetch current week tickets from server for accurate archiving
+    const res = await fetch(`${SERVER_URL}/api/tickets`);
+    const serverState = res.ok ? await res.json() : { tickets: [], dailyCounters: {} };
+    const previousTickets = serverState.tickets || [];
+    const currentWeekStart = getWeekSaturdayStart();
+
+    const archiveRecord = {
+      id: 'archive_' + Date.now(),
+      weekLabel: `Semaine archivée le ${new Date().toLocaleDateString('fr-FR')}`,
+      archivedAt: new Date().toISOString(),
+      totalTickets: previousTickets.length,
+      completedTickets: previousTickets.filter(t => t.status === 'COMPLETED').length,
+      noShowTickets: previousTickets.filter(t => t.status === 'NO_SHOW').length,
+      avgWaitMin: (() => {
+        const withWait = previousTickets.filter(t => t.calledAt && t.createdAt);
+        if (!withWait.length) return 0;
+        const total = withWait.reduce((acc, t) => acc + (new Date(t.calledAt) - new Date(t.createdAt)) / 1000, 0);
+        return Math.round((total / withWait.length) / 60);
+      })(),
+      tickets: previousTickets
+    };
+
+    // 2. Post archive to SQLite backend with Auth Headers
+    await fetch(`${SERVER_URL}/api/tickets/weekly-archive`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(archiveRecord)
+    });
+
+    // 3. Delete all tickets from SQLite (reset-all) with Auth Headers
+    await fetch(`${SERVER_URL}/api/tickets/reset-all`, {
+      method: 'POST',
+      headers
+    });
+
+    // 4. Update local week marker
+    const local = getStoredState();
+    const updatedMeta = { ...local, lastWeekStart: currentWeekStart, tickets: [] };
+    saveStoredState(updatedMeta);
+
+    return archiveRecord;
+  } catch (err) {
+    console.error('resetWeeklyAgencyQueue failed:', err);
+    throw err;
+  }
 };
 
 // Alias pour rétrocompatibilité
 export const resetAgencyQueue = resetWeeklyAgencyQueue;
 
 
-// Toggle Counter Online Status
+// BUG FIX (Bug 3 + Bug A): toggleCounterStatus persists counter metadata to localStorage
+// and notifies subscribers with ONLY the onlineCounters delta so App.jsx can merge it
+// into the existing state without wiping the tickets that come from Socket.io/SQLite.
 export const toggleCounterStatus = (counterNumber, isOnline) => {
   const state = getStoredState();
   let onlineCounters = state.onlineCounters || [];
-  
+
   if (isOnline) {
     if (!onlineCounters.includes(counterNumber)) {
       onlineCounters = [...onlineCounters, counterNumber].sort();
@@ -461,277 +454,133 @@ export const toggleCounterStatus = (counterNumber, isOnline) => {
     onlineCounters = onlineCounters.filter(c => c !== counterNumber);
   }
 
-  const updatedState = { ...state, onlineCounters };
-  saveStoredState(updatedState);
-};
+  // Save only metadata to localStorage (tickets live in SQLite)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    currentAgencyId: state.currentAgencyId,
+    agencyName: state.agencyName,
+    lastWeekStart: state.lastWeekStart,
+    onlineCounters,
+    archivedWeeks: state.archivedWeeks || []
+  }));
 
-// Create a new ticket (From Kiosk)
-export const createTicket = (serviceCode, customerPhone = null, customerEmail = null, lang = 'fr') => {
-  const state = getStoredState();
-  const service = COFINA_SERVICES.find(s => s.code === serviceCode) || COFINA_SERVICES[0];
-
-  const currentCount = (state.dailyCounter[serviceCode] || 0) + 1;
-  const ticketNumber = `${serviceCode}-${String(currentCount).padStart(3, '0')}`;
-  const now = new Date().toISOString();
-
-  const newTicket = {
-    id: 't_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-    ticketNumber,
-    serviceCode,
-    serviceName: service.name,
-    priority: service.isPriority || false,
-    customerPhone: customerPhone ? customerPhone.trim() : null,
-    customerEmail: customerEmail ? customerEmail.trim() : null,
-    status: 'WAITING',
-    counterNumber: null,
-    agentId: null,
-    agentName: null,
-    createdAt: now,
-    calledAt: null,
-    completedAt: null
-  };
-
-  // AUTO-ASSIGN LOGIC (Find a free, online counter)
-  const activeCounters = new Set(
-    state.tickets
-      .filter(t => t.status === 'CALLED' || t.status === 'IN_PROGRESS')
-      .map(t => t.counterNumber)
-  );
-
-  let freeCounter = null;
-  const onlineCounters = state.onlineCounters || [];
-  for (const counter of onlineCounters) {
-    if (!activeCounters.has(counter)) {
-      freeCounter = counter;
-      break;
-    }
-  }
-
-  if (freeCounter) {
-    newTicket.status = 'CALLED';
-    newTicket.counterNumber = freeCounter;
-    newTicket.calledAt = now;
-  }
-
-  const updatedState = {
-    ...state,
-    dailyCounter: {
-      ...state.dailyCounter,
-      [serviceCode]: currentCount
-    },
-    tickets: [newTicket, ...state.tickets]
-  };
-
-  if (freeCounter) {
-    updatedState.lastCalledTicket = newTicket;
-  }
-
-  saveStoredState(updatedState);
-  
-  if (freeCounter) {
-    playCallChime();
-    speakTicketCall(newTicket.ticketNumber, freeCounter, lang);
-  }
-
-  return newTicket;
-};
-
-// Generate 4-5 test tickets for quick Teller Simulation
-export const generateSimulationTickets = () => {
-  createTicket('S'); // Prioritaire (Client VIP)
-  createTicket('D'); // Dépôt
-  createTicket('E'); // Épargne
-  createTicket('C'); // Crédit
-  createTicket('R'); // Retrait
-};
-
-// Call Next Ticket (From Teller Workstation - Caisse 1-4)
-export const callNextTicket = (agentId, agentName, counterNumber, serviceFilter = 'ALL', lang = 'fr') => {
-  const state = getStoredState();
-  const waitingTickets = state.tickets.filter(t => t.status === 'WAITING');
-
-  if (waitingTickets.length === 0) {
-    return null;
-  }
-
-  let eligible = [...waitingTickets];
-  if (serviceFilter !== 'ALL') {
-    eligible = eligible.filter(t => t.serviceCode === serviceFilter);
-  }
-
-  if (eligible.length === 0) {
-    return null;
-  }
-
-  eligible.sort((a, b) => {
-    if (a.priority && !b.priority) return -1;
-    if (!a.priority && b.priority) return 1;
-    return new Date(a.createdAt) - new Date(b.createdAt);
-  });
-
-  const ticketToCall = eligible[0];
-  const now = new Date().toISOString();
-
-  const updatedTickets = state.tickets.map(t => {
-    if (t.id === ticketToCall.id) {
-      return {
-        ...t,
-        status: 'CALLED',
-        counterNumber,
-        agentId,
-        agentName,
-        calledAt: now
-      };
-    }
-    return t;
-  });
-
-  const calledTicketObj = {
-    ...ticketToCall,
-    status: 'CALLED',
-    counterNumber,
-    agentId,
-    agentName,
-    calledAt: now
-  };
-
-  const updatedState = {
-    ...state,
-    lastCalledTicket: calledTicketObj,
-    tickets: updatedTickets
-  };
-
-  saveStoredState(updatedState);
-  
-  // Audio TEMPS 2: Carillon Gong + Annonce vocale "Ticket A-008 à la Caisse 1"
-  playCallChime();
-  speakTicketCall(calledTicketObj.ticketNumber, counterNumber, lang);
-
-  return calledTicketObj;
-};
-
-// Process current ticket if active, then call next ticket
-export const processNextTicket = (agentId, agentName, counterNumber, serviceFilter = 'ALL', activeTicketId = null, lang = 'fr') => {
-  const state = getStoredState();
-  const now = new Date().toISOString();
-
-  let updatedTickets = [...state.tickets];
-
-  // Complete active ticket if exists
-  if (activeTicketId) {
-    updatedTickets = updatedTickets.map(t => {
-      if (t.id === activeTicketId && (t.status === 'CALLED' || t.status === 'IN_PROGRESS')) {
-        return {
-          ...t,
-          status: 'COMPLETED',
-          completedAt: now
-        };
-      }
-      return t;
+  // Broadcast via BroadcastChannel so other browser tabs update
+  if (broadcastChannel) {
+    broadcastChannel.postMessage({
+      type: 'COUNTER_STATUS_CHANGED',
+      payload: { onlineCounters }
     });
   }
 
-  // Find waiting tickets
-  const waitingTickets = updatedTickets.filter(t => t.status === 'WAITING');
-  let eligible = [...waitingTickets];
-  if (serviceFilter !== 'ALL') {
-    eligible = eligible.filter(t => t.serviceCode === serviceFilter);
-  }
+  // Notify local React subscribers with only the counter change
+  // App.jsx subscriber merges this with existing state (preserving tickets)
+  notifySubscribers({ _partialUpdate: true, onlineCounters });
+};
 
-  if (eligible.length === 0) {
-    // Save updated state even if no waiting tickets left
-    const updatedState = {
-      ...state,
-      tickets: updatedTickets
-    };
-    saveStoredState(updatedState);
+// Create a new ticket (From Kiosk)
+export const createTicket = async (serviceCode, customerPhone = null, customerEmail = null, lang = 'fr') => {
+  const service = COFINA_SERVICES.find(s => s.code === serviceCode) || COFINA_SERVICES[0];
+
+  try {
+    const res = await fetch(`${SERVER_URL}/api/tickets/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ticketNumber: null, // the server generates the correct sequence number
+        serviceCode,
+        serviceName: service.name,
+        isPriority: service.isPriority || false,
+        customerPhone,
+        customerEmail
+      })
+    });
+    if (!res.ok) throw new Error('API request failed');
+    const newTicket = await res.json();
+    return newTicket;
+  } catch (err) {
+    console.error('Backend ticket creation failed:', err);
+    throw err;
+  }
+};
+
+// Generate 4-5 test tickets for quick Teller Simulation
+export const generateSimulationTickets = async () => {
+  await createTicket('S'); // Prioritaire (Client VIP)
+  await createTicket('D'); // Dépôt
+  await createTicket('E'); // Épargne
+  await createTicket('C'); // Crédit
+  await createTicket('R'); // Retrait
+};
+
+// Call Next Ticket (From Teller Workstation - Caisse 1-4)
+export const callNextTicket = async (agentId, agentName, counterNumber, serviceFilter = 'ALL', lang = 'fr') => {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${SERVER_URL}/api/tickets/call-next`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        agentId, agentName, counterNumber, serviceFilter
+      })
+    });
+    
+    if (!res.ok) {
+      if (res.status === 404) return null; // Aucun ticket en attente
+      throw new Error('API request failed');
+    }
+    
+    const calledTicketObj = await res.json();
+
+    // Audio TEMPS 2: Carillon Gong + Annonce vocale "Ticket A-008 à la Caisse 1"
+    playCallChime();
+    speakTicketCall(calledTicketObj.ticketNumber, counterNumber, lang);
+
+    return calledTicketObj;
+  } catch (err) {
+    console.error('callNextTicket failed:', err);
     return null;
   }
+};
 
-  eligible.sort((a, b) => {
-    if (a.priority && !b.priority) return -1;
-    if (!a.priority && b.priority) return 1;
-    return new Date(a.createdAt) - new Date(b.createdAt);
-  });
-
-  const ticketToCall = eligible[0];
-
-  updatedTickets = updatedTickets.map(t => {
-    if (t.id === ticketToCall.id) {
-      return {
-        ...t,
-        status: 'CALLED',
-        counterNumber,
-        agentId,
-        agentName,
-        calledAt: now
-      };
-    }
-    return t;
-  });
-
-  const calledTicketObj = {
-    ...ticketToCall,
-    status: 'CALLED',
-    counterNumber,
-    agentId,
-    agentName,
-    calledAt: now
-  };
-
-  const updatedState = {
-    ...state,
-    lastCalledTicket: calledTicketObj,
-    tickets: updatedTickets
-  };
-
-  saveStoredState(updatedState);
-
-  playCallChime();
-  speakTicketCall(calledTicketObj.ticketNumber, counterNumber, lang);
-
-  return calledTicketObj;
+// Process current ticket if active, then call next ticket
+export const processNextTicket = async (agentId, agentName, counterNumber, serviceFilter = 'ALL', activeTicketId = null, lang = 'fr') => {
+  if (activeTicketId) {
+    await updateTicketStatus(activeTicketId, 'COMPLETED');
+  }
+  return await callNextTicket(agentId, agentName, counterNumber, serviceFilter, lang);
 };
 
 // Recall current ticket
-export const recallTicket = (ticketId, lang = 'fr') => {
-  const state = getStoredState();
-  const ticket = state.tickets.find(t => t.id === ticketId);
-  if (!ticket) return;
-
-  const updatedState = {
-    ...state,
-    lastCalledTicket: { ...ticket, calledAt: new Date().toISOString() }
-  };
-  saveStoredState(updatedState);
-
-  playCallChime();
-  speakTicketCall(ticket.ticketNumber, ticket.counterNumber, lang);
+export const recallTicket = async (ticketId, lang = 'fr') => {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${SERVER_URL}/api/tickets/recall`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ ticketId })
+    });
+    
+    if (!res.ok) throw new Error('API request failed');
+    
+    const ticket = await res.json();
+    playCallChime();
+    speakTicketCall(ticket.ticketNumber, ticket.counterNumber, lang);
+  } catch (err) {
+    console.error('recallTicket failed:', err);
+  }
 };
 
 // Update Ticket Status (IN_PROGRESS, COMPLETED, NO_SHOW, CANCELLED)
-export const updateTicketStatus = (ticketId, newStatus, extra = {}) => {
-  const state = getStoredState();
-  const now = new Date().toISOString();
-
-  const updatedTickets = state.tickets.map(t => {
-    if (t.id === ticketId) {
-      return {
-        ...t,
-        status: newStatus,
-        ...(newStatus === 'COMPLETED' ? { completedAt: now } : {}),
-        ...extra
-      };
-    }
-    return t;
-  });
-
-  const updatedState = {
-    ...state,
-    tickets: updatedTickets
-  };
-
-  saveStoredState(updatedState);
+export const updateTicketStatus = async (ticketId, newStatus, extra = {}) => {
+  try {
+    const headers = await getAuthHeaders();
+    await fetch(`${SERVER_URL}/api/tickets/update-status`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ ticketId, status: newStatus, extra })
+    });
+  } catch (err) {
+    console.error('updateTicketStatus failed:', err);
+  }
 };
 
 // Note: resetAgencyQueue is defined above as resetWeeklyAgencyQueue
@@ -744,7 +593,7 @@ export const playCallChime = () => {
     if (!AudioContext) return;
 
     const ctx = new AudioContext();
-    
+
     // Tone 1: High chime
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
@@ -769,9 +618,57 @@ export const playCallChime = () => {
     osc2.start(ctx.currentTime + 0.25);
     osc2.stop(ctx.currentTime + 1.2);
 
+    // Clean up Web Audio Context after playback to prevent memory leaks
+    setTimeout(() => {
+      try { ctx.close(); } catch (_) {}
+    }, 1400);
+
   } catch (e) {
     console.warn('Audio chime playback omitted:', e);
   }
+};
+
+/**
+ * Helper: Détection de voix française africaine / chaleureuse la plus naturelle
+ */
+export const getAfricanOrBestVoice = (targetLang = 'fr') => {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length === 0) return null;
+
+  const isFr = targetLang.startsWith('fr');
+
+  if (isFr) {
+    // 1. Chercher des voix francophones africaines spécifiques si installées sur le système (fr-TG Togo, fr-BJ Bénin, fr-CI, fr-SN, fr-CM, etc.)
+    const africanVoice = voices.find(v => {
+      const l = v.lang.toLowerCase();
+      const n = v.name.toLowerCase();
+      return (
+        l.includes('fr-tg') || l.includes('fr-bj') || l.includes('fr-ci') || 
+        l.includes('fr-sn') || l.includes('fr-cm') || l.includes('fr-bf') ||
+        l.includes('fr-mg') || l.includes('fr-ma') || l.includes('fr-tn') ||
+        n.includes('togo') || n.includes('africa') || n.includes('ivoire') || n.includes('senegal')
+      );
+    });
+    if (africanVoice) return africanVoice;
+
+    // 2. Chercher une voix féminine francophone naturelle et chaleureuse (ex: Google français, Natural, Hortense, Julie)
+    const preferredWarmVoice = voices.find(v => {
+      const l = v.lang.toLowerCase();
+      const n = v.name.toLowerCase();
+      return l.startsWith('fr') && (
+        n.includes('google') || n.includes('natural') || n.includes('hortense') || 
+        n.includes('julie') || n.includes('celine') || n.includes('online')
+      );
+    });
+    if (preferredWarmVoice) return preferredWarmVoice;
+
+    // 3. Fallback sur n'importe quelle voix française
+    const anyFrVoice = voices.find(v => v.lang.toLowerCase().startsWith('fr'));
+    if (anyFrVoice) return anyFrVoice;
+  }
+
+  return voices.find(v => v.lang.toLowerCase().startsWith(targetLang)) || null;
 };
 
 /**
@@ -782,20 +679,19 @@ export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
     window.speechSynthesis.cancel();
-    const formattedTicket = ticketNumber.replace('-', ' ');
+    // Format D-001 -> "D 0 0 1" pour une élocution claire et humaine
+    const formattedTicket = ticketNumber.split('-').map((part, i) => i === 1 ? part.split('').join(' ') : part).join(' ');
     const isEn = lang === 'en';
     const text = isEn 
       ? `Welcome to Cofina Togo. Your ticket ${formattedTicket} has been created. Please take a seat in the waiting room.`
-      : `Bienvenue chez Cofina Togo. Votre ticket ${formattedTicket} est créé. Vous pouvez prendre place dans la salle d'attente.`;
+      : `Bienvenue à l'agence Cofina Togo ! Votre ticket numéro ${formattedTicket} est bien créé. Merci de prendre place en salle d'attente.`;
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = isEn ? 'en-US' : 'fr-FR';
-    utterance.rate = 0.92;
-    utterance.pitch = 1.0;
+    utterance.rate = 0.88; // Rythme posé pour acoustique de hall
+    utterance.pitch = 1.05; // Tonalité chaleureuse
 
-    const voices = window.speechSynthesis.getVoices();
-    const targetLang = isEn ? 'en' : 'fr';
-    const matchedVoice = voices.find(v => v.lang.toLowerCase().includes(targetLang));
+    const matchedVoice = getAfricanOrBestVoice(isEn ? 'en' : 'fr');
     if (matchedVoice) utterance.voice = matchedVoice;
 
     setTimeout(() => {
@@ -814,20 +710,19 @@ export const speakTicketCall = (ticketNumber, counterNumber, lang = 'fr') => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
     window.speechSynthesis.cancel();
-    const formattedTicket = ticketNumber.replace('-', ' ');
+    // Format D-001 -> "D 0 0 1" pour une élocution naturelle de haut-parleur
+    const formattedTicket = ticketNumber.split('-').map((part, i) => i === 1 ? part.split('').join(' ') : part).join(' ');
     const isEn = lang === 'en';
     const text = isEn 
       ? `Ticket ${formattedTicket}, please proceed to Counter ${counterNumber}.`
-      : `Ticket ${formattedTicket}, veuillez passer à la Caisse ${counterNumber}.`;
+      : `Ticket ${formattedTicket}... Veuillez vous présenter au Guichet ${counterNumber}.`;
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = isEn ? 'en-US' : 'fr-FR';
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
+    utterance.rate = 0.88; // Rythme calme et solennel
+    utterance.pitch = 1.05;
 
-    const voices = window.speechSynthesis.getVoices();
-    const targetLang = isEn ? 'en' : 'fr';
-    const matchedVoice = voices.find(v => v.lang.toLowerCase().includes(targetLang));
+    const matchedVoice = getAfricanOrBestVoice(isEn ? 'en' : 'fr');
     if (matchedVoice) utterance.voice = matchedVoice;
 
     setTimeout(() => {

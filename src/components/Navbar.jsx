@@ -82,7 +82,7 @@ export default function Navbar({
         {/* BRAND IDENTITY */}
         <div className="nav-brand">
           <div className="nav-logo-box">
-            <img src="/COFINA.png" alt="Logo Cofina" className="nav-logo-img" />
+            <img src="/cofina.jpeg" alt="Logo Cofina" className="nav-logo-img" />
           </div>
           <div className="nav-brand-info">
             <div className="nav-brand-name">

@@ -26,26 +26,23 @@ export const translations = {
     badgeEdge: "Edge Local",
     badgeMini: "Mini-Overlay",
 
-    // Services
-    serviceA_name: "Dépôt & Retrait d'Espèces",
-    serviceA_desc: "Versements urgents, retraits caisse, dépôts de marché",
-    serviceA_badge: "Service N°1",
-
-    serviceB_name: "Épargne & Tontine / Compte",
-    serviceB_desc: "Versements tontine, ouvertures de compte, livrets",
-    serviceB_badge: "Épargne",
-
-    serviceC_name: "Crédit & Microcrédit",
-    serviceC_desc: "Demandes de prêts commerçants, remboursements dossiers",
-    serviceC_badge: "Financement",
-
-    serviceV_name: "Service Client & Prioritaire",
-    serviceV_desc: "Mamans commerçantes, VIP, renseignements & réclamations",
-    serviceV_badge: "Prioritaire",
+    // Services (12 Services Officiels COFINA Togo)
+    service_D_name: "Dépôt",
+    service_R_name: "Retrait",
+    service_TN_name: "Transfert national",
+    service_TI_name: "Transfert international",
+    service_O_name: "Ouverture de compte",
+    service_RC_name: "Remise de chèque",
+    service_V_name: "Virement",
+    service_DR_name: "Demande de Relevé",
+    service_CM_name: "COFINA Mobile+",
+    service_C_name: "Crédit",
+    service_PC_name: "Parler à un conseiller",
+    service_PMR_name: "Mobilité Réduite",
 
     // Kiosk Module
-    kioskTitle: "Bienvenue chez COFINA Togo",
-    kioskSubtitle: "Veuillez sélectionner le service souhaité sur l'écran tactile pour retirer votre ticket.",
+    kioskTitle: "BIENVENUE A COFINA Togo",
+    kioskSubtitle: "Institution Panafricaine de la Finance Inclusive.\nVeuillez sélectionner votre opération",
     kioskSelectService: "Sélectionnez votre Service",
     kioskPriorityNotice: "Accès Prioritaire disponible pour femmes commerçantes, personnes âgées et VIP.",
     kioskTicketGenerated: "TICKET GÉNÉRÉ AVEC SUCCÈS !",
@@ -59,6 +56,8 @@ export const translations = {
     kioskPhonePlaceholder: "ex: 90 12 34 56",
     kioskGenerating: "Génération en cours...",
     kioskTakeTicket: "Retirez votre ticket ci-dessous :",
+    kioskHelpTitle: "Assistance & Orientation Client",
+    kioskHelpBody: "Veuillez vous adresser directement à l'un de nos agents d'accueil présents dans le hall pour vous guider et vous assister dans vos démarches. Vous pouvez également contacter notre Assistance au 92686060.",
 
     // Display Module
     displayTitle: "SALLE D'ATTENTE — SUIVI DES GUICHETS",
@@ -181,26 +180,23 @@ export const translations = {
     badgeEdge: "Local Edge",
     badgeMini: "Mini-Overlay",
 
-    // Services
-    serviceA_name: "Cash Deposit & Withdrawal",
-    serviceA_desc: "Urgent deposits, counter withdrawals, market cash-in",
-    serviceA_badge: "Service N°1",
-
-    serviceB_name: "Savings & Tontine / Account",
-    serviceB_desc: "Tontine deposits, account opening, passbooks",
-    serviceB_badge: "Savings",
-
-    serviceC_name: "Credit & Microcredit",
-    serviceC_desc: "Trader loan requests, repayment files",
-    serviceC_badge: "Financing",
-
-    serviceV_name: "Customer Service & Priority",
-    serviceV_desc: "Market women, VIPs, inquiries & complaints",
-    serviceV_badge: "Priority",
+    // Services (12 Official COFINA Togo Services)
+    service_D_name: "Deposit",
+    service_R_name: "Withdrawal",
+    service_TN_name: "National Transfer",
+    service_TI_name: "International Transfer",
+    service_O_name: "Account Opening",
+    service_RC_name: "Check Deposit",
+    service_V_name: "Wire Transfer",
+    service_DR_name: "Account Statement Request",
+    service_CM_name: "COFINA Mobile+",
+    service_C_name: "Credit & Loan",
+    service_PC_name: "Speak with an Advisor",
+    service_PMR_name: "Reduced Mobility",
 
     // Kiosk Module
-    kioskTitle: "Welcome to COFINA Togo",
-    kioskSubtitle: "Please select your desired service on the touchscreen to get your ticket.",
+    kioskTitle: "WELCOME TO COFINA Togo",
+    kioskSubtitle: "Pan-African Institution of Inclusive Finance.\nPlease select your operation",
     kioskSelectService: "Select Your Service",
     kioskPriorityNotice: "Priority access available for market women, senior citizens, and VIPs.",
     kioskTicketGenerated: "TICKET GENERATED SUCCESSFULLY!",
@@ -214,6 +210,8 @@ export const translations = {
     kioskPhonePlaceholder: "e.g. 90 12 34 56",
     kioskGenerating: "Generating...",
     kioskTakeTicket: "Collect your ticket below:",
+    kioskHelpTitle: "Customer Support & Guidance",
+    kioskHelpBody: "Please speak directly with one of our welcoming agents available in the lobby to guide and assist you with your request. You can also contact our Support line at 92686060.",
 
     // Display Module
     displayTitle: "WAITING ROOM — COUNTER DISPLAY",

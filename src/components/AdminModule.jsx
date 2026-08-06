@@ -51,34 +51,44 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleSimulateTraffic = () => {
+  const handleSimulateTraffic = async () => {
     setIsSimulating(true);
-    const services = ['A', 'A', 'B', 'C', 'V'];
-    for (let i = 0; i < 4; i++) {
-      const code = services[Math.floor(Math.random() * services.length)];
-      createTicket(code, null, null, lang);
-    }
-    setTimeout(() => {
-      setIsSimulating(false);
+    // BUG FIX (Bug B): createTicket is now async. Must await each call sequentially
+    // to guarantee correct ticket number ordering (D-001 before D-002, etc.)
+    const services = ['D', 'D', 'R', 'O', 'S'];
+    try {
+      for (let i = 0; i < 4; i++) {
+        const code = services[Math.floor(Math.random() * services.length)];
+        await createTicket(code, null, null, lang);
+      }
       showToast(lang === 'en' ? "4 test tickets added to queue!" : "4 tickets de test ajoutés à la file !");
-    }, 400);
+    } catch (e) {
+      showToast("Erreur lors de la simulation. Vérifiez que le serveur est démarré.");
+    } finally {
+      setIsSimulating(false);
+    }
   };
 
-  const handleResetQueue = () => {
+  const handleResetQueue = async () => {
     if (window.confirm(`Voulez-vous vraiment archiver la semaine (Lundi → Samedi 14h) en base de données et réinitialiser la file d'attente ?\n\nTous les tickets de la semaine seront automatiquement sauvegardés en base de données SQLite.`)) {
-      resetAgencyQueue();
-      showToast("Semaine (Lundi - Samedi 14h) archivée en BDD SQLite & File d'attente réinitialisée !");
+      try {
+        await resetAgencyQueue();
+        showToast("Semaine (Lundi - Samedi 14h) archivée en BDD SQLite & File d'attente réinitialisée !");
+        if (onRefresh) onRefresh();
+      } catch (e) {
+        showToast("Erreur lors de l'archivage. Vérifiez que le serveur est démarré.");
+      }
     }
   };
 
   return (
-    <div className="adm-root">
+    <div className="adm-root animate-fade-in">
       
       {/* ── HEADER ── */}
-      <header className="adm-header">
+      <header className="adm-header glass-card">
         <div className="adm-hdr-left">
           <div className="adm-server-badge">
-            <Server size={16} />
+            <Server size={15} />
             <span>CYCLE HEBDOMADAIRE (LUNDI MATIN → SAMEDI 14H00)</span>
           </div>
           <div>
@@ -147,7 +157,7 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
       <div className="adm-grid-main">
 
         {/* LEFT COLUMN: BASIC SERVICE COUNTS */}
-        <section className="adm-card">
+        <section className="adm-card glass-card">
           <div className="adm-card-hdr">
             <div className="adm-card-hdr-title">
               <BarChart2 size={18} className="adm-card-ico" />
@@ -193,8 +203,8 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
           </div>
         </section>
 
-        {/* RIGHT COLUMN: LOCKED DATA ANALYTICS MODULE (THE TEASER THAT MAKES THEM NEED YOU!) */}
-        <section className="adm-card adm-analytics-teaser">
+        {/* RIGHT COLUMN: LOCKED DATA ANALYTICS MODULE */}
+        <section className="adm-card adm-analytics-teaser glass-card">
           <div className="adm-card-hdr">
             <div className="adm-card-hdr-title">
               <Sparkles size={18} className="adm-card-ico gold" />
@@ -252,7 +262,7 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
       {/* ── STYLES ── */}
       <style>{`
         .adm-root {
-          max-width: 1350px;
+          max-width: 1440px;
           margin: 1.5rem auto;
           padding: 0 1.5rem 3rem;
           display: flex;
@@ -261,13 +271,16 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
           font-family: var(--font-body, 'Inter', system-ui, sans-serif);
         }
 
+        .glass-card {
+          background: #FFFFFF;
+          border-radius: 24px;
+          border: 1px solid #E2E8F0;
+          box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.04);
+        }
+
         /* HEADER */
         .adm-header {
-          background: #FFFFFF;
-          border-radius: 20px;
           padding: 1.5rem 2rem;
-          border: 1px solid #E2E8F0;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.03);
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -282,7 +295,7 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
         .adm-server-badge {
           display: flex;
           align-items: center;
-          gap: 0.4rem;
+          gap: 0.45rem;
           background: #0F172A;
           color: #FFFFFF;
           font-size: 0.72rem;
@@ -303,6 +316,7 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
           font-size: 0.82rem;
           color: #64748B;
           margin: 0.15rem 0 0;
+          font-weight: 600;
         }
 
         .adm-hdr-actions {
@@ -316,8 +330,8 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
           align-items: center;
           gap: 0.45rem;
           padding: 0.65rem 1.1rem;
-          border-radius: 10px;
-          font-weight: 700;
+          border-radius: 12px;
+          font-weight: 800;
           font-size: 0.85rem;
           cursor: pointer;
           transition: all 0.2s ease;
@@ -330,7 +344,7 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
           border-color: #BFDBFE;
         }
 
-        .adm-btn-sim:hover { background: #DBEAFE; }
+        .adm-btn-sim:hover { background: #DBEAFE; transform: translateY(-1px); }
 
         .adm-btn-danger {
           background: #FEF2F2;
@@ -338,7 +352,7 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
           border-color: #FECACA;
         }
 
-        .adm-btn-danger:hover { background: #FEE2E2; }
+        .adm-btn-danger:hover { background: #FEE2E2; transform: translateY(-1px); }
 
         .adm-toast {
           display: flex;
@@ -349,8 +363,7 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
           padding: 0.75rem 1.25rem;
           border-radius: 12px;
           font-size: 0.85rem;
-          font-weight: 700;
-          animation: fadeIn 0.2s ease;
+          font-weight: 800;
         }
 
         /* KPIS GRID */
@@ -362,10 +375,10 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
 
         .adm-kpi-card {
           background: #FFFFFF;
-          border-radius: 18px;
+          border-radius: 20px;
           padding: 1.35rem 1.25rem;
           border: 1px solid #E2E8F0;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+          box-shadow: 0 8px 20px -5px rgba(15, 23, 42, 0.04);
           transition: transform 0.2s ease;
         }
 
@@ -385,8 +398,8 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
         }
 
         .adm-kpi-ico {
-          width: 34px;
-          height: 34px;
+          width: 36px;
+          height: 36px;
           border-radius: 10px;
           display: flex;
           align-items: center;
@@ -399,11 +412,12 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
         .ico-red   { background: #FFF5F5; color: #D3122A; }
 
         .adm-kpi-val {
-          font-size: 2.4rem;
+          font-size: 2.5rem;
           font-weight: 900;
           color: #0F172A;
           line-height: 1;
           margin: 0.5rem 0 0.2rem;
+          letter-spacing: -0.03em;
         }
 
         .val-amber { color: #D97706; }
@@ -415,6 +429,7 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
         .adm-kpi-sub {
           font-size: 0.72rem;
           color: #94A3B8;
+          font-weight: 600;
         }
 
         /* GRID MAIN */
@@ -425,11 +440,7 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
         }
 
         .adm-card {
-          background: #FFFFFF;
-          border-radius: 20px;
-          padding: 1.5rem;
-          border: 1px solid #E2E8F0;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+          padding: 1.75rem;
           display: flex;
           flex-direction: column;
           gap: 1.25rem;
@@ -456,29 +467,34 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
           margin: 0;
         }
 
-        .adm-card-ico { color: #D3122A; }
+        .adm-card-ico { color: #2563EB; }
         .adm-card-ico.gold { color: #D97706; }
 
-        .adm-tag-sub { font-size: 0.75rem; color: #94A3B8; font-weight: 600; }
-
-        .adm-tag-locked {
-          background: #FFFBEB;
-          color: #B45309;
+        .adm-tag-sub {
           font-size: 0.72rem;
           font-weight: 800;
-          padding: 0.25rem 0.65rem;
+          background: #F1F5F9;
+          color: #64748B;
+          padding: 0.2rem 0.6rem;
           border-radius: 99px;
-          border: 1px solid #FDE68A;
-          display: inline-flex;
-          align-items: center;
-          gap: 0.25rem;
         }
 
-        /* SERVICE BREAKDOWN */
+        .adm-tag-locked {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.3rem;
+          font-size: 0.72rem;
+          font-weight: 800;
+          background: #FEF3C7;
+          color: #92400E;
+          padding: 0.2rem 0.6rem;
+          border-radius: 99px;
+        }
+
         .adm-services-list {
           display: flex;
           flex-direction: column;
-          gap: 0.9rem;
+          gap: 0.85rem;
         }
 
         .adm-svc-item {
@@ -500,25 +516,25 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
         }
 
         .adm-svc-code {
-          width: 26px;
-          height: 26px;
+          width: 24px;
+          height: 24px;
           border-radius: 6px;
           color: #FFFFFF;
           font-weight: 900;
-          font-size: 0.85rem;
+          font-size: 0.78rem;
           display: flex;
           align-items: center;
           justify-content: center;
         }
 
         .adm-svc-name {
-          font-size: 0.88rem;
-          font-weight: 700;
-          color: #1E293B;
+          font-size: 0.85rem;
+          font-weight: 800;
+          color: #0F172A;
         }
 
         .adm-svc-stats {
-          font-size: 0.8rem;
+          font-size: 0.78rem;
           color: #64748B;
         }
 
@@ -532,110 +548,84 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
         .adm-bar-fill {
           height: 100%;
           border-radius: 99px;
-          transition: width 0.6s ease;
+          transition: width 0.4s ease;
         }
 
-        /* HARDWARE BOX */
         .adm-hardware-box {
           background: #F8FAFC;
-          border-radius: 12px;
-          padding: 0.9rem 1.1rem;
-          border: 1px solid #F1F5F9;
+          border: 1px solid #E2E8F0;
+          border-radius: 14px;
+          padding: 1rem;
           margin-top: 0.5rem;
         }
 
         .hw-title {
           font-size: 0.78rem;
           font-weight: 800;
-          color: #475569;
+          color: #0F172A;
           display: flex;
           align-items: center;
           gap: 0.35rem;
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.6rem;
         }
 
         .hw-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
-          gap: 0.4rem;
+          gap: 0.5rem;
           font-size: 0.78rem;
         }
 
-        .hw-item { color: #64748B; }
+        .hw-item span { color: #64748B; }
         .txt-green { color: #10B981; }
 
-        /* TEASER CONTENT (RIGHT PANEL) */
+        /* TEASER LOCKED */
         .teaser-content {
           display: flex;
           flex-direction: column;
-          gap: 1.1rem;
+          gap: 1rem;
         }
 
         .teaser-alert-banner {
+          display: flex;
+          gap: 0.75rem;
           background: #FFFBEB;
           border: 1px solid #FDE68A;
-          border-radius: 14px;
-          padding: 1rem;
-          display: flex;
-          align-items: flex-start;
-          gap: 0.75rem;
-        }
-
-        .teaser-alert-ico {
-          color: #D97706;
-          flex-shrink: 0;
-          margin-top: 0.1rem;
-        }
-
-        .teaser-alert-banner strong {
-          font-size: 0.85rem;
-          color: #78350F;
-          display: block;
-          margin-bottom: 0.2rem;
-        }
-
-        .teaser-alert-banner p {
-          font-size: 0.78rem;
+          padding: 0.85rem;
+          border-radius: 12px;
           color: #92400E;
-          margin: 0;
-          line-height: 1.4;
+          font-size: 0.8rem;
         }
+
+        .teaser-alert-ico { flex-shrink: 0; margin-top: 2px; }
 
         .teaser-locked-features {
           display: flex;
           flex-direction: column;
-          gap: 0.65rem;
+          gap: 0.6rem;
         }
 
         .locked-feature-card {
-          background: #FAFAFA;
-          border: 1px dashed #CBD5E1;
+          background: #F8FAFC;
+          border: 1px solid #E2E8F0;
           border-radius: 12px;
-          padding: 0.85rem 1rem;
-          opacity: 0.85;
-          transition: all 0.2s ease;
-        }
-
-        .locked-feature-card:hover {
-          background: #FFFFFF;
-          border-color: #D97706;
-          opacity: 1;
+          padding: 0.75rem;
         }
 
         .lf-hdr {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 0.25rem;
+          margin-bottom: 0.2rem;
         }
 
         .lf-title {
           font-size: 0.82rem;
           font-weight: 800;
-          color: #1E293B;
+          color: #0F172A;
         }
 
-        .lf-lock { color: #D97706; }
+        .lf-lock { color: #94A3B8; }
 
         .locked-feature-card p {
           font-size: 0.75rem;
@@ -644,38 +634,34 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
         }
 
         .teaser-footer-box {
-          background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+          background: #0F172A;
           color: #FFFFFF;
+          padding: 1rem;
           border-radius: 14px;
-          padding: 1.1rem;
           text-align: center;
         }
 
         .tf-badge {
           display: inline-block;
-          background: #D3122A;
-          color: #FFFFFF;
+          background: rgba(255,255,255,0.15);
           font-size: 0.72rem;
           font-weight: 800;
-          padding: 0.25rem 0.75rem;
+          padding: 0.2rem 0.6rem;
           border-radius: 99px;
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.4rem;
         }
 
         .teaser-footer-box p {
           font-size: 0.78rem;
-          color: #E2E8F0;
+          color: #CBD5E1;
           margin: 0;
-          line-height: 1.45;
         }
 
         @media (max-width: 900px) {
           .adm-kpis-grid { grid-template-columns: repeat(2, 1fr); }
           .adm-grid-main { grid-template-columns: 1fr; }
-          .adm-header { flex-direction: column; gap: 1rem; align-items: flex-start; }
         }
       `}</style>
     </div>
   );
 }
-
