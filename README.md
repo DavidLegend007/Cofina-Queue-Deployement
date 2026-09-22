@@ -91,7 +91,7 @@ graph TD
 - Auto-réinitialisation dynamique après 15 secondes d'inactivité.
 
 ### 2. 📺 Écran TV Public & Annonces Vocales (`DisplayModule.jsx`)
-- Grille dynamique d'affichage en direct des 4 Caisses (Caisse 1 à Caisse 4).
+- Grille dynamique d'affichage en direct des postes (Caisses, Opérateurs, Accueil).
 - Bannière d'appel clignotante avec animation visuelle d'urgence.
 - Synthèse vocale Web Audio (`SpeechSynthesis`) et Carillon Gong bi-tonal.
 
