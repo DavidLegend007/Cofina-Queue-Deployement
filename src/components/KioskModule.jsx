@@ -19,7 +19,8 @@ import {
   Printer,
   CheckCircle2,
   ArrowRight,
-  Clock
+  Clock,
+  Eye
 } from 'lucide-react';
 import { createTicket, COFINA_SERVICES } from '../services/queueStore';
 
@@ -429,6 +430,61 @@ const buildCSS = () => `
   @keyframes scaleUp  { from{opacity:0;transform:scale(.90)} to{opacity:1;transform:scale(1)} }
   @keyframes spin     { to{transform:rotate(360deg)} }
   @keyframes pulseDot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.5)} }
+
+  /* ── BOUTON ACCESSIBILITÉ & CONTRASTE ÉLEVÉ ── */
+  .bn-a11y-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #F1F5F9; border: 1.5px solid #CBD5E1; color: #334155;
+    padding: 8px 16px; border-radius: 9999px; font-weight: 700; font-size: 14px;
+    cursor: pointer; transition: all 0.2s ease;
+  }
+  .bn-a11y-btn:hover { background: #E2E8F0; }
+  .bn-a11y-btn.active {
+    background: #000000; border-color: #FACC15; color: #FACC15;
+    box-shadow: 0 0 10px rgba(250, 204, 21, 0.4);
+  }
+
+  /* ── MODE CONTRASTE ÉLEVÉ (WCAG AAA) ── */
+  .cofina-high-contrast {
+    background: #000000 !important;
+    color: #FFFFFF !important;
+  }
+  .cofina-high-contrast .bn-header,
+  .cofina-high-contrast .bn-footer {
+    background: #0A0A0A !important;
+    border-color: #FACC15 !important;
+  }
+  .cofina-high-contrast .bn-welcome h1 {
+    color: #FACC15 !important;
+  }
+  .cofina-high-contrast .bn-welcome p {
+    color: #FFFFFF !important;
+  }
+  .cofina-high-contrast .bn-card {
+    background: #111111 !important;
+    border: 3px solid #FACC15 !important;
+    box-shadow: 0 4px 15px rgba(250, 204, 21, 0.25) !important;
+  }
+  .cofina-high-contrast .bn-card-label {
+    color: #FFFFFF !important;
+    font-size: 26px !important;
+    font-weight: 800 !important;
+  }
+  .cofina-high-contrast .bn-card:focus-visible {
+    outline: 4px solid #FACC15 !important;
+    outline-offset: 4px !important;
+  }
+  .cofina-high-contrast .bn-help-btn,
+  .cofina-high-contrast .bn-lang-btn {
+    border-color: #FACC15 !important;
+    color: #FFFFFF !important;
+    background: #111111 !important;
+  }
+  .cofina-high-contrast .bn-lang-btn.active {
+    background: #FACC15 !important;
+    color: #000000 !important;
+    font-weight: 900 !important;
+  }
 `;
 
 /* ─── COMPOSANT PRINCIPAL ────────────────────────────────────────────────── */
@@ -443,6 +499,25 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   const [showHelp,       setShowHelp]       = useState(false);
   const [clockTime,      setClockTime]      = useState(new Date());
   const [waitingCount,   setWaitingCount]   = useState(0);
+
+  // État du mode Accessibilité / Contraste Élevé (persistance locale)
+  const [highContrast, setHighContrast] = useState(() => {
+    try {
+      return localStorage.getItem('cofina_kiosk_high_contrast') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleHighContrast = () => {
+    setHighContrast(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('cofina_kiosk_high_contrast', String(next));
+      } catch (_) {}
+      return next;
+    });
+  };
 
   /* Horloge temps réel (rafraîchissement chaque seconde) */
   useEffect(() => {
@@ -518,30 +593,43 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   };
 
   return (
-    <div className="bn-root">
+    <div className={`bn-root ${highContrast ? 'cofina-high-contrast' : ''}`}>
       <style>{buildCSS()}</style>
 
-      {/* HEADER KIOSK CLEARED (NO CLOCK FOR CLIENT KIOSK) */}
-      <header className="bn-header">
+      {/* HEADER KIOSK */}
+      <header className="bn-header" role="banner">
         <img src="/cofina.jpeg" alt="Cofina Logo" className="bn-header-logo" />
-        <div className="bn-agency-badge">
-          <span>📍 {agencyName}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <button 
+            type="button"
+            className={`bn-a11y-btn ${highContrast ? 'active' : ''}`}
+            onClick={toggleHighContrast}
+            aria-label="Basculer le mode Contraste Élevé pour malvoyants (Accessibilité WCAG)"
+            aria-pressed={highContrast}
+            title="Mode Accessibilité & Contraste Élevé"
+          >
+            <Eye size={18} />
+            <span>{highContrast ? 'Mode Standard' : 'Contraste Élevé (A11y)'}</span>
+          </button>
+          <div className="bn-agency-badge">
+            <span>📍 {agencyName}</span>
+          </div>
         </div>
       </header>
 
       {/* MAIN CONTENT */}
-      <main className="bn-main">
+      <main className="bn-main" role="main">
         <div className="bn-welcome">
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            background: '#FFF5F5',
-            border: '1.5px solid #FECACA',
+            background: highContrast ? '#111111' : '#FFF5F5',
+            border: highContrast ? '2px solid #FACC15' : '1.5px solid #FECACA',
             padding: '6px 18px',
             borderRadius: '99px',
             marginBottom: '16px',
-            color: '#D3122A',
+            color: highContrast ? '#FACC15' : '#D3122A',
             fontWeight: '800',
             fontFamily: 'monospace',
             fontSize: '17px',
@@ -562,9 +650,18 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                 key={op.id}
                 className="bn-card"
                 onClick={() => handleCardTap(op)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleCardTap(op);
+                  }
+                }}
                 disabled={isSubmitting}
+                role="button"
+                tabIndex={0}
+                aria-label={`Prendre un ticket pour : ${op.label} (Service ${op.code})`}
                 style={{
-                  borderColor: theme.border,
+                  borderColor: highContrast ? '#FACC15' : theme.border,
                   transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
               >
@@ -660,8 +757,8 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
         const avgMin = (COFINA_SERVICES.find(s => s.code === issuedTicket.serviceCode) || {}).avgTimeMin || 5;
         const estWait = Math.max(2, waitingCount * avgMin);
         return (
-          <div className="bn-overlay" onClick={handleReset}>
-            <div className="bn-ticket-card" onClick={e => e.stopPropagation()}>
+          <div className="bn-overlay" onClick={handleReset} role="dialog" aria-modal="true" aria-label="Ticket de passage généré">
+            <div className="bn-ticket-card" onClick={e => e.stopPropagation()} aria-live="polite">
 
               {/* ── SECTION GAUCHE (INFOS TICKET) ── */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>

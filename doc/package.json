@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "puppeteer": "^25.11.0"
+  },
+  "allowScripts": {
+    "puppeteer@25.11.0": true
+  }
+}

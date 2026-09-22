@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -16,6 +17,38 @@ async function main() {
     }
   });
 
+  const defaultPinHash = await bcrypt.hash('1234', 10);
+  const adminPasswordHash = await bcrypt.hash('cofinaAdmin2026!', 10);
+
+  // Initialisation des 6 postes (3 caisses, 2 opérateurs, 1 accueil) + Admin
+  const agents = [
+    { id: 'AGT-01', name: 'Mensah Koffi', defaultCounter: 1, avatar: '👨🏽‍💼', title: 'Caisse 1', role: 'AGENT', passwordHash: defaultPinHash },
+    { id: 'AGT-02', name: 'Amégadjie Afiwa', defaultCounter: 2, avatar: '👩🏽‍💼', title: 'Caisse 2', role: 'AGENT', passwordHash: defaultPinHash },
+    { id: 'AGT-03', name: 'Lawani Komlan', defaultCounter: 3, avatar: '👨🏿‍💼', title: 'Caisse 3', role: 'AGENT', passwordHash: defaultPinHash },
+    { id: 'AGT-04', name: 'Adzoh Kodjo', defaultCounter: 4, avatar: '👨🏽‍💼', title: 'Opérateur 1', role: 'AGENT', passwordHash: defaultPinHash },
+    { id: 'AGT-05', name: 'Sossou Aya', defaultCounter: 5, avatar: '👩🏿‍💼', title: 'Opérateur 2', role: 'AGENT', passwordHash: defaultPinHash },
+    { id: 'AGT-06', name: 'Agent Accueil', defaultCounter: 6, avatar: '👩🏽‍💻', title: 'Poste Accueil', role: 'AGENT', passwordHash: defaultPinHash },
+    { id: 'AGT-ADMIN', name: 'Administrateur Siège', defaultCounter: 1, avatar: '🛡️', title: 'Admin Agence', role: 'ADMIN', passwordHash: adminPasswordHash }
+  ];
+
+  for (const ag of agents) {
+    await prisma.agent.upsert({
+      where: { id: ag.id },
+      update: { role: ag.role, passwordHash: ag.passwordHash },
+      create: {
+        id: ag.id,
+        name: ag.name,
+        defaultCounter: ag.defaultCounter,
+        avatar: ag.avatar,
+        title: ag.title,
+        role: ag.role,
+        passwordHash: ag.passwordHash,
+        agencyId: agency.id
+      }
+    });
+  }
+
+  // Tickets de test pour initialiser
   await prisma.ticket.createMany({
     data: [
       {
@@ -57,7 +90,7 @@ async function main() {
     ]
   });
 
-  console.log('Database seeded successfully!');
+  console.log('Database seeded successfully with Agents and initial Tickets!');
 }
 
 main()

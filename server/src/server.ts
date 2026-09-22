@@ -2,13 +2,31 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import os from 'os';
+import {
+  authenticateToken,
+  requireRole,
+  generateToken,
+  ADMIN_PASSWORD,
+  AGENT_PASSWORD,
+  comparePassword,
+  hashPassword
+} from './auth.js';
+import {
+  enqueueSyncEvent,
+  getSyncStatus,
+  processOutboxSync,
+  startSyncWorker
+} from './syncWorker.js';
+import {
+  createDatabaseBackup,
+  listBackups,
+  getBackupFilePath,
+  startBackupScheduler
+} from './backupService.js';
 
 const PORT = process.env.PORT || 4000;
-const JWT_SECRET = process.env.JWT_SECRET || 'cofina_edge_togo_secret_key_2026';
-const AGENT_PASSWORD = process.env.AGENT_PASSWORD || 'cofina2026';
 
 function getLocalIpAddress() {
   const interfaces = os.networkInterfaces();
@@ -35,27 +53,13 @@ const io = new Server(httpServer, {
 app.use(cors());
 app.use(express.json());
 
+// Démarrage des workers en tâche de fond (Résilience Edge & Sauvegardes)
+startSyncWorker(prisma);
+startBackupScheduler();
+
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', agency: 'Kodjoviakopé (Lomé)', timestamp: new Date() });
 });
-
-// JWT Authentication Middleware for Protected Teller/Agent Routes
-function authenticateToken(req: any, res: any, next: any) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'Accès non autorisé : Jeton de connexion (Token) manquant' });
-  }
-
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-    if (err) {
-      return res.status(403).json({ error: 'Jeton de connexion invalide ou expiré' });
-    }
-    req.user = user;
-    next();
-  });
-}
 
 // Helper: Ensure default agency exists in SQLite DB
 async function getOrCreateDefaultAgency() {
@@ -238,6 +242,9 @@ app.post('/api/tickets/create', async (req, res) => {
 
     const updatedState = await getTodayState();
 
+    // Enqueue pour la synchronisation différée Cloud Edge
+    enqueueSyncEvent(prisma, 'TICKET_CREATED', newTicket);
+
     // Broadcast realtime event via Socket.io across LAN
     io.emit('ticket_created', { ticket: newTicket, dailyCounters: updatedState.dailyCounters, tickets: updatedState.tickets });
 
@@ -295,6 +302,9 @@ app.post('/api/tickets/call-next', authenticateToken, async (req, res) => {
 
     const updatedState = await getTodayState();
 
+    // Enqueue pour la synchronisation différée Cloud Edge
+    enqueueSyncEvent(prisma, 'TICKET_CALLED', updatedTicket);
+
     // Broadcast realtime event via Socket.io across LAN
     io.emit('ticket_called', { ticket: updatedTicket, tickets: updatedState.tickets });
 
@@ -322,6 +332,10 @@ app.post('/api/tickets/update-status', authenticateToken, async (req, res) => {
     });
 
     const updatedState = await getTodayState();
+
+    // Enqueue pour la synchronisation différée Cloud Edge
+    enqueueSyncEvent(prisma, 'TICKET_UPDATED', updated);
+
     io.emit('ticket_updated', { ticket: updated, tickets: updatedState.tickets });
 
     res.json(updated);
@@ -342,6 +356,10 @@ app.post('/api/tickets/recall', authenticateToken, async (req, res) => {
     });
 
     const updatedState = await getTodayState();
+
+    // Enqueue pour la synchronisation différée Cloud Edge
+    enqueueSyncEvent(prisma, 'TICKET_CALLED', updated);
+
     io.emit('ticket_recalled', { ticket: updated, tickets: updatedState.tickets });
 
     res.json(updated);
@@ -350,8 +368,8 @@ app.post('/api/tickets/recall', authenticateToken, async (req, res) => {
   }
 });
 
-// Protected Admin Endpoint: Weekly Archiving
-app.post('/api/tickets/weekly-archive', authenticateToken, async (req, res) => {
+// Protected Admin Endpoint: Weekly Archiving (ADMIN ONLY)
+app.post('/api/tickets/weekly-archive', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
   try {
     const { weekLabel, startDate, endDate, totalTickets, completedTickets, noShowTickets, avgWaitMin, tickets } = req.body;
 
@@ -372,6 +390,9 @@ app.post('/api/tickets/weekly-archive', authenticateToken, async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
 
+    // Enqueue événement d'archivage hebdomadaire
+    enqueueSyncEvent(prisma, 'WEEKLY_ARCHIVE', archive);
+
     io.emit('weekly_archived', { archive, archivesList });
     res.status(201).json({ message: 'Semaine archivée avec succès en base de données SQLite', archive });
   } catch (e: any) {
@@ -385,13 +406,17 @@ app.get('/api/reload-clients', (req, res) => {
   res.json({ message: 'Ordre de rafraîchissement envoyé à tous les écrans en direct' });
 });
 
-// Protected Admin Endpoint: Reset All Tickets
-app.post('/api/tickets/reset-all', authenticateToken, async (req, res) => {
+// Protected Admin Endpoint: Reset All Tickets (ADMIN ONLY)
+app.post('/api/tickets/reset-all', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
   try {
     await prisma.ticket.deleteMany({});
     const cleanState = { tickets: [], dailyCounters: { D: 0, R: 0, O: 0, E: 0, C: 0, M: 0, S: 0, H: 0 }, lastCalledTicket: null };
+
+    // Enqueue pour synchronisation
+    enqueueSyncEvent(prisma, 'RESET_ALL', { resetAt: new Date() });
+
     io.emit('init_state', cleanState);
-    res.json({ message: 'Tous les tickets de démonstration ont été supprimés avec succès.' });
+    res.json({ message: 'Tous les tickets ont été réinitialisés avec succès.' });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
@@ -408,14 +433,90 @@ app.get('/api/tickets/weekly-archives', async (req, res) => {
   }
 });
 
-// JWT Auth Login Endpoint for Tellers/Agents
-app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body;
-  if (password === AGENT_PASSWORD) {
-    const token = jwt.sign({ username, role: 'AGENT', agency: 'KODJOVIAKOPE' }, JWT_SECRET, { expiresIn: '12h' });
-    return res.json({ token, username });
+// ── ENDPOINTS DE SAUVEGARDE SQLITE (ADMIN ONLY) ──
+app.get('/api/backup/list', authenticateToken, requireRole(['ADMIN']), (req, res) => {
+  try {
+    const backups = listBackups();
+    res.json(backups);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
-  res.status(401).json({ message: 'Mot de passe incorrect' });
+});
+
+app.post('/api/backup/create', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const backup = await createDatabaseBackup();
+    res.status(201).json({ message: 'Sauvegarde SQLite créée avec succès', backup });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/backup/download/:filename', authenticateToken, requireRole(['ADMIN']), (req, res) => {
+  try {
+    const filePath = getBackupFilePath(req.params.filename);
+    if (!filePath) {
+      return res.status(404).json({ error: 'Fichier de sauvegarde introuvable ou invalide' });
+    }
+    res.download(filePath, req.params.filename);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── ENDPOINTS DE SYNCHRONISATION CLOUD SYNCOUTBOX ──
+app.get('/api/sync/status', async (req, res) => {
+  try {
+    const status = await getSyncStatus(prisma);
+    res.json(status);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/sync/trigger', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+  try {
+    const result = await processOutboxSync(prisma);
+    const status = await getSyncStatus(prisma);
+    res.json({ message: 'Tentative de synchronisation exécutée', result, status });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// JWT Auth Login Endpoint avec support Rôles RBAC (ADMIN & AGENT)
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password, role } = req.body;
+
+  // 1. Authentification Administrateur
+  if (role === 'ADMIN' || username === 'admin') {
+    if (password === ADMIN_PASSWORD) {
+      const token = generateToken({ username: username || 'admin', role: 'ADMIN', agency: 'KODJOVIAKOPE' });
+      return res.json({ token, username: username || 'admin', role: 'ADMIN' });
+    }
+    return res.status(401).json({ message: 'Mot de passe Administrateur incorrect' });
+  }
+
+  // 2. Authentification Caissier / Agent
+  if (password === AGENT_PASSWORD) {
+    const token = generateToken({ username: username || 'agent', role: 'AGENT', agency: 'KODJOVIAKOPE' });
+    return res.json({ token, username: username || 'agent', role: 'AGENT' });
+  }
+
+  // 3. Authentification par code PIN ou mot de passe individuel en base
+  if (username) {
+    try {
+      const agent = await prisma.agent.findFirst({ where: { name: username } });
+      if (agent && agent.passwordHash && await comparePassword(password, agent.passwordHash)) {
+        const token = generateToken({ id: agent.id, username: agent.name, role: (agent.role as any) || 'AGENT', agency: 'KODJOVIAKOPE' });
+        return res.json({ token, username: agent.name, role: agent.role || 'AGENT' });
+      }
+    } catch (err) {
+      console.warn('Erreur vérification agent individuel :', err);
+    }
+  }
+
+  res.status(401).json({ message: 'Identifiant ou mot de passe incorrect' });
 });
 
 // Realtime Socket.io Connection & Events

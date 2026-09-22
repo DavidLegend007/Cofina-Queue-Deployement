@@ -30,6 +30,8 @@ model Agent {
   photoUrl       String?  // Photo de profil uploadée (base64 ou URL)
   defaultCounter Int      @default(1)
   pinCode        String?  // Code PIN de connexion sécurisé
+  passwordHash   String?  // Hash bcrypt sécurisé pour mot de passe / PIN
+  role           String   @default("AGENT") // AGENT ou ADMIN
   isActive       Boolean  @default(true)
   totalServed    Int      @default(0)
 

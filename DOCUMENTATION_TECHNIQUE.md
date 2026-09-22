@@ -95,3 +95,33 @@ Puisque chaque agence dispose de son propre **Serveur Edge Local autonome**, la 
 
 1. **Extraction Mensuelle par le Data Analyste (Mode Déconnecté)** : Les bases locales de chaque agence sont exportées mensuellement au format CSV depuis le panneau Administration.
 2. **Synchronisation Différée Automatique (Si ligne disponible)** : En cas de présence d'un accès internet intermittent, le serveur Edge transmet automatiquement les archives quotidiennes au serveur central sans perturber le fonctionnement de l'agence.
+
+---
+
+## 5. Spécifications Avancées & Résilience V2
+
+### 5.1 Sécurité & Contrôle d'Accès RBAC (Role-Based Access Control)
+* **Cryptographie & Mots de passe** : Hachage sécurisé avec sel (Salt rounds = 10) via `bcryptjs`.
+* **Hiérarchie des Rôles** :
+  * `AGENT` : Accès au poste caissier, appel de tickets, rappels et clôtures.
+  * `ADMIN` : Accès protégé à la console d'administration, archivage hebdomadaire, réinitialisation de la file, déclenchement de synchro et gestion des sauvegardes.
+* **Protection des Endpoints sensibles** : Middleware `requireRole(['ADMIN'])` sur toutes les routes destructives.
+
+### 5.2 Sauvegardes Automatiques SQLite & Rotation
+* **Sauvegarde quotidienne** programmée toutes les 24 heures et horodatée (`cofina_edge_backup_YYYY-MM-DD_HH-mm-ss.db`).
+* **Rétention sécurisée** : Purge automatique des sauvegardes de plus de 14 jours pour garantir la pérennité du stockage local.
+* **Téléchargement 1-clic** directement depuis l'interface d'administration pour export sur clé USB ou disque externe.
+
+### 5.3 Moteur de Synchronisation Outbox (Edge-to-Cloud)
+* **File d'attente sortante locale (`SyncOutbox`)** : Enregistrement atomique de chaque événement métier (`TICKET_CREATED`, `TICKET_CALLED`, `TICKET_UPDATED`, `WEEKLY_ARCHIVE`).
+* **Worker d'arrière-plan** : Analyse périodique de l'Outbox et tentative d'envoi vers le serveur central (`CENTRAL_CLOUD_URL`).
+* **Résilience aux déconnexions** : Si internet coupe, les événements restent stockés en base SQLite locale avec incrémentation des tentatives, sans aucun blocage pour les usagers de l'agence.
+
+### 5.4 Accessibilité Kiosque (WCAG AAA)
+* **Mode Contraste Élevé** : Bascule 1-clic sur la borne tactile (fond noir `#000000`, bordures jaune haute visibilité `#FACC15`, typographie renforcée).
+* **Navigation Clavier Intégrale** : Prise de ticket possible sans écran tactile ni souris via les touches `Tab` et `Entrée`/`Espace`.
+* **Lecteurs d'écran** : Attributs sémantiques `role="dialog"`, `role="button"`, `aria-label`, et régions `aria-live="polite"`.
+
+### 5.5 Suite de Tests Unitaires & Fiabilité (Vitest)
+* Exécution complète de la suite de tests via `npm test` validant la cohérence des règles métier, la cryptographie et les tokens RBAC.
+

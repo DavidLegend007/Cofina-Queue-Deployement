@@ -8,13 +8,16 @@
     "start": "vite --host --port 3000",
     "build": "vite build",
     "preview": "vite preview --host --port 3000",
+    "test": "vitest run",
     "server:dev": "npm --prefix server run dev",
     "server:start": "npm --prefix server start"
   },
   "dependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "bcryptjs": "^3.0.3",
     "canvas-confetti": "^1.9.4",
     "cors": "^2.8.6",
     "express": "^5.2.1",
@@ -36,6 +39,7 @@
     "autoprefixer": "^10.5.4",
     "postcss": "^8.5.25",
     "tailwindcss": "^4.3.3",
-    "vite": "^6.0.7"
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8"
   }
 }

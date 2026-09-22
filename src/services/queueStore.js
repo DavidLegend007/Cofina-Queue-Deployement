@@ -356,6 +356,92 @@ export const getAuthHeaders = async () => {
   };
 };
 
+// ── AUTH ADMIN (RBAC) ──
+export const getAdminToken = () => {
+  return typeof window !== 'undefined' ? localStorage.getItem('cofina_admin_jwt_token') : null;
+};
+
+export const loginAsAdmin = async (password) => {
+  try {
+    const res = await fetch(`${SERVER_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'admin', password, role: 'ADMIN' })
+    });
+    if (!res.ok) {
+      throw new Error('Mot de passe administrateur invalide');
+    }
+    const data = await res.json();
+    if (typeof window !== 'undefined' && data.token) {
+      localStorage.setItem('cofina_admin_jwt_token', data.token);
+    }
+    return data;
+  } catch (err) {
+    console.error('Échec authentification admin :', err);
+    throw err;
+  }
+};
+
+export const logoutAdmin = () => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('cofina_admin_jwt_token');
+  }
+};
+
+export const getAdminAuthHeaders = async () => {
+  let token = getAdminToken();
+  if (!token) {
+    // Si pas de token admin stocké, on tente le login admin par défaut
+    try {
+      const loginRes = await loginAsAdmin('cofinaAdmin2026!');
+      token = loginRes.token;
+    } catch (_) {}
+  }
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+};
+
+// ── FONCTIONS DE SAUVEGARDE SQLITE ──
+export const fetchBackupList = async () => {
+  const headers = await getAdminAuthHeaders();
+  const res = await fetch(`${SERVER_URL}/api/backup/list`, { headers });
+  if (!res.ok) throw new Error('Impossible de charger la liste des sauvegardes');
+  return await res.json();
+};
+
+export const createDatabaseBackupAction = async () => {
+  const headers = await getAdminAuthHeaders();
+  const res = await fetch(`${SERVER_URL}/api/backup/create`, {
+    method: 'POST',
+    headers
+  });
+  if (!res.ok) throw new Error('Échec de création de la sauvegarde');
+  return await res.json();
+};
+
+export const getBackupDownloadUrl = (filename) => {
+  return `${SERVER_URL}/api/backup/download/${encodeURIComponent(filename)}`;
+};
+
+// ── FONCTIONS DE SYNCHRONISATION SYNCOUTBOX ──
+export const fetchSyncStatus = async () => {
+  const res = await fetch(`${SERVER_URL}/api/sync/status`);
+  if (!res.ok) throw new Error('Impossible de récupérer l\'état de synchronisation');
+  return await res.json();
+};
+
+export const triggerCloudSyncAction = async () => {
+  const headers = await getAdminAuthHeaders();
+  const res = await fetch(`${SERVER_URL}/api/sync/trigger`, {
+    method: 'POST',
+    headers
+  });
+  if (!res.ok) throw new Error('Échec du déclenchement de la synchronisation');
+  return await res.json();
+};
+
 export const saveStoredState = (state, notify = true) => {
   try {
     // BUG FIX (Bug 4): Only save non-ticket metadata to localStorage.
@@ -386,7 +472,7 @@ export const saveStoredState = (state, notify = true) => {
 // not from localStorage (which is empty since migration to server-side state).
 export const resetWeeklyAgencyQueue = async () => {
   try {
-    const headers = await getAuthHeaders();
+    const headers = await getAdminAuthHeaders();
 
     // 1. Fetch current week tickets from server for accurate archiving
     const res = await fetch(`${SERVER_URL}/api/tickets`);
