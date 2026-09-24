@@ -1,18 +1,18 @@
-# NOTE TECHNIQUE — COFINA Queue System V1
-### À l'attention du Responsable IT — Agence Siège Kodjoviakopé
+# NOTE TECHNIQUE - COFINA Queue System V1
+### À l'attention du Responsable IT - Agence Siège Kodjoviakopé
 
 ---
 
 > **Référence** : COFINA-IT-QSYSv1-2026 &nbsp;|&nbsp; **Date** : Septembre 2026 &nbsp;|&nbsp; **Prestataire** : Matrix Industrie  
-> **Périmètre** : Agence Siège Kodjoviakopé — Lomé, Togo &nbsp;|&nbsp; **Statut** : ✅ En Production  
-> **Confidentialité** : Usage Interne — Direction IT
+> **Périmètre** : Agence Siège Kodjoviakopé - Lomé, Togo &nbsp;|&nbsp; **Statut** : ✅ En Production  
+> **Confidentialité** : Usage Interne - Direction IT
 
 ---
 
 ## 📋 SOMMAIRE
 
 1. [Architecture & Stack Technique](#1-architecture--stack-technique)
-2. [Interactions avec le Réseau — Ce qui entre, ce qui sort](#2-interactions-avec-le-réseau--ce-qui-entre-ce-qui-sort)
+2. [Interactions avec le Réseau - Ce qui entre, ce qui sort](#2-interactions-avec-le-réseau--ce-qui-entre-ce-qui-sort)
 3. [Sécurité & Contrôle d'Accès (RBAC)](#3-sécurité--contrôle-daccès-rbac)
 4. [Base de Données & Sauvegardes](#4-base-de-données--sauvegardes)
 5. [Exploitation & Maintenance](#5-exploitation--maintenance)
@@ -54,27 +54,27 @@ RÉSEAU EXISTANT COFINA (Agence Siège Kodjoviakopé)
 │                  │                                         │
 └──────────────────┼─────────────────────────────────────────┘
                    │  Câble RJ45 (fourni par Matrix Industrie)
-         ┌─────────▼──────────────────────────────────┐
-         │  SWITCH MATRIX INDUSTRIE (16 ports)         │
-         │  Réseau dédié File d'Attente                │
-         │                                             │
-         │  ┌──────────┐  Accès : http://<IP>:3000     │
-         │  │Mini-PC   │──────────────────────────     │
+         ┌─────────▼────────────────────────────────────┐
+         │  SWITCH MATRIX INDUSTRIE (16 ports)          │
+         │  Réseau dédié File d'Attente                 │
+         │                                              │
+         │  ┌──────────┐  Accès : http://<IP>:3000      │
+         │  │Mini-PC   │──────────────────────────      │
          │  │Serveur   │  (IP fixe attribuée par COFINA)│
-         │  └──────────┘                               │
-         │  ┌──────────┐  → Borne d'accueil (kiosk)   │
-         │  │Tablette  │                               │
-         │  └──────────┘                               │
-         │  ┌──────────┐  → Écran TV salle d'attente   │
-         │  │Boîtier TV│                               │
-         │  └──────────┘                               │
-         │  ┌──────────┐  → Poste Caisse 1             │
-         │  │ PC Caisse│  → Poste Caisse 2             │
-         │  │ & Opérat.│  → Poste Caisse 3             │
-         │  └──────────┘  → Poste Opérateur 1          │
-         │                → Poste Opérateur 2          │
-         │                → Poste Accueil              │
-         └─────────────────────────────────────────────┘
+         │  └──────────┘                                │
+         │  ┌──────────┐  → Borne d'accueil (kiosk)     │
+         │  │Tablette  │                                │
+         │  └──────────┘                                │
+         │  ┌──────────┐  → Écran TV salle d'attente    │
+         │  │Boîtier TV│                                │
+         │  └──────────┘                                │
+         │  ┌──────────┐  → Poste Caisse 1              │
+         │  │ PC Caisse│  → Poste Caisse 2              │
+         │  │ & Opérat.│  → Poste Caisse 3              │
+         │  └──────────┘  → Poste Opérateur 1           │
+         │                → Poste Opérateur 2           │
+         │                → Poste Accueil               │
+         └──────────────────────────────────────────────┘
 ```
 
 ### Récapitulatif de notre demande réseau
@@ -112,7 +112,7 @@ RÉSEAU EXISTANT COFINA (Agence Siège Kodjoviakopé)
 ```
 
 
-**Ports à ouvrir sur le LAN uniquement** — aucun accès internet requis :
+**Ports à ouvrir sur le LAN uniquement** - aucun accès internet requis :
 
 | Port | Usage |
 |---|---|
@@ -123,15 +123,15 @@ RÉSEAU EXISTANT COFINA (Agence Siège Kodjoviakopé)
 
 | Poste | URL |
 |---|---|
-| Borne Tactile | `http://<IP>:3000/?kiosk=true` — plein écran Chrome |
-| Écran TV | `http://<IP>:3000/?display=true` — plein écran |
+| Borne Tactile | `http://<IP>:3000/?kiosk=true` - plein écran Chrome |
+| Écran TV | `http://<IP>:3000/?display=true` - plein écran |
 | Poste Caissier | `http://<IP>:3000/` |
 | Widget Bureau | `http://<IP>:3000/?widgetOnly=true` |
 | Health Check | `http://<IP>:4000/health` |
 
 ---
 
-## 2. Interactions avec le Réseau — Ce qui entre, ce qui sort
+## 2. Interactions avec le Réseau - Ce qui entre, ce qui sort
 
 > **Principe** : Le système applique le **moindre privilège réseau**. Il n'accède jamais à Amplitude, à l'Active Directory ni à aucune base de données bancaire. Son empreinte réseau est minimale.
 
@@ -154,7 +154,7 @@ RÉSEAU EXISTANT COFINA (Agence Siège Kodjoviakopé)
 | Base de données clients | ❌ Aucun |
 | Partages réseau / NAS | ❌ Aucun |
 
-### Données stockées — registre de confidentialité
+### Données stockées - registre de confidentialité
 
 Le système **ne collecte aucune donnée personnelle client**. Seules ces données opérationnelles sont conservées :
 
@@ -290,9 +290,9 @@ pm2 restart cofina-server
 
 | Niveau | Responsable | Action |
 |---|---|---|
-| **Niveau 1** | Responsable d'Agence (ADMIN) | Console Admin locale — gestion courante |
+| **Niveau 1** | Responsable d'Agence (ADMIN) | Console Admin locale - gestion courante |
 | **Niveau 2** | Chef IT COFINA Togo | `pm2 logs cofina-server` → diagnostic |
-| **Niveau 3** | Matrix Industrie — Support | Intervention technique |
+| **Niveau 3** | Matrix Industrie - Support | Intervention technique |
 
 ### Procédure d'escalade rapide
 
@@ -303,5 +303,6 @@ pm2 restart cofina-server
 
 ---
 
-*Document rédigé par **Matrix Industrie** pour le **Groupe COFINA Togo** — Agence Siège Kodjoviakopé.*  
-*© 2026 — Tous droits réservés. Usage Interne DSI.*
+*Document rédigé par **Matrix Industrie** pour le **Groupe COFINA Togo** - Agence Siège Kodjoviakopé.*  
+*© 2026 - Tous droits réservés. Usage Interne DSI.*
+

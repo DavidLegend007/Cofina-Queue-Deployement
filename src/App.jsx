@@ -5,6 +5,7 @@ import DisplayModule from './components/DisplayModule';
 import AgentModule from './components/AgentModule';
 import AdminModule from './components/AdminModule';
 import FloatingTellerWidget from './components/FloatingTellerWidget';
+import MobileTicketView from './components/MobileTicketView';
 import { 
   getStoredState, 
   saveStoredState, 
@@ -155,6 +156,27 @@ export default function App() {
           }
         `}</style>
       </div>
+    );
+  }
+
+  // ── MOBILE DIGITAL TICKET VIEW (WHEN CLIENT SCANS QR CODE) ──
+  const ticketParam = urlParams.get('ticket') 
+    || urlParams.get('q') 
+    || (typeof window !== 'undefined' && window.location.pathname.startsWith('/q/') 
+        ? window.location.pathname.replace('/q/', '').trim() 
+        : null);
+
+  if (ticketParam) {
+    return (
+      <MobileTicketView 
+        ticketNumber={ticketParam}
+        tickets={storeState.tickets || []}
+        agencyName={currentAgency.name}
+        lang={lang}
+        onBackToKiosk={() => {
+          if (typeof window !== 'undefined') window.location.href = '/?kiosk';
+        }}
+      />
     );
   }
 

@@ -39,7 +39,7 @@ Service : ${ticket.serviceName}
 ${ticket.priority ? (isEn ? '★ PRIORITY ACCESS ★\n' : '★ ACCÈS PRIORITAIRE ★\n') : ''}
 ----------------------------------------
        [ ${isEn ? 'SCAN YOUR QR CODE' : 'SCANNER VOTRE QR CODE'} ]
-        [ https://cofina.tg/q/${ticket.ticketNumber} ]
+        [ ${typeof window !== 'undefined' ? `${window.location.origin}/?ticket=${ticket.ticketNumber}` : `/?ticket=${ticket.ticketNumber}`} ]
 ----------------------------------------
 ${isEn ? 'Welcome! Please take a seat in the waiting room.\nYour number will be called on the TV screen.' : 'Bienvenue ! Prenez place en salle d\'attente.\nVotre numéro sera annoncé à l\'écran TV.'}
 ========================================
@@ -325,8 +325,8 @@ export const getStoredState = () => {
 };
 
 // Auth helpers for JWT protected endpoints
-export const getAuthToken = async () => {
-  let token = typeof window !== 'undefined' ? localStorage.getItem('cofina_jwt_token') : null;
+export const getAuthToken = async (forceRefresh = false) => {
+  let token = (!forceRefresh && typeof window !== 'undefined') ? localStorage.getItem('cofina_jwt_token') : null;
   if (!token) {
     try {
       const res = await fetch(`${SERVER_URL}/api/auth/login`, {
@@ -348,8 +348,8 @@ export const getAuthToken = async () => {
   return token;
 };
 
-export const getAuthHeaders = async () => {
-  const token = await getAuthToken();
+export const getAuthHeaders = async (forceRefresh = false) => {
+  const token = await getAuthToken(forceRefresh);
   return {
     'Content-Type': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
@@ -600,8 +600,8 @@ export const generateSimulationTickets = async () => {
 // Call Next Ticket (From Teller Workstation - Caisse 1-4)
 export const callNextTicket = async (agentId, agentName, counterNumber, serviceFilter = 'ALL', lang = 'fr') => {
   try {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`${SERVER_URL}/api/tickets/call-next`, {
+    let headers = await getAuthHeaders();
+    let res = await fetch(`${SERVER_URL}/api/tickets/call-next`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -609,9 +609,22 @@ export const callNextTicket = async (agentId, agentName, counterNumber, serviceF
       })
     });
     
+    // Auto-refresh token if expired (401 / 403)
+    if (res.status === 401 || res.status === 403) {
+      if (typeof window !== 'undefined') localStorage.removeItem('cofina_jwt_token');
+      headers = await getAuthHeaders(true);
+      res = await fetch(`${SERVER_URL}/api/tickets/call-next`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          agentId, agentName, counterNumber, serviceFilter
+        })
+      });
+    }
+
     if (!res.ok) {
       if (res.status === 404) return null; // Aucun ticket en attente
-      throw new Error('API request failed');
+      throw new Error(`API request failed: ${res.status}`);
     }
     
     const calledTicketObj = await res.json();
@@ -638,32 +651,55 @@ export const processNextTicket = async (agentId, agentName, counterNumber, servi
 // Recall current ticket
 export const recallTicket = async (ticketId, lang = 'fr') => {
   try {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`${SERVER_URL}/api/tickets/recall`, {
+    let headers = await getAuthHeaders();
+    let res = await fetch(`${SERVER_URL}/api/tickets/recall`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ ticketId })
     });
     
+    // Auto-refresh token if expired (401 / 403)
+    if (res.status === 401 || res.status === 403) {
+      if (typeof window !== 'undefined') localStorage.removeItem('cofina_jwt_token');
+      headers = await getAuthHeaders(true);
+      res = await fetch(`${SERVER_URL}/api/tickets/recall`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ticketId })
+      });
+    }
+
     if (!res.ok) throw new Error('API request failed');
     
     const ticket = await res.json();
     playCallChime();
     speakTicketCall(ticket.ticketNumber, ticket.counterNumber, lang);
+    return ticket;
   } catch (err) {
     console.error('recallTicket failed:', err);
+    return null;
   }
 };
 
 // Update Ticket Status (IN_PROGRESS, COMPLETED, NO_SHOW, CANCELLED)
 export const updateTicketStatus = async (ticketId, newStatus, extra = {}) => {
   try {
-    const headers = await getAuthHeaders();
-    await fetch(`${SERVER_URL}/api/tickets/update-status`, {
+    let headers = await getAuthHeaders();
+    let res = await fetch(`${SERVER_URL}/api/tickets/update-status`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ ticketId, status: newStatus, extra })
     });
+    // Auto-refresh token if expired (401 / 403)
+    if (res.status === 401 || res.status === 403) {
+      if (typeof window !== 'undefined') localStorage.removeItem('cofina_jwt_token');
+      headers = await getAuthHeaders(true);
+      await fetch(`${SERVER_URL}/api/tickets/update-status`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ticketId, status: newStatus, extra })
+      });
+    }
   } catch (err) {
     console.error('updateTicketStatus failed:', err);
   }

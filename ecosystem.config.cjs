@@ -16,8 +16,8 @@ module.exports = {
     },
     {
       name: "cofina-queue-frontend",
-      script: "node_modules/vite/bin/vite.js",
-      args: "preview --host --port 3000",
+      script: "npm",
+      args: "run preview",
       cwd: "./",
       instances: 1,
       exec_mode: "fork",

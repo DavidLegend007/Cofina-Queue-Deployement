@@ -1,5 +1,5 @@
 /**
- * Générateur PDF — Note Technique Chef IT COFINA
+ * Générateur PDF - Note Technique Chef IT COFINA
  * Design : Document administratif épuré aux couleurs COFINA
  * Icônes : Lucide SVG intégrées inline
  */
@@ -171,7 +171,7 @@ const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Note Technique IT — COFINA Queue System V1</title>
+<title>Note Technique IT - COFINA Queue System V1</title>
 <style>
 /* ── Fonts ── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
@@ -393,7 +393,7 @@ body {
 /* ── H1 (titre principal dans le doc, caché car sur couverture) ── */
 h1 { display: none; }
 
-/* ── H2 — Titres de section ── */
+/* ── H2 - Titres de section ── */
 h2.section-heading {
   display: flex;
   align-items: center;
@@ -563,11 +563,11 @@ hr {
 <!-- ══ PAGE DE COUVERTURE ══ -->
 <div class="cover">
   <div class="cover-top-bar">
-    ${logoBase64 ? `<img class="cover-logo" src="${logoBase64}" alt="COFINA — Compagnie Financière Africaine" />` : '<span style="font-size:1.5rem;font-weight:700;color:#C8102E;">COFINA</span>'}
+    ${logoBase64 ? `<img class="cover-logo" src="${logoBase64}" alt="COFINA - Compagnie Financière Africaine" />` : '<span style="font-size:1.5rem;font-weight:700;color:#C8102E;">COFINA</span>'}
     <div class="cover-top-divider"></div>
     <div class="cover-top-label">
       <div class="direction">Direction des Systèmes d'Information</div>
-      <div class="dept">Document Technique Interne — Confidentiel</div>
+      <div class="dept">Document Technique Interne - Confidentiel</div>
     </div>
   </div>
 
@@ -590,7 +590,7 @@ hr {
       </div>
       <div class="cover-meta-item">
         <div class="label">Statut</div>
-        <div class="value red">● Production — Agence Pilote</div>
+        <div class="value red">● Production - Agence Pilote</div>
       </div>
       <div class="cover-meta-item">
         <div class="label">Version</div>
@@ -602,14 +602,14 @@ hr {
       </div>
       <div class="cover-meta-item">
         <div class="label">Périmètre</div>
-        <div class="value">Agences Togo — Lomé</div>
+        <div class="value">Agences Togo - Lomé</div>
       </div>
     </div>
   </div>
 
   <div class="cover-footer">
-    <div class="cover-footer-badge">${ICONS.lock}&nbsp; Usage Interne — DSI COFINA Togo</div>
-    <div class="cover-footer-ref">© 2026 Groupe COFINA — Compagnie Financière Africaine — Tous droits réservés</div>
+    <div class="cover-footer-badge">${ICONS.lock}&nbsp; Usage Interne - DSI COFINA Togo</div>
+    <div class="cover-footer-ref">© 2026 Groupe COFINA - Compagnie Financière Africaine - Tous droits réservés</div>
   </div>
 </div>
 
@@ -617,7 +617,7 @@ hr {
 <div class="doc-header">
   ${logoBase64 ? `<img src="${logoBase64}" alt="COFINA" />` : '<strong style="color:#C8102E;">COFINA</strong>'}
   <div class="doc-header-info">
-    <strong>Note Technique — Queue System V1</strong><br/>
+    <strong>Note Technique - Queue System V1</strong><br/>
     Réf. COFINA-IT-QSYSv1-2026 &nbsp;|&nbsp; Septembre 2026 &nbsp;|&nbsp; Confidentiel DSI
   </div>
 </div>
@@ -654,7 +654,7 @@ async function generatePdf() {
     displayHeaderFooter: true,
     headerTemplate: '<div></div>',
     footerTemplate: `<div style="width:100%;font-size:7pt;color:#9CA3AF;padding:0 20mm;display:flex;justify-content:space-between;font-family:Inter,sans-serif;">
-      <span>COFINA Queue System V1 — Note Technique DSI — Confidentiel</span>
+      <span>COFINA Queue System V1 - Note Technique DSI - Confidentiel</span>
       <span><span class="pageNumber"></span> / <span class="totalPages"></span></span>
     </div>`,
     margin: { top: '20mm', bottom: '18mm', left: '20mm', right: '20mm' },
@@ -665,3 +665,4 @@ async function generatePdf() {
 }
 
 generatePdf().catch(e => console.error('Erreur PDF :', e.message));
+

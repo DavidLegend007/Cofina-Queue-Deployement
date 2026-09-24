@@ -18,21 +18,49 @@ Le Serveur Edge d'agence est un Mini-PC (Intel NUC ou serveur sous Linux Ubuntu 
 
 ---
 
-## 🛠️ 2. ÉTAPES DE DÉPLOIEMENT PAS À PAS
+## 🛠️ 2. INSTALLATION AUTOMATIQUE SUR UBUNTU SERVER (EN 1 CLIC)
 
-### Étape 1 : Cloner le Répertoire & Installer les Dépendances
+Si votre serveur tourne sous **Ubuntu Server (20.04, 22.04 ou 24.04 LTS)**, un script automatisé configure tout de A à Z (Node.js 20, PM2, Pare-feu, Base de données SQLite, Compilation et Démarrage persistant au boot) :
 
-Ouvrez un terminal sur le serveur Edge :
-
+### Méthode Rapide :
 ```bash
-# 1. Se placer dans le répertoire d'installation
-cd /var/www/ (ou C:\Cofina sur Windows)
+# 1. Se placer dans le dossier du projet
+cd /opt/Cofina-Queue-Deployement # (ou le dossier où vous avez copié le projet)
 
-# 2. Récupérer le code du projet
+# 2. Rendre le script exécutable et le lancer avec sudo
+sudo chmod +x install_ubuntu.sh
+sudo bash install_ubuntu.sh
+```
+
+Le script installe automatiquement :
+- Les dépendances système (`curl`, `build-essential`, `ufw`, `git`)
+- **Node.js 20.x LTS** officiel
+- **PM2** configuré avec `systemd` pour redémarrage automatique après coupure de courant
+- Les règles du pare-feu (`UFW` autorisant ports 22, 3000, 4000)
+- La base de données **SQLite locale** (`prisma:push`)
+- Le build production optimisé du frontend et du backend
+
+---
+
+## 🛠️ 3. DÉPLOIEMENT MANUEL ÉTAPE PAR ÉTAPE (ALTERNATIVE)
+
+### Étape 1 : Cloner ou Transférer le Répertoire
+
+**Option A — Via Git :**
+```bash
+cd /opt
 git clone <URL_DU_DEPOT_GIT> Cofina
 cd Cofina
+```
 
-# 3. Installer les dépendances Frontend & Backend
+**Option B — Depuis votre PC Windows vers le serveur Ubuntu via SCP :**
+```powershell
+# Depuis le terminal PowerShell de votre PC Windows :
+scp -r d:\Cofina-Queue-Deployement utilisateur@IP_DU_SERVEUR_UBUNTU:/home/utilisateur/
+```
+
+Puis installez les dépendances :
+```bash
 npm install
 npm --prefix server install
 ```
@@ -71,7 +99,7 @@ PM2 garantit que l'application **redémarre automatiquement après une coupure d
 
 ```bash
 # 1. Lancer le frontend et le backend avec PM2
-pm2 start ecosystem.config.js
+pm2 start ecosystem.config.cjs
 
 # 2. Sauvegarder la liste des processus PM2
 pm2 save

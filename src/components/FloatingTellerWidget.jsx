@@ -70,9 +70,15 @@ export default function FloatingTellerWidget({
   const selectedAgent = profiles.find(p => p.id === selectedAgentId) || profiles[0];
 
   // Find active ticket currently CALLED or IN_PROGRESS for this counter
-  const activeTicket = tickets.find(
+  const activeTicketCandidates = tickets.filter(
     tk => tk.counterNumber === counterNumber && (tk.status === 'CALLED' || tk.status === 'IN_PROGRESS')
   );
+  activeTicketCandidates.sort((a, b) => {
+    const timeA = new Date(a.calledAt || a.startedAt || a.createdAt).getTime();
+    const timeB = new Date(b.calledAt || b.startedAt || b.createdAt).getTime();
+    return timeB - timeA;
+  });
+  const activeTicket = activeTicketCandidates[0] || null;
 
   const waitingTickets = tickets.filter(tk => tk.status === 'WAITING');
   

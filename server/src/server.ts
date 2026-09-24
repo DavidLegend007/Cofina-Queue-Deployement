@@ -156,6 +156,16 @@ app.get('/health', async (req, res) => {
 });
 
 // REST API Routes
+app.get('/api/network-info', (req, res) => {
+  const localIp = getLocalIpAddress();
+  res.json({
+    localIp,
+    port: PORT,
+    frontendPort: 3000,
+    lanUrl: `http://${localIp}:3000`
+  });
+});
+
 app.get('/api/tickets', async (req, res) => {
   try {
     const state = await getTodayState();
@@ -288,6 +298,19 @@ app.post('/api/tickets/call-next', authenticateToken, async (req, res) => {
         validAgentId = existingAgent.id;
       }
     }
+
+    // Clôturer automatiquement tout ancien ticket actif sur ce guichet
+    await prisma.ticket.updateMany({
+      where: {
+        counterNumber: counterNumber || 1,
+        status: { in: ['CALLED', 'IN_PROGRESS'] },
+        id: { not: ticketToCall.id }
+      },
+      data: {
+        status: 'COMPLETED',
+        completedAt: now
+      }
+    });
 
     const updatedTicket = await prisma.ticket.update({
       where: { id: ticketToCall.id },

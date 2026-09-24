@@ -60,11 +60,16 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
 
   // Sync active ticket for this agent & counter
   useEffect(() => {
-    const activeForMe = tickets.find(
+    const activeCandidates = tickets.filter(
       t => (t.agentId === selectedAgent.id || t.counterNumber === counterNumber) && 
            (t.status === 'CALLED' || t.status === 'IN_PROGRESS')
     );
-    setCurrentTicket(activeForMe || null);
+    activeCandidates.sort((a, b) => {
+      const timeA = new Date(a.calledAt || a.startedAt || a.createdAt).getTime();
+      const timeB = new Date(b.calledAt || b.startedAt || b.createdAt).getTime();
+      return timeB - timeA;
+    });
+    setCurrentTicket(activeCandidates[0] || null);
   }, [tickets, selectedAgent, counterNumber]);
 
   // Service timer for current ticket
@@ -92,11 +97,8 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
   ).sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt));
 
   // ACTION: Suivant
-  // BUG FIX: On ne force plus setCurrentTicket(nextTicket) localement.
-  // Le useEffect sur `tickets` (ligne 62) le mettra à jour automatiquement
-  // via Socket.io quand le serveur broadcast ticket_called — pas de race condition.
   const handleSuivant = async () => {
-    await processNextTicket(
+    const nextTicket = await processNextTicket(
       selectedAgent.id,
       selectedAgent.name,
       counterNumber,
@@ -104,7 +106,9 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
       currentTicket?.id || null,
       lang
     );
-    // currentTicket will be updated by the Socket.io listener in App.jsx -> useEffect(tickets)
+    if (nextTicket) {
+      setCurrentTicket(nextTicket);
+    }
   };
 
 

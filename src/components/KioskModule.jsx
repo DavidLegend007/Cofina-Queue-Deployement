@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import confetti from 'canvas-confetti';
 import QRCode from 'qrcode';
 import { 
   Banknote, 
@@ -69,8 +68,8 @@ const SERVICE_THEMES = {
 /* ─── Textes bilingues ────────────────────────────────────────────────────── */
 const TEXTS = {
   fr: {
-    welcomeTitle:   'BIENVENUE A COFINA Togo',
-    welcomeSub:     'Institution Panafricaine de la Finance Inclusive.\nVeuillez sélectionner votre opération',
+    welcomeTitle:   'BIENVENUE A COFINA TOGO',
+    welcomeSub:     'Institution Panafricaine de la Finance Inclusive\nVeuillez sélectionner votre opération',
     helpBtn:        "Besoin d'aide ?",
     ticketLabel:    'VOTRE NUMÉRO DE PASSAGE',
     waitNotice:     "Veuillez vous asseoir en salle d'attente. Votre numéro sera annoncé à l'écran TV.",
@@ -500,6 +499,30 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   const [clockTime,      setClockTime]      = useState(new Date());
   const [waitingCount,   setWaitingCount]   = useState(0);
 
+  // URL du serveur pour le QR Code mobile (détection auto IP LAN)
+  const [lanBaseUrl, setLanBaseUrl] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const { hostname, origin } = window.location;
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        return origin;
+      }
+    }
+    return 'http://192.168.1.100:3000';
+  });
+
+  useEffect(() => {
+    fetch('/api/network-info')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.lanUrl) {
+          if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+            setLanBaseUrl(data.lanUrl);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // État du mode Accessibilité / Contraste Élevé (persistance locale)
   const [highContrast, setHighContrast] = useState(() => {
     try {
@@ -562,7 +585,6 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
       const ticket = await createTicket(op.code, null, null, currentLang);
       setIssuedTicket({ ...ticket, operationLabel: op.label, op });
       setIsSubmitting(false);
-      try { confetti({ particleCount: 65, spread: 75, origin: { y: 0.65 } }); } catch {}
       if (onTicketGenerated) onTicketGenerated(ticket);
     } catch (error) {
       console.error('Failed to create ticket', error);
@@ -854,10 +876,15 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                     <span>TICKET NUMÉRIQUE</span>
                   </div>
                   <div className="bn-qr-box" style={{ padding: '16px' }}>
-                    <RealQRCode value={`https://cofina.tg/q/${issuedTicket.ticketNumber}`} size={160} />
+                    <RealQRCode value={`${lanBaseUrl}/?ticket=${issuedTicket.ticketNumber}`} size={160} />
                   </div>
-                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#1e40af', textAlign: 'center', margin: '20px 0', lineHeight: '1.5' }}>
+                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#1e40af', textAlign: 'center', margin: '14px 0 6px 0', lineHeight: '1.4' }}>
                     {txt.qrSub}
+                  </p>
+                  <p style={{ fontSize: '11px', color: '#64748b', textAlign: 'center', margin: '0 0 14px 0', lineHeight: '1.3' }}>
+                    {currentLang === 'en' 
+                      ? '📶 Connect to agency Wi-Fi to track your turn on your mobile' 
+                      : '📶 Connectez-vous au Wi-Fi de l\'agence pour le suivi en direct'}
                   </p>
                   <div className="bn-qr-pulse">
                     <div className="bn-pulse-dot" />

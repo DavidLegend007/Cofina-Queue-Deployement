@@ -9,9 +9,9 @@ Ce document décrit le protocole de test pour valider la configuration matériel
 Vérifier que les 6 postes de traitement (3 Caisses, 2 Opérateurs, 1 Accueil) interagissent parfaitement avec la borne tactile et l'écran TV, en conditions réelles, via le réseau local isolé.
 
 ### Prérequis
-- [ ] Le Mini-PC (serveur) est allumé.
-- [ ] Les serveurs Node.js (Backend) et Vite (Frontend) tournent via PM2.
-- [ ] La base de données SQLite a été initialisée avec le bon profil d'agents (`seed.js`).
+- [x] Le Mini-PC (serveur) est allumé.
+- [x] Les serveurs Node.js (Backend) et Vite (Frontend) tournent via PM2.
+- [x] La base de données SQLite a été initialisée avec le bon profil d'agents (`seed.js`).
 
 ---
 
