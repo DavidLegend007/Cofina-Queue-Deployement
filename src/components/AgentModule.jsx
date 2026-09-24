@@ -18,13 +18,89 @@ import {
 import { translations } from '../services/translations';
 import ProfilePage from './ProfilePage';
 
+// Configuration officielle des 6 Postes de l'Agence Siège (3 Caisses, 2 Opérateurs, 1 Accueil)
+export const POSTES_CONFIG = [
+  { 
+    number: 1, 
+    name: 'Caisse 1', 
+    pole: 'Pôle Caisses', 
+    roleTag: 'Caisse',
+    type: 'CASHIER',
+    color: '#D3122A',
+    icon: '💵',
+    description: 'Dépôts & Retraits Espèces',
+    services: ['D', 'R', 'TN', 'TI', 'RC', 'V'] 
+  },
+  { 
+    number: 2, 
+    name: 'Caisse 2', 
+    pole: 'Pôle Caisses', 
+    roleTag: 'Caisse',
+    type: 'CASHIER',
+    color: '#D3122A',
+    icon: '👛',
+    description: 'Dépôts & Retraits Espèces',
+    services: ['D', 'R', 'TN', 'TI', 'RC', 'V'] 
+  },
+  { 
+    number: 3, 
+    name: 'Caisse 3', 
+    pole: 'Pôle Caisses', 
+    roleTag: 'Caisse',
+    type: 'CASHIER',
+    color: '#D3122A',
+    icon: '📑',
+    description: 'Remises de Chèques & Transferts',
+    services: ['RC', 'V', 'D', 'R', 'TN', 'TI'] 
+  },
+  { 
+    number: 4, 
+    name: 'Opérateur 1', 
+    pole: 'Pôle Opérateurs', 
+    roleTag: 'Conseiller',
+    type: 'OPERATOR',
+    color: '#2563EB',
+    icon: '👤',
+    description: 'Ouvertures de Compte & Crédits',
+    services: ['O', 'C', 'PC', 'CM', 'DR'] 
+  },
+  { 
+    number: 5, 
+    name: 'Opérateur 2', 
+    pole: 'Pôle Opérateurs', 
+    roleTag: 'Conseiller',
+    type: 'OPERATOR',
+    color: '#2563EB',
+    icon: '🎧',
+    description: 'Conseil & Microfinance',
+    services: ['C', 'PC', 'O', 'CM', 'DR'] 
+  },
+  { 
+    number: 6, 
+    name: 'Accueil', 
+    pole: 'Pôle Accueil', 
+    roleTag: 'Accueil & PMR',
+    type: 'RECEPTION',
+    color: '#10B981',
+    icon: 'ℹ️',
+    description: 'Information, Orientation & PMR',
+    services: ['PMR', 'DR', 'CM', 'O'] 
+  },
+];
+
 export default function AgentModule({ agencyName, tickets, onlineCounters = [], lang = 'fr' }) {
   const t = translations[lang] || translations.fr;
-  // Agent profiles list from stored state
+  // Agent profiles list from stored state (6 agents)
   const [agentsList, setAgentsList] = useState(() => getStoredAgentProfiles());
   const [selectedAgentId, setSelectedAgentId] = useState(agentsList[0]?.id || 'AGT-01');
-  const [counterNumber, setCounterNumber] = useState(1);
-  const [serviceFilter, setServiceFilter] = useState('ALL');
+  const selectedAgent = agentsList.find(a => a.id === selectedAgentId) || agentsList[0];
+
+  // Le collaborateur travaille sur un seul poste assigné à la fois
+  const [counterNumber, setCounterNumber] = useState(selectedAgent?.defaultCounter || 1);
+  const currentPoste = POSTES_CONFIG.find(p => p.number === counterNumber) || POSTES_CONFIG[0];
+
+  // Le filtre de services s'initialise automatiquement selon les compétences du poste assigné
+  const [serviceFilter, setServiceFilter] = useState(() => currentPoste.services.join(','));
   const [currentTicket, setCurrentTicket] = useState(null);
   const [activeTab, setActiveTab] = useState('SERVED'); // 'SERVED' or 'WAITING'
   const [serviceDurationSec, setServiceDurationSec] = useState(0);
@@ -47,14 +123,26 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
     toggleCounterStatus(counterNumber, !isOnline);
   };
 
-  const selectedAgent = agentsList.find(a => a.id === selectedAgentId) || agentsList[0];
-
-  // Sync current agent default counter when changing agent
+  // Sync agent default counter & auto-configure services when changing agent profile
   const handleSelectAgent = (agentId) => {
     setSelectedAgentId(agentId);
     const ag = agentsList.find(a => a.id === agentId);
     if (ag) {
-      setCounterNumber(ag.defaultCounter || 1);
+      const def = ag.defaultCounter || 1;
+      setCounterNumber(def);
+      const targetPoste = POSTES_CONFIG.find(p => p.number === def);
+      if (targetPoste) {
+        setServiceFilter(targetPoste.services.join(','));
+      }
+    }
+  };
+
+  // Switch physical workstation and auto-configure services for that workstation
+  const handleSelectCounter = (counterNum) => {
+    setCounterNumber(counterNum);
+    const targetPoste = POSTES_CONFIG.find(p => p.number === counterNum);
+    if (targetPoste) {
+      setServiceFilter(targetPoste.services.join(','));
     }
   };
 
@@ -85,10 +173,17 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
     return () => clearInterval(interval);
   }, [currentTicket]);
 
-  // Filtered ticket lists
+  // Filtered ticket lists (supporte les filtres unitaires, multi-services et 'ALL')
   const waitingTickets = tickets.filter(t => {
     if (t.status !== 'WAITING') return false;
-    if (serviceFilter !== 'ALL' && t.serviceCode !== serviceFilter) return false;
+    if (serviceFilter !== 'ALL') {
+      if (serviceFilter.includes(',')) {
+        const allowed = serviceFilter.split(',').map(s => s.trim());
+        if (!allowed.includes(t.serviceCode)) return false;
+      } else if (t.serviceCode !== serviceFilter) {
+        return false;
+      }
+    }
     return true;
   });
 
@@ -212,20 +307,25 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           </div>
         </div>
 
-        {/* Counter Selection */}
-        <div className="counter-picker">
-          <span className="picker-label">Guichet Affecté :</span>
-          <div className="counter-pills">
-            {[1, 2, 3, 4].map(num => (
-              <button
-                key={num}
-                type="button"
-                className={`counter-pill ${counterNumber === num ? 'active' : ''}`}
-                onClick={() => setCounterNumber(num)}
+        {/* Workstation Display & Dedicated Switcher ("Un seul poste à la fois") */}
+        <div className="workstation-station-box">
+          <div className="station-meta-info">
+            <span className="station-pole-pill">{currentPoste.pole}</span>
+            <div className="station-selector-wrapper">
+              <span className="station-icon-chip">{currentPoste.icon}</span>
+              <select 
+                value={counterNumber}
+                onChange={(e) => handleSelectCounter(Number(e.target.value))}
+                className="station-dropdown-select"
+                title="Poste de travail physique assigné"
               >
-                Caisse {num}
-              </button>
-            ))}
+                {POSTES_CONFIG.map(p => (
+                  <option key={p.number} value={p.number}>
+                    Guichet {p.number} — {p.name} ({p.roleTag})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -235,9 +335,14 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
             type="button" 
             className={`btn-toggle-status ${isOnline ? 'online' : 'offline'}`}
             onClick={handleToggleOnline}
+            title={isOnline ? 'Cliquer pour fermer le poste' : 'Cliquer pour ouvrir le poste et recevoir des clients'}
           >
             <div className={`status-dot ${isOnline ? 'dot-online' : 'dot-offline'}`}></div>
-            <span>{isOnline ? 'Caisse Ouverte' : 'Caisse Fermée'}</span>
+            <span>
+              {isOnline 
+                ? (currentPoste.type === 'CASHIER' ? 'Caisse Ouverte' : `${currentPoste.name} Ouvert`)
+                : (currentPoste.type === 'CASHIER' ? 'Caisse Fermée' : `${currentPoste.name} Fermé`)}
+            </span>
           </button>
         </div>
 
@@ -291,7 +396,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
                   {currentTicket.status === 'IN_PROGRESS' ? 'CLIENT EN TRAITEMENT' : 'TICKET APPELÉ'}
                 </div>
                 <div className="guichet-badge">
-                  GUICHET {counterNumber}
+                  GUICHET {counterNumber} — {currentPoste.name.toUpperCase()}
                 </div>
               </div>
 
@@ -311,11 +416,12 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
               <div className="idle-hero-icon">
                 <Sparkles size={40} className="cofina-red-icn" />
               </div>
-              <h2>Guichet {counterNumber} Disponible</h2>
+              <h2>{currentPoste.name} Disponible</h2>
+              <span className="pole-subtitle">{currentPoste.pole} • {currentPoste.description}</span>
               <p>
                 {waitingTickets.length > 0
-                  ? `Il y a ${waitingTickets.length} client(s) en attente.`
-                  : "Aucun client en attente pour le moment."}
+                  ? `Il y a ${waitingTickets.length} client(s) éligible(s) en attente.`
+                  : "Aucun client en attente pour votre configuration de services."}
               </p>
             </div>
           )}
@@ -381,27 +487,56 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
         {/* Right Column: Queue Sidebar */}
         <aside className="queue-sidebar-panel glass-card">
           <div className="filter-services-bar">
-            <span className="sidebar-title">
-              <Filter size={15} /> Filtrer par Service :
-            </span>
-            <div className="filter-chips">
+            <div className="filter-header-line">
+              <span className="sidebar-title">
+                <Filter size={15} /> Routage des Services :
+              </span>
+              <span className="filter-mode-tag">
+                {serviceFilter === 'ALL'
+                  ? 'Polyvalent (Tous)'
+                  : (serviceFilter === currentPoste.services.join(',')
+                      ? `🎯 ${currentPoste.roleTag}`
+                      : `Filtre (${serviceFilter})`)}
+              </span>
+            </div>
+
+            {/* Presets rapides de configuration par poste */}
+            <div className="service-presets-row">
               <button
                 type="button"
-                className={`filter-chip ${serviceFilter === 'ALL' ? 'active' : ''}`}
-                onClick={() => setServiceFilter('ALL')}
+                className={`btn-service-preset ${serviceFilter === currentPoste.services.join(',') ? 'active' : ''}`}
+                onClick={() => setServiceFilter(currentPoste.services.join(','))}
+                title={`Limiter aux services attribués au poste ${currentPoste.name}`}
               >
-                Tous
+                🎯 Mes Services ({currentPoste.roleTag})
               </button>
-              {COFINA_SERVICES.map(svc => (
-                <button
-                  key={svc.code}
-                  type="button"
-                  className={`filter-chip ${serviceFilter === svc.code ? 'active' : ''}`}
-                  onClick={() => setServiceFilter(svc.code)}
-                >
-                  {svc.code}
-                </button>
-              ))}
+              <button
+                type="button"
+                className={`btn-service-preset ${serviceFilter === 'ALL' ? 'active' : ''}`}
+                onClick={() => setServiceFilter('ALL')}
+                title="Mode polyvalent : appeler tous les services en attente dans l'agence"
+              >
+                🌐 Tous les Services
+              </button>
+            </div>
+
+            <div className="filter-chips">
+              {COFINA_SERVICES.map(svc => {
+                const isAssigned = currentPoste.services.includes(svc.code);
+                const isSelected = serviceFilter === svc.code;
+                return (
+                  <button
+                    key={svc.code}
+                    type="button"
+                    className={`filter-chip ${isSelected ? 'active' : ''} ${isAssigned ? 'assigned-chip' : ''}`}
+                    onClick={() => setServiceFilter(svc.code)}
+                    title={`${svc.name} (${isAssigned ? 'Service assigné à votre poste' : 'Service hors pôle'})`}
+                  >
+                    <span>{svc.code}</span>
+                    {isAssigned && <span className="assigned-dot" title="Service assigné à votre poste"></span>}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -562,40 +697,59 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           font-weight: 700;
         }
 
-        .counter-picker {
+        .workstation-station-box {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
-        }
-
-        .picker-label {
-          font-size: 0.82rem;
-          font-weight: 800;
-          color: #64748B;
-        }
-
-        .counter-pills {
-          display: flex;
-          gap: 0.4rem;
-        }
-
-        .counter-pill {
-          padding: 0.45rem 0.95rem;
-          border-radius: 99px;
-          border: 1px solid #CBD5E1;
           background: #F8FAFC;
-          color: #475569;
-          font-weight: 800;
-          font-size: 0.82rem;
-          cursor: pointer;
+          border: 1.5px solid #E2E8F0;
+          border-radius: 14px;
+          padding: 0.35rem 0.75rem;
           transition: all 0.2s ease;
         }
 
-        .counter-pill.active {
-          background: #0F172A;
-          color: #FFFFFF;
-          border-color: #0F172A;
-          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+        .workstation-station-box:hover {
+          border-color: #CBD5E1;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .station-meta-info {
+          display: flex;
+          align-items: center;
+          gap: 0.65rem;
+        }
+
+        .station-pole-pill {
+          font-size: 0.7rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          padding: 0.2rem 0.55rem;
+          border-radius: 6px;
+          background: #EFF6FF;
+          color: #1D4ED8;
+          border: 1px solid #BFDBFE;
+        }
+
+        .station-selector-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+        }
+
+        .station-icon-chip {
+          font-size: 1.1rem;
+        }
+
+        .station-dropdown-select {
+          font-family: var(--font-heading);
+          font-size: 0.95rem;
+          font-weight: 800;
+          color: #0F172A;
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          outline: none;
+          padding-right: 0.5rem;
         }
 
         .topbar-actions {
@@ -978,6 +1132,75 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           gap: 0.5rem;
         }
 
+        .filter-header-line {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 0.5rem;
+        }
+
+        .filter-mode-tag {
+          font-size: 0.72rem;
+          font-weight: 800;
+          color: #D3122A;
+          background: #FFF1F2;
+          padding: 0.15rem 0.5rem;
+          border-radius: 99px;
+          border: 1px solid #FECDD3;
+        }
+
+        .service-presets-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0.4rem;
+          margin-bottom: 0.65rem;
+        }
+
+        .btn-service-preset {
+          padding: 0.4rem 0.6rem;
+          border-radius: 8px;
+          border: 1px solid #CBD5E1;
+          background: #FFFFFF;
+          color: #475569;
+          font-size: 0.76rem;
+          font-weight: 800;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .btn-service-preset.active {
+          background: #D3122A;
+          color: #FFFFFF;
+          border-color: #D3122A;
+          box-shadow: 0 2px 6px rgba(211, 18, 42, 0.25);
+        }
+
+        .assigned-chip {
+          border-color: #BFDBFE !important;
+          background: #F0F9FF !important;
+          color: #0369A1 !important;
+          position: relative;
+        }
+
+        .assigned-dot {
+          display: inline-block;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #0284C7;
+          margin-left: 0.3rem;
+          vertical-align: middle;
+        }
+
+        .pole-subtitle {
+          font-size: 0.8rem;
+          font-weight: 700;
+          color: #64748B;
+          margin-top: 0.25rem;
+          margin-bottom: 0.75rem;
+          display: block;
+        }
+
         .sidebar-title {
           font-size: 0.82rem;
           font-weight: 800;
@@ -1006,9 +1229,9 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
         }
 
         .filter-chip.active {
-          background: #0F172A;
-          color: #FFFFFF;
-          border-color: #0F172A;
+          background: #0F172A !important;
+          color: #FFFFFF !important;
+          border-color: #0F172A !important;
         }
 
         .sidebar-tabs-nav {

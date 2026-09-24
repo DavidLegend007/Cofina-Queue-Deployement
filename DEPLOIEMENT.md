@@ -127,11 +127,11 @@ Une fois le serveur démarré sur l'IP locale (exemple : `http://192.168.1.50`),
 3. Cliquer une fois sur la page pour débloquer l'audio de la synthèse vocale (`SpeechSynthesis`).
 4. Mettre en plein écran (`F11`).
 
-### C. Guichets Caissiers (Caisse 1 à Caisse 4)
-1. Sur les PC des caissiers, ouvrir :
+### C. Guichets Agents (Caisse 1 à 3, Opérateur 1 à 2, Accueil)
+1. Sur les PC des agents, ouvrir :
    `http://192.168.1.50:3000`
-2. Sélectionner le module **Poste Caissier** (ou activer le widget flottant).
-3. Sélectionner le numéro du guichet attribué (Caisse 1, 2, 3 ou 4).
+2. Sélectionner le module **Poste Agent** (ou activer le widget flottant).
+3. Sélectionner le poste attribué (Caisse 1, Caisse 2, Caisse 3, Opérateur 1, Opérateur 2, ou Accueil).
 
 ---
 

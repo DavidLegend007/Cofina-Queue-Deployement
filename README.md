@@ -46,7 +46,9 @@ graph TD
         Agent1[👨🏽‍💼 Poste Caisse 1] -->|Socket.io / HTTP Local| EdgeServer
         Agent2[👩🏽‍💼 Poste Caisse 2] -->|Socket.io / HTTP Local| EdgeServer
         Agent3[👨🏿‍💼 Poste Caisse 3] -->|Socket.io / HTTP Local| EdgeServer
-        Agent4[👨🏽‍💼 Poste Caisse 4] -->|Socket.io / HTTP Local| EdgeServer
+        Agent4[👨🏽‍💼 Poste Opérateur 1] -->|Socket.io / HTTP Local| EdgeServer
+        Agent5[👩🏽‍💼 Poste Opérateur 2] -->|Socket.io / HTTP Local| EdgeServer
+        Agent6[👩🏽‍💼 Poste Accueil] -->|Socket.io / HTTP Local| EdgeServer
         Widget[📱 Widget Bureau Indépendant] -->|Socket.io LAN| EdgeServer
         Display[📺 Écran TV Salle d'Attente + Audio] <--|Socket.io Realtime| EdgeServer
         EdgeServer --> LocalDB[(🗄️ Base SQLite Locale Prisma)]
@@ -95,7 +97,7 @@ graph TD
 - Bannière d'appel clignotante avec animation visuelle d'urgence.
 - Synthèse vocale Web Audio (`SpeechSynthesis`) et Carillon Gong bi-tonal.
 
-### 3. 👨🏽‍💼 Station Caissier & Widget Flottant Bureau (`AgentModule.jsx` & `FloatingTellerWidget.jsx`)
+### 3. 👨🏽‍💼 Station Agent & Widget Flottant Bureau (`AgentModule.jsx` & `FloatingTellerWidget.jsx`)
 - Statut de la caisse : **Caisse Ouverte (🟢)** ou **Caisse Fermée (🔴)**.
 - Contrôle d'appel complet : **Suivant**, **En traitement**, **Rappeler**, **Absent (No-Show)**, **Terminer**.
 - **Widget Bureau Indépendant** : Réservé à l'Agent. Bouton détachable (<kbd>↗</kbd>) pour garder le contrôle de la file d'attente dans une petite fenêtre flottante compacte (`360px x 420px`), même lorsque le navigateur principal est réduit ou que le caissier travaille sur son logiciel métier (*Amplitude Core Banking*, *Excel*).

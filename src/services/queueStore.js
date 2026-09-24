@@ -105,12 +105,14 @@ export const COFINA_SERVICES = [
   { code: 'PMR', name: 'Mobilité Réduite', description: 'Accès prioritaire', color: '#10B981', avgTimeMin: 5, icon: 'Accessibility', badge: 'Priorité', isPriority: true }
 ];
 
-// 4 CAISSES / CAISSIERS
+// 6 POSTES PHYSIQUES COFINA : 3 Caisses, 2 Opérateurs, 1 Accueil
 export const INITIAL_AGENTS = [
-  { id: 'AGT-01', name: 'Mensah Koffi', defaultCounter: 1, avatar: '👨🏽‍💼', title: 'Caissier 1' },
-  { id: 'AGT-02', name: 'Amégadjie Afiwa', defaultCounter: 2, avatar: '👩🏽‍💼', title: 'Caissière 2' },
-  { id: 'AGT-03', name: 'Lawani Komlan', defaultCounter: 3, avatar: '👨🏿‍💼', title: 'Caissier 3' },
-  { id: 'AGT-04', name: 'Adzoh Kodjo', defaultCounter: 4, avatar: '👨🏽‍💼', title: 'Caissier 4' }
+  { id: 'AGT-01', name: 'Mensah Koffi', defaultCounter: 1, avatar: '👨🏽‍💼', title: 'Caissier 1 (Espèces)' },
+  { id: 'AGT-02', name: 'Amégadjie Afiwa', defaultCounter: 2, avatar: '👩🏽‍💼', title: 'Caissière 2 (Espèces)' },
+  { id: 'AGT-03', name: 'Lawani Komlan', defaultCounter: 3, avatar: '👨🏿‍💼', title: 'Caissier 3 (Chèques & Opérations)' },
+  { id: 'AGT-04', name: 'Adzoh Kodjo', defaultCounter: 4, avatar: '👨🏽‍💼', title: 'Opérateur 1 (Comptes & Crédits)' },
+  { id: 'AGT-05', name: 'Kouassi Mawunyo', defaultCounter: 5, avatar: '👩🏽‍💼', title: 'Opératrice 2 (Conseil & Microfinance)' },
+  { id: 'AGT-06', name: 'Abalo Essivi', defaultCounter: 6, avatar: '👩🏽‍💼', title: 'Accueil & Orientation' }
 ];
 
 export const AGENT_PROFILES_KEY = 'cofina_agent_profiles_v1_togo';
@@ -121,6 +123,18 @@ export const getStoredAgentProfiles = () => {
     if (!raw) return INITIAL_AGENTS;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return INITIAL_AGENTS;
+    
+    // Auto-fusion : Si l'historique local contenait moins de 6 agents, compléter avec les nouveaux postes
+    if (parsed.length < INITIAL_AGENTS.length) {
+      const merged = [...parsed];
+      INITIAL_AGENTS.forEach(defAgent => {
+        if (!merged.some(a => a.id === defAgent.id)) {
+          merged.push(defAgent);
+        }
+      });
+      localStorage.setItem(AGENT_PROFILES_KEY, JSON.stringify(merged));
+      return merged;
+    }
     return parsed;
   } catch (e) {
     return INITIAL_AGENTS;

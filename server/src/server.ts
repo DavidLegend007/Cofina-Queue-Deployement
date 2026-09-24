@@ -276,7 +276,11 @@ app.post('/api/tickets/call-next', authenticateToken, async (req, res) => {
       where: {
         status: 'WAITING',
         createdAt: { gte: startOfWeek },
-        ...(serviceFilter && serviceFilter !== 'ALL' ? { serviceCode: serviceFilter } : {})
+        ...(serviceFilter && serviceFilter !== 'ALL'
+          ? (serviceFilter.includes(',')
+              ? { serviceCode: { in: serviceFilter.split(',').map((s: string) => s.trim()) } }
+              : { serviceCode: serviceFilter })
+          : {})
       },
       orderBy: [
         { priority: 'desc' },

@@ -89,24 +89,35 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
       {/* ── 2 COLUMNS GRID ── */}
       <main className="disp-grid">
 
-        {/* LEFT: 4 CAISSES EN DIRECT */}
+        {/* LEFT: 6 POSTES EN DIRECT (3 Caisses, 2 Opérateurs, 1 Accueil) */}
         <section className="disp-col-main">
           <div className="disp-sec-bar">
             <div className="disp-sec-title">
-              <h2>CAISSES EN SERVICE</h2>
+              <h2>POSTES EN SERVICE</h2>
               <span className="disp-pulse-green">● EN DIRECT</span>
             </div>
-            <span className="disp-sec-sub">Guichets 1 à 4</span>
+            <span className="disp-sec-sub">Guichets 1 à 6 (Caisses • Opérateurs • Accueil)</span>
           </div>
 
           <div className="disp-counters-grid">
-            {[1, 2, 3, 4].map(num => {
-              const cur = activeTickets.find(t => t.counterNumber === num);
+            {[
+              { num: 1, name: 'Caisse 1', pole: 'Espèces' },
+              { num: 2, name: 'Caisse 2', pole: 'Espèces' },
+              { num: 3, name: 'Caisse 3', pole: 'Chèques' },
+              { num: 4, name: 'Opérateur 1', pole: 'Comptes' },
+              { num: 5, name: 'Opérateur 2', pole: 'Crédit' },
+              { num: 6, name: 'Accueil', pole: 'Orientation' },
+            ].map(poste => {
+              const cur = activeTickets.find(t => t.counterNumber === poste.num);
               return (
-                <div key={num} className={`disp-caisse-card ${cur ? 'active-caisse' : 'idle-caisse'}`}>
+                <div key={poste.num} className={`disp-caisse-card ${cur ? 'active-caisse' : 'idle-caisse'}`}>
                   <div className="caisse-top">
-                    <span className="caisse-num-badge">GUICHET {num}</span>
-                    {cur && <span className="caisse-status-dot">En traitement</span>}
+                    <span className="caisse-num-badge">G{poste.num} • {poste.name.toUpperCase()}</span>
+                    {cur ? (
+                      <span className="caisse-status-dot">En traitement</span>
+                    ) : (
+                      <span className="caisse-pole-tag" style={{ fontSize: '0.7rem', color: '#94A3B8', fontWeight: 700 }}>{poste.pole}</span>
+                    )}
                   </div>
 
                   {cur ? (
@@ -446,23 +457,23 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
           font-weight: 600;
         }
 
-        /* CAISSES GRID */
+        /* CAISSES & POSTES GRID */
         .disp-counters-grid {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 1.5rem;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 1rem;
         }
 
         .disp-caisse-card {
           background: #FFFFFF;
-          border-radius: 20px;
-          padding: 1.75rem;
+          border-radius: 16px;
+          padding: 1.25rem;
           border: 1.5px solid #E2E8F0;
           box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.03);
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          min-height: 170px;
+          min-height: 150px;
           transition: all 0.2s ease;
         }
 
