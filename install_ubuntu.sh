@@ -57,6 +57,7 @@ chown -R "$REAL_USER:$REAL_USER" .
 
 # Exécution en tant qu'utilisateur réel
 su - "$REAL_USER" -c "cd $(pwd) && npm install"
+su - "$REAL_USER" -c "cd $(pwd)/server && rm -rf node_modules package-lock.json && npm cache clean --force"
 su - "$REAL_USER" -c "cd $(pwd) && npm --prefix server install"
 
 # 6. Base de données & compilation
