@@ -7,11 +7,11 @@ services:
     container_name: cofina_postgres
     restart: always
     environment:
-      POSTGRES_DB: cofina_queue_db
-      POSTGRES_USER: cofina_admin
-      POSTGRES_PASSWORD: CofinaTogo2026!Secure
+      POSTGRES_DB: ${POSTGRES_DB:-cofina_queue_db}
+      POSTGRES_USER: ${POSTGRES_USER:-cofina_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Erreur: POSTGRES_PASSWORD requis dans .env}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432" # Ne pas exposer sur 0.0.0.0 sans pare-feu
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -24,10 +24,10 @@ services:
       - "3001:3000"
     environment:
       MB_DB_TYPE: postgres
-      MB_DB_DBNAME: cofina_queue_db
+      MB_DB_DBNAME: ${POSTGRES_DB:-cofina_queue_db}
       MB_DB_PORT: 5432
-      MB_DB_USER: cofina_admin
-      MB_DB_PASS: CofinaTogo2026!Secure
+      MB_DB_USER: ${POSTGRES_USER:-cofina_admin}
+      MB_DB_PASS: ${POSTGRES_PASSWORD:?Erreur: POSTGRES_PASSWORD requis}
       MB_DB_HOST: postgres
     depends_on:
       - postgres

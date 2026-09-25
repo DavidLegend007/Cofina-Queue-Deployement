@@ -60,6 +60,12 @@ export async function processOutboxSync(prisma: PrismaClient): Promise<{ process
       return { processed: 0, success: false };
     }
 
+    const syncToken = process.env.SYNC_API_TOKEN;
+    if (!syncToken && process.env.NODE_ENV === 'production') {
+      console.warn('[SyncOutbox Worker] ⚠️ ATTENTION: SYNC_API_TOKEN manquant. Synchronisation suspendue.');
+      return { processed: 0, success: false };
+    }
+
     // Si URL configurée, on tente l'envoi HTTP
     try {
       const response = await fetch(`${centralUrl}/api/agency-sync/ingest`, {
@@ -67,7 +73,7 @@ export async function processOutboxSync(prisma: PrismaClient): Promise<{ process
         headers: {
           'Content-Type': 'application/json',
           'X-Agency-Code': 'AGC-01',
-          'X-Sync-Token': process.env.SYNC_API_TOKEN || 'cofina_sync_token_default'
+          'X-Sync-Token': syncToken || 'cofina_sync_token_default_dev'
         },
         body: JSON.stringify({ events: pendingEvents }),
         signal: AbortSignal.timeout(5000) // Timeout 5s pour ne pas bloquer en cas de coupure internet

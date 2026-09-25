@@ -1,6 +1,9 @@
+import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+const prisma = new PrismaClient();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,8 +52,16 @@ export async function createDatabaseBackup(): Promise<BackupInfo> {
   const backupFileName = `cofina_edge_backup_${dateStr}.db`;
   const destinationPath = path.join(BACKUPS_DIR, backupFileName);
 
-  // Copie synchrone sécurisée
-  fs.copyFileSync(DB_PATH, destinationPath);
+  // Sauvegarde SQLite atomique et sécurisée en mode WAL
+  // VACUUM INTO vide les journaux WAL dans un fichier cible intègre et compacté
+  try {
+    const safePath = destinationPath.replace(/'/g, "''");
+    await prisma.$executeRawUnsafe(`VACUUM INTO '${safePath}'`);
+  } catch (vacuumError) {
+    // Fallback si SQLite est en version antérieure : checkpoint WAL puis copie
+    await prisma.$executeRawUnsafe(`PRAGMA wal_checkpoint(TRUNCATE)`);
+    fs.copyFileSync(DB_PATH, destinationPath);
+  }
 
   const stats = fs.statSync(destinationPath);
 

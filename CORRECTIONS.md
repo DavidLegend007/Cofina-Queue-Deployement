@@ -58,7 +58,7 @@
 
 ## 2. P0 — SÉCURITÉ CRITIQUE & VULNÉRABILITÉS (Blocage Immédiat)
 
-### P0.1 : Mots de passe et secrets en dur dans le frontend (`src/services/queueStore.js`)
+### P0.1 : Mots de passe et secrets en dur dans le frontend (`src/services/queueStore.js`) ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 Dans `src/services/queueStore.js`, les lignes 335 et 396 contiennent des mots de passe en clair :
@@ -120,7 +120,7 @@ Supprimer l'auto-login avec mot de passe par défaut. Forcer l'authentification 
 
 ---
 
-### P0.2 : Secrets JWT et mots de passe par défaut dans le backend (`server/src/auth.ts`)
+### P0.2 : Secrets JWT et mots de passe par défaut dans le backend (`server/src/auth.ts`) ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 Dans `server/src/auth.ts` :
@@ -156,7 +156,7 @@ export const AGENT_PASSWORD = process.env.AGENT_PASSWORD || 'cofina2026';
 
 ---
 
-### P0.3 : CORS permissif et absence de headers de sécurité (`server/src/server.ts`)
+### P0.3 : CORS permissif et absence de headers de sécurité (`server/src/server.ts`) ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 Dans `server/src/server.ts` :
@@ -203,7 +203,7 @@ app.use(cors(corsOptions));
 
 ---
 
-### P0.4 : Absence de Rate Limiting anti-bruteforce / DoS (`server/src/server.ts`)
+### P0.4 : Absence de Rate Limiting anti-bruteforce / DoS (`server/src/server.ts`) ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 Les routes `/api/auth/login` et `/api/tickets` n'ont aucune limitation de requêtes. Un attaquant ou un script en boucle peut saturer la base SQLite locale ou tenter des milliers de mots de passe par seconde.
@@ -251,7 +251,7 @@ app.use('/api/tickets', ticketCreationLimiter);
 
 ---
 
-### P0.5 : Validation des données entrantes avec Zod
+### P0.5 : Validation des données entrantes avec Zod ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 Dans `server.ts`, les champs de `req.body` sont lus sans validation (`const { serviceCode, serviceName, isPriority, customerPhone } = req.body;`). Une valeur `undefined`, une chaîne de 100 000 caractères ou un mauvais type provoque un plantage ou stocke des données corrompues.
@@ -307,7 +307,7 @@ export const validate = (schema: AnyZodObject) =>
 
 ---
 
-### P0.6 : Mot de passe Postgres et Token de sync en clair (`docker-compose.yml`, `server/src/syncWorker.ts`)
+### P0.6 : Mot de passe Postgres et Token de sync en clair (`docker-compose.yml`, `server/src/syncWorker.ts`) ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 - `docker-compose.yml` : ligne 12 `POSTGRES_PASSWORD: CofinaTogo2026!Secure` est stocké en clair dans le dépôt Git.
@@ -348,7 +348,7 @@ if (!syncToken && process.env.NODE_ENV === 'production') {
 
 ## 3. P1 — ARCHITECTURE & DETTE TECHNIQUE MAJEURE
 
-### P1.1 : Démêlage et assainissement des `package.json` (Racine vs Server)
+### P1.1 : Démêlage et assainissement des `package.json` (Racine vs Server) ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 Le fichier racine `package.json` contient des dépendances backend inutiles pour le frontend React (`bcryptjs`, `express`, `jsonwebtoken`, `socket.io`, `tsx`, `typescript: ^7.0.2` inexistante).
@@ -437,7 +437,7 @@ Le fichier racine `package.json` contient des dépendances backend inutiles pour
 
 ---
 
-### P1.2 : Modularisation du serveur Express monolithique (`server.ts`)
+### P1.2 : Modularisation du serveur Express monolithique (`server.ts`) ⏳ [EN ATTENTE]
 
 #### 🔴 Le Problème
 `server/src/server.ts` fait 584 lignes et gère à la fois :
@@ -478,7 +478,7 @@ server/src/
 
 ---
 
-### P1.3 : Suppression du doublon d'endpoint `/health`
+### P1.3 : Suppression du doublon d'endpoint `/health` ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 Dans `server/src/server.ts`, `/health` est déclaré deux fois :
@@ -528,7 +528,7 @@ export function createHealthRouter(prisma: PrismaClient) {
 
 ---
 
-### P1.4 : Découpage du God Object Frontend (`src/services/queueStore.js`)
+### P1.4 : Découpage du God Object Frontend (`src/services/queueStore.js`) ⏳ [EN ATTENTE]
 
 #### 🔴 Le Problème
 `queueStore.js` compte 857 lignes et mélange :
@@ -549,7 +549,7 @@ export function createHealthRouter(prisma: PrismaClient) {
 
 ## 4. P2 — FIABILITÉ, DONNÉES & COHÉRENCE MÉTIER
 
-### P2.1 : Harmonisation des codes de service (Frontend <-> Backend)
+### P2.1 : Harmonisation des codes de service (Frontend <-> Backend) ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 - Dans le frontend (`src/services/translations.js` et `queueStore.js`), 12 codes sont gérés :  
@@ -597,7 +597,7 @@ counts.forEach(c => {
 
 ---
 
-### P2.2 : Sauvegarde SQLite atomique sans risque de corruption (`server/src/backupService.ts`)
+### P2.2 : Sauvegarde SQLite atomique sans risque de corruption (`server/src/backupService.ts`) ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 Dans `server/src/backupService.ts` ligne 53 :
@@ -635,7 +635,7 @@ Utiliser la commande SQLite native `VACUUM INTO` via Prisma pour une sauvegarde 
 
 ---
 
-### P2.3 : Pagination et filtres sur les requêtes lourdes
+### P2.3 : Pagination et filtres sur les requêtes lourdes ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 L'endpoint `/api/tickets` (historique) et `/api/stats` renvoient l'intégralité des enregistrements sans pagination. Après plusieurs semaines d'activité, une requête retourne plusieurs milliers d'objets, ce qui provoque des freezes du navigateur agent et une consommation mémoire excessive du serveur Node.
@@ -678,7 +678,7 @@ app.get('/api/tickets', async (req, res) => {
 
 ---
 
-### P2.4 : Nettoyage de la base `dev.db` suivie à tort par Git
+### P2.4 : Nettoyage de la base `dev.db` suivie à tort par Git ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 Le fichier `server/prisma/dev.db` (base SQLite locale) a été indexé et commité dans Git, malgré la présence de `*.db` dans `.gitignore`. Cela risque d'écraser les données locales lors d'un `git pull` sur le serveur de production.
@@ -693,7 +693,7 @@ git commit -m "chore(git): stop tracking sqlite local database files"
 
 ---
 
-### P2.5 : Reconfiguration de l'Architecture à 6 Postes Spécialisés
+### P2.5 : Reconfiguration de l'Architecture à 6 Postes Spécialisés ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 L'interface (AgentModule) et le backend ne géraient que 4 caisses génériques. Le besoin réel de l'agence siège est d'avoir 6 guichets distincts avec des rôles spécialisés : 3 Caisses (Espèces/Transferts), 2 Opérateurs (Crédit/Conseil), 1 Accueil (Renseignements/PMR). Sans ce routage, les tickets étaient distribués aléatoirement ou tous les agents recevaient tous les services.
@@ -708,7 +708,7 @@ L'interface (AgentModule) et le backend ne géraient que 4 caisses génériques.
 
 ## 5. P3 — PERFORMANCE & EXPÉRIENCE UTILISATEUR
 
-### P3.1 : Optimisation de la génération de séquence des tickets (O(1) vs O(N))
+### P3.1 : Optimisation de la génération de séquence des tickets (O(1) vs O(N)) ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 Dans `server/src/server.ts` lignes 200 à 237 :
@@ -747,7 +747,7 @@ export async function getNextTicketNumber(tx: any, serviceCode: string, startOfW
 
 ---
 
-### P3.2 : Allègement du payload WebSocket (Delta events vs dump hebdomadaire)
+### P3.2 : Allègement du payload WebSocket (Delta events vs dump hebdomadaire) ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 Dans `server/src/server.ts` ligne 259 :
@@ -784,7 +784,7 @@ socket.on('ticket_created', ({ ticket, serviceCode, newCounterValue }) => {
 
 ---
 
-### P3.3 : Code-splitting React & Lazy Loading des modules lourds (`src/App.jsx`)
+### P3.3 : Code-splitting React & Lazy Loading des modules lourds (`src/App.jsx`) ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 `App.jsx` importe statiquement tous les composants (`KioskModule` 922 lignes, `AdminModule` 800 lignes, `AgentModule` 700 lignes, `TvDisplay`). Le bundle initial pèse lourd et ralentit le chargement de la borne tactile.
@@ -830,7 +830,7 @@ export default function App() {
 
 ## 6. P4 — DEVOPS, TESTS & INDUSTRIALISATION
 
-### P4.1 : Fichiers `.env.example` documentés
+### P4.1 : Fichiers `.env.example` documentés ✅ [TERMINÉ]
 
 Créer deux modèles clairs sans secrets réels :
 
@@ -869,7 +869,7 @@ VITE_AGENCY_NAME=Agence Siège Kodjoviakopé (Lomé)
 
 ---
 
-### P4.2 : Remplacement de `vite preview` par un serveur de production statique (`ecosystem.config.cjs`)
+### P4.2 : Remplacement de `vite preview` par un serveur de production statique (`ecosystem.config.cjs`) ✅ [TERMINÉ]
 
 #### 🔴 Le Problème
 Dans `ecosystem.config.cjs` :
@@ -930,7 +930,7 @@ module.exports = {
 
 ---
 
-### P4.3 : Dockerfile multi-stage pour la production
+### P4.3 : Dockerfile multi-stage pour la production ✅ [TERMINÉ]
 
 Créer `Dockerfile` à la racine pour standardiser les déploiements :
 
@@ -975,7 +975,7 @@ CMD ["node", "dist/server.js"]
 
 ---
 
-### P4.4 : Suite de tests d'intégration automatisés
+### P4.4 : Suite de tests d'intégration automatisés ✅ [TERMINÉ]
 
 Créer `server/tests/api.test.ts` pour valider les endpoints critiques :
 

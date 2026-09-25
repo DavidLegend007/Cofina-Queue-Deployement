@@ -4,6 +4,16 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import os from 'os';
+import helmet from 'helmet';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+import { apiRateLimiter, authRateLimiter, ticketCreationLimiter } from './middlewares/rateLimiter.js';
+import { validate } from './middlewares/validate.js';
+import { createTicketSchema, callNextSchema, updateStatusSchema, loginSchema } from './schemas/ticket.schema.js';
+import { ALL_SERVICE_CODES } from './constants/services.js';
 import {
   authenticateToken,
   requireRole,
@@ -43,23 +53,42 @@ function getLocalIpAddress() {
 const prisma = new PrismaClient();
 const app = express();
 const httpServer = createServer(app);
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',') 
+  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    // Permet les requêtes locales sans header origin (outils internes, curl)
+    if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://192.168.') || origin.startsWith('http://10.')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Bloqué par la politique CORS Cofina'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+};
+
 const io = new Server(httpServer, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE']
-  }
+  cors: corsOptions
 });
 
-app.use(cors());
+// Protection des headers HTTP
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Application du rate limiting général
+app.use('/api/', apiRateLimiter);
 
 // Démarrage des workers en tâche de fond (Résilience Edge & Sauvegardes)
 startSyncWorker(prisma);
 startBackupScheduler();
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', agency: 'Kodjoviakopé (Lomé)', timestamp: new Date() });
-});
 
 // Helper: Ensure default agency exists in SQLite DB
 async function getOrCreateDefaultAgency() {
@@ -124,7 +153,10 @@ async function getCurrentWeekState() {
     }
   });
 
-  const dailyCounters: Record<string, number> = { D: 0, R: 0, O: 0, E: 0, C: 0, M: 0, S: 0, H: 0 };
+  const dailyCounters: Record<string, number> = {};
+  ALL_SERVICE_CODES.forEach(code => {
+    dailyCounters[code] = 0;
+  });
   counts.forEach(c => {
     dailyCounters[c.serviceCode] = c._count.id;
   });
@@ -139,19 +171,25 @@ const getTodayState = getCurrentWeekState;
 // Health Check Endpoint for Supervision & Uptime Kuma
 app.get('/health', async (req, res) => {
   try {
-    const { tickets } = await getTodayState();
-    const activeCount = tickets.filter(t => t.status === 'WAITING' || t.status === 'CALLED').length;
+    // Vérification active de la base SQLite
+    await prisma.$queryRaw`SELECT 1`;
 
     res.status(200).json({
       status: 'UP',
-      agency: 'Agence Siège Kodjoviakopé (Lomé, Togo)',
+      agency: process.env.AGENCY_NAME || 'Agence Siège Kodjoviakopé (Lomé, Togo)',
+      agencyCode: process.env.AGENCY_CODE || 'AGC-01',
       dbEngine: 'SQLite (cofina_edge.db)',
       timestamp: new Date().toISOString(),
       uptimeSeconds: Math.floor(process.uptime()),
-      activeTicketsCount: activeCount
+      memoryUsageMb: Math.round(process.memoryUsage().rss / 1024 / 1024)
     });
   } catch (e: any) {
-    res.status(500).json({ status: 'ERROR', message: e.message });
+    res.status(503).json({
+      status: 'DOWN',
+      database: 'DISCONNECTED',
+      error: e.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -168,15 +206,40 @@ app.get('/api/network-info', (req, res) => {
 
 app.get('/api/tickets', async (req, res) => {
   try {
-    const state = await getTodayState();
-    res.json(state);
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(10, parseInt(req.query.limit as string) || 25));
+    const skip = (page - 1) * limit;
+    const status = req.query.status as string | undefined;
+
+    const whereClause: any = {};
+    if (status) whereClause.status = status;
+
+    const [total, tickets] = await Promise.all([
+      prisma.ticket.count({ where: whereClause }),
+      prisma.ticket.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
+      })
+    ]);
+
+    res.json({
+      data: tickets,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
 
 // Public Endpoint (Kiosk ticket creation) with Prisma Transaction to prevent Race Conditions
-app.post('/api/tickets/create', async (req, res) => {
+app.post('/api/tickets/create', ticketCreationLimiter, validate(createTicketSchema), async (req, res) => {
   try {
     const { ticketNumber: inputTicketNumber, serviceCode, serviceName, isPriority, customerPhone, customerEmail } = req.body;
     
@@ -196,44 +259,25 @@ app.post('/api/tickets/create', async (req, res) => {
       let ticketNumber = inputTicketNumber;
       if (!ticketNumber) {
         const startOfWeek = getWeekStartDate();
-        // Find all tickets of this service created in the active week
-        const existingTickets = await tx.ticket.findMany({
+        
+        // P3.1 : Optimisation de la génération de séquence (O(1) au lieu de O(N))
+        const lastTicket = await tx.ticket.findFirst({
           where: {
             serviceCode,
             createdAt: { gte: startOfWeek }
           },
+          orderBy: { createdAt: 'desc' },
           select: { ticketNumber: true }
         });
 
-        let maxSeq = 0;
-        existingTickets.forEach(t => {
-          const match = t.ticketNumber.match(/-(\d+)$/);
+        let nextSeq = 1;
+        if (lastTicket && lastTicket.ticketNumber) {
+          const match = lastTicket.ticketNumber.match(/-(\d+)$/);
           if (match) {
-            const num = parseInt(match[1], 10);
-            if (num > maxSeq) maxSeq = num;
+            nextSeq = parseInt(match[1], 10) + 1;
           }
-        });
-
-        let nextSeq = maxSeq + 1;
-        ticketNumber = `${serviceCode}-${String(nextSeq).padStart(3, '0')}`;
-
-        // Uniqueness check: ensure ticketNumber cannot be duplicated in the active week
-        let exists = await tx.ticket.findFirst({
-          where: {
-            ticketNumber,
-            createdAt: { gte: startOfWeek }
-          }
-        });
-        while (exists) {
-          nextSeq++;
-          ticketNumber = `${serviceCode}-${String(nextSeq).padStart(3, '0')}`;
-          exists = await tx.ticket.findFirst({
-            where: {
-              ticketNumber,
-              createdAt: { gte: startOfWeek }
-            }
-          });
         }
+        ticketNumber = `${serviceCode}-${String(nextSeq).padStart(3, '0')}`;
       }
 
       return await tx.ticket.create({
@@ -256,7 +300,11 @@ app.post('/api/tickets/create', async (req, res) => {
     enqueueSyncEvent(prisma, 'TICKET_CREATED', newTicket);
 
     // Broadcast realtime event via Socket.io across LAN
-    io.emit('ticket_created', { ticket: newTicket, dailyCounters: updatedState.dailyCounters, tickets: updatedState.tickets });
+    io.emit('ticket_created', { 
+      ticket: newTicket,
+      serviceCode: newTicket.serviceCode,
+      newCounterValue: updatedState.dailyCounters[newTicket.serviceCode]
+    });
 
     res.status(201).json(newTicket);
   } catch (e: any) {
@@ -266,7 +314,7 @@ app.post('/api/tickets/create', async (req, res) => {
 });
 
 // Protected Agent Endpoint: Call Next Ticket
-app.post('/api/tickets/call-next', authenticateToken, async (req, res) => {
+app.post('/api/tickets/call-next', authenticateToken, validate(callNextSchema), async (req, res) => {
   try {
     const { agentId, agentName, counterNumber, serviceFilter } = req.body;
 
@@ -343,7 +391,7 @@ app.post('/api/tickets/call-next', authenticateToken, async (req, res) => {
 });
 
 // Protected Agent Endpoint: Update Ticket Status
-app.post('/api/tickets/update-status', authenticateToken, async (req, res) => {
+app.post('/api/tickets/update-status', authenticateToken, validate(updateStatusSchema), async (req, res) => {
   try {
     const { ticketId, status, extra } = req.body;
     const now = new Date();
@@ -398,17 +446,27 @@ app.post('/api/tickets/recall', authenticateToken, async (req, res) => {
 // Protected Admin Endpoint: Weekly Archiving (ADMIN ONLY)
 app.post('/api/tickets/weekly-archive', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
   try {
-    const { weekLabel, startDate, endDate, totalTickets, completedTickets, noShowTickets, avgWaitMin, tickets } = req.body;
+    const { tickets } = await getTodayState();
+    const totalTickets = tickets.length;
+    const completedTickets = tickets.filter(t => t.status === 'COMPLETED').length;
+    const noShowTickets = tickets.filter(t => t.status === 'NO_SHOW').length;
+    
+    let avgWaitMin = 0;
+    const withWait = tickets.filter(t => t.calledAt && t.createdAt);
+    if (withWait.length > 0) {
+      const totalTime = withWait.reduce((acc, t) => acc + (new Date(t.calledAt as Date).getTime() - new Date(t.createdAt).getTime()) / 1000, 0);
+      avgWaitMin = Math.round((totalTime / withWait.length) / 60);
+    }
 
     const archive = await prisma.weeklyArchive.create({
       data: {
-        weekLabel: weekLabel || `Semaine du ${new Date().toLocaleDateString('fr-FR')}`,
-        startDate: startDate ? new Date(startDate) : new Date(),
-        endDate: endDate ? new Date(endDate) : new Date(),
-        totalTickets: totalTickets || 0,
-        completedTickets: completedTickets || 0,
-        noShowTickets: noShowTickets || 0,
-        avgWaitMin: avgWaitMin || 0,
+        weekLabel: `Semaine du ${new Date().toLocaleDateString('fr-FR')}`,
+        startDate: getWeekStartDate(),
+        endDate: new Date(),
+        totalTickets,
+        completedTickets,
+        noShowTickets,
+        avgWaitMin,
         ticketsJson: JSON.stringify(tickets || [])
       }
     });
@@ -437,7 +495,13 @@ app.get('/api/reload-clients', (req, res) => {
 app.post('/api/tickets/reset-all', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
   try {
     await prisma.ticket.deleteMany({});
-    const cleanState = { tickets: [], dailyCounters: { D: 0, R: 0, O: 0, E: 0, C: 0, M: 0, S: 0, H: 0 }, lastCalledTicket: null };
+    
+    const initialCounters: Record<string, number> = {};
+    ALL_SERVICE_CODES.forEach(code => {
+      initialCounters[code] = 0;
+    });
+    
+    const cleanState = { tickets: [], dailyCounters: initialCounters, lastCalledTicket: null };
 
     // Enqueue pour synchronisation
     enqueueSyncEvent(prisma, 'RESET_ALL', { resetAt: new Date() });
@@ -512,7 +576,7 @@ app.post('/api/sync/trigger', authenticateToken, requireRole(['ADMIN']), async (
 });
 
 // JWT Auth Login Endpoint avec support Rôles RBAC (ADMIN & AGENT)
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authRateLimiter, validate(loginSchema), async (req, res) => {
   const { username, password, role } = req.body;
 
   // 1. Authentification Administrateur
@@ -567,6 +631,15 @@ io.on('connection', async (socket) => {
   socket.on('disconnect', () => {
     console.log(`[Socket.io LAN] Client déconnecté : ${socket.id}`);
   });
+    // Serve Frontend statically in production
+    if (process.env.NODE_ENV === 'production') {
+      // Because server.ts is inside /src (dist/server.js is inside /dist), the frontend is in ../../dist relative to src (or ../dist relative to dist)
+      const clientDist = path.resolve(__dirname, '../../dist');
+      app.use(express.static(clientDist));
+      app.get('*', (_req, res) => {
+        res.sendFile(path.join(clientDist, 'index.html'));
+      });
+    }
 });
 
 httpServer.listen(Number(PORT), '0.0.0.0', () => {

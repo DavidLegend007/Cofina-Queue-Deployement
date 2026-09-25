@@ -32,7 +32,7 @@ Le système est spécialement conçu pour le secteur de la microfinance en Afriq
 ### 🌟 Principes Clés
 1. **Autonomie 100% Hors-Ligne** : L'ensemble de la file d'attente (Borne, Écran TV, Postes Caisses, Postes Opérateurs, Poste Accueil) fonctionne en réseau local interne (LAN / Switch dédié). **Aucune connexion internet n'est requise** pour le bon déroulement des opérations quotidiennes.
 2. **Un Collaborateur = Un Seul Poste de Travail Dédié** : Chaque agent physique est connecté sur sa propre machine / guichet. Il ne pilote qu'un guichet à la fois et ne visualise que les informations le concernant, sans confusion multi-guichets.
-3. **Zéro Barrière Digitale & Priorité QR Code** : Dès la sélection du service sur la borne tactile, le **QR Code Mobile** est présenté comme moyen principal de suivi sur smartphone. L'impression thermique papier (ESC/POS 80mm/58mm) reste disponible en alternative immédiate.
+3. **Zéro Barrière Digitale & Priorité QR Code** : Dès la sélection du service sur la borne tactile, le **QR Code Mobile** est présenté comme moyen principal de suivi sur smartphone. L'impression thermique papier (Xprinter 60mm x 40mm) reste disponible en alternative immédiate.
 4. **Annonce Audio d'Appel au Guichet** :
    - *Sur la Borne* : Confirmation visuelle immédiate (sans synthèse vocale pour ne pas saturer l'accueil).
    - *Au Guichet & Écran TV* : Carillon Gong sonorisé bi-tonal + Synthèse vocale de passage (*"Ticket D-008, veuillez passer à la Caisse 2"* ou *"Ticket C-012, veuillez passer auprès de l'Opérateur 1"*).
@@ -150,11 +150,11 @@ graph TD
 
 | Équipement | URL Réseau Local | Mode de Navigation |
 |---|---|---|
-| **Borne Tactile** | `http://<IP_SERVEUR>:3000/?kiosk=true` | Plein écran tactile Kiosk |
-| **Écran TV Salle d'Attente** | `http://<IP_SERVEUR>:3000/?display=true` | Plein écran TV avec audio activé |
-| **Poste Agent (PC Caissier / Opérateur / Accueil)** | `http://<IP_SERVEUR>:3000/` | Navigateur standard |
-| **Widget Flottant Indépendant (Poste Agent)** | `http://<IP_SERVEUR>:3000/?widgetOnly=true` | Mini-fenêtre Always-on-top |
-| **Console Administration & Superviseur** | `http://<IP_SERVEUR>:3000/?admin=true` | Accès sécurisé RBAC (ADMIN) |
+| **Borne Tactile** | `http://<IP_SERVEUR>:4000/?kiosk=true` | Plein écran tactile Kiosk |
+| **Écran TV Salle d'Attente** | `http://<IP_SERVEUR>:4000/?display=true` | Plein écran TV avec audio activé |
+| **Poste Agent (PC Caissier / Opérateur / Accueil)** | `http://<IP_SERVEUR>:4000/` | Navigateur standard |
+| **Widget Flottant Indépendant (Poste Agent)** | `http://<IP_SERVEUR>:4000/?widgetOnly=true` | Mini-fenêtre Always-on-top |
+| **Console Administration & Superviseur** | `http://<IP_SERVEUR>:4000/?admin=true` | Accès sécurisé RBAC (ADMIN) |
 | **Endpoint Healthcheck (Uptime Kuma)** | `http://<IP_SERVEUR>:4000/health` | Supervision JSON automatisée |
 
 ---

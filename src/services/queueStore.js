@@ -211,12 +211,18 @@ if (typeof window !== 'undefined') {
       }
     });
 
-    socket.on('ticket_created', ({ ticket, dailyCounters, tickets }) => {
+    socket.on('ticket_created', ({ ticket, serviceCode, newCounterValue }) => {
       const local = getStoredState();
-      const newTickets = tickets || [ticket, ...local.tickets.filter(t => t.id !== ticket.id)];
+      
+      const newTickets = [ticket, ...local.tickets.filter(t => t.id !== ticket.id)];
+      const newCounters = { ...local.dailyCounter };
+      if (serviceCode !== undefined && newCounterValue !== undefined) {
+        newCounters[serviceCode] = newCounterValue;
+      }
+
       const newState = {
         ...local,
-        dailyCounter: dailyCounters || local.dailyCounter,
+        dailyCounter: newCounters,
         tickets: newTickets
       };
       saveStoredState(newState, false);
@@ -342,22 +348,9 @@ export const getStoredState = () => {
 export const getAuthToken = async (forceRefresh = false) => {
   let token = (!forceRefresh && typeof window !== 'undefined') ? localStorage.getItem('cofina_jwt_token') : null;
   if (!token) {
-    try {
-      const res = await fetch(`${SERVER_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'agent', password: 'cofina2026' })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        token = data.token;
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('cofina_jwt_token', token);
-        }
-      }
-    } catch (e) {
-      console.error('Auto login failed:', e);
-    }
+    // Sécurité P0 : Plus d'authentification automatique avec mot de passe hardcodé.
+    // Si pas de token, l'utilisateur doit être redirigé vers l'écran de login.
+    return null;
   }
   return token;
 };
@@ -405,11 +398,7 @@ export const logoutAdmin = () => {
 export const getAdminAuthHeaders = async () => {
   let token = getAdminToken();
   if (!token) {
-    // Si pas de token admin stocké, on tente le login admin par défaut
-    try {
-      const loginRes = await loginAsAdmin('cofinaAdmin2026!');
-      token = loginRes.token;
-    } catch (_) {}
+    throw new Error('Session administrateur expirée ou non authentifiée');
   }
   return {
     'Content-Type': 'application/json',
@@ -488,34 +477,16 @@ export const resetWeeklyAgencyQueue = async () => {
   try {
     const headers = await getAdminAuthHeaders();
 
-    // 1. Fetch current week tickets from server for accurate archiving
-    const res = await fetch(`${SERVER_URL}/api/tickets`);
-    const serverState = res.ok ? await res.json() : { tickets: [], dailyCounters: {} };
-    const previousTickets = serverState.tickets || [];
-    const currentWeekStart = getWeekSaturdayStart();
+    // The backend now computes the archive natively using the database state
+    // so we don't need to manually fetch and compute it here.
 
-    const archiveRecord = {
-      id: 'archive_' + Date.now(),
-      weekLabel: `Semaine archivée le ${new Date().toLocaleDateString('fr-FR')}`,
-      archivedAt: new Date().toISOString(),
-      totalTickets: previousTickets.length,
-      completedTickets: previousTickets.filter(t => t.status === 'COMPLETED').length,
-      noShowTickets: previousTickets.filter(t => t.status === 'NO_SHOW').length,
-      avgWaitMin: (() => {
-        const withWait = previousTickets.filter(t => t.calledAt && t.createdAt);
-        if (!withWait.length) return 0;
-        const total = withWait.reduce((acc, t) => acc + (new Date(t.calledAt) - new Date(t.createdAt)) / 1000, 0);
-        return Math.round((total / withWait.length) / 60);
-      })(),
-      tickets: previousTickets
-    };
-
-    // 2. Post archive to SQLite backend with Auth Headers
-    await fetch(`${SERVER_URL}/api/tickets/weekly-archive`, {
+    const response = await fetch(`${SERVER_URL}/api/tickets/weekly-archive`, {
       method: 'POST',
-      headers,
-      body: JSON.stringify(archiveRecord)
+      headers
     });
+    
+    const data = await response.json();
+    const archiveRecord = data.archive;
 
     // 3. Delete all tickets from SQLite (reset-all) with Auth Headers
     await fetch(`${SERVER_URL}/api/tickets/reset-all`, {
@@ -524,6 +495,7 @@ export const resetWeeklyAgencyQueue = async () => {
     });
 
     // 4. Update local week marker
+    const currentWeekStart = getWeekSaturdayStart();
     const local = getStoredState();
     const updatedMeta = { ...local, lastWeekStart: currentWeekStart, tickets: [] };
     saveStoredState(updatedMeta);
@@ -604,11 +576,11 @@ export const createTicket = async (serviceCode, customerPhone = null, customerEm
 
 // Generate 4-5 test tickets for quick Teller Simulation
 export const generateSimulationTickets = async () => {
-  await createTicket('S'); // Prioritaire (Client VIP)
-  await createTicket('D'); // Dépôt
-  await createTicket('E'); // Épargne
-  await createTicket('C'); // Crédit
-  await createTicket('R'); // Retrait
+  await createTicket('PMR'); // Priorité PMR / Femmes Enceintes
+  await createTicket('D'); // Dépôt Espèces
+  await createTicket('O'); // Ouverture de Compte
+  await createTicket('C'); // Crédit & Prêt
+  await createTicket('R'); // Retrait Espèces
 };
 
 // Call Next Ticket (From Teller Workstation - Caisse 1-4)

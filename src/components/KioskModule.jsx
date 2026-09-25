@@ -484,6 +484,169 @@ const buildCSS = () => `
     color: #000000 !important;
     font-weight: 900 !important;
   }
+
+  /* --- PRINT STYLES FOR THERMAL PRINTER (6cm x 4cm) --- */
+  @page {
+    size: 60mm 40mm;
+    margin: 0;
+  }
+  @media print {
+    /* Hide all main kiosk UI elements */
+    .bn-header, .bn-main, .bn-footer, .bn-processing {
+      display: none !important;
+    }
+    
+    /* Hide global App UI elements from App.jsx */
+    .nav-container, .cofina-global-footer, .cofina-floating-widget {
+      display: none !important;
+    }
+    
+    body, html, #root, .cofina-app-root, .main-content-area, .bn-root {
+      background: #fff !important;
+      height: auto !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: visible !important;
+    }
+    
+    .bn-overlay {
+      background: transparent !important;
+      backdrop-filter: none !important;
+      position: relative !important;
+      width: 60mm !important;
+      height: 40mm !important;
+      display: block !important;
+      page-break-inside: avoid;
+    }
+    .bn-ticket-card, .bn-ticket-card * {
+      visibility: visible;
+    }
+    .bn-ticket-card {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 60mm !important;
+      height: 40mm !important;
+      margin: 0;
+      padding: 2mm !important;
+      box-shadow: none !important;
+      transform: none !important;
+      border: none !important;
+      border-radius: 0 !important;
+      display: block !important;
+      overflow: hidden;
+      background: #fff !important;
+      color: #000 !important;
+      box-sizing: border-box !important;
+    }
+    
+    /* Hide the perforated line, right QR section, and footer buttons */
+    .bn-perforated-vertical,
+    .bn-ticket-card > div:nth-child(3),
+    .bn-ticket-footer {
+      display: none !important;
+    }
+
+    /* Adjust the left section (ticket info) to occupy the whole print area */
+    .bn-ticket-card > div:nth-child(1) {
+      display: flex !important;
+      flex-direction: column !important;
+      width: 100% !important;
+      height: 100% !important;
+      padding: 0 !important;
+      justify-content: center !important;
+    }
+
+    /* Compress the banner */
+    .bn-ticket-banner {
+      padding: 0 !important;
+      margin-bottom: 2px !important;
+      min-height: auto !important;
+      flex-direction: row !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      background: transparent !important;
+      color: #000 !important;
+      border-bottom: 1px dashed #000 !important;
+    }
+    .bn-ticket-banner-logo {
+      height: 10px !important;
+    }
+    .bn-ticket-banner-agency {
+      font-size: 7px !important;
+      color: #000 !important;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .bn-ticket-service-badge {
+      font-size: 7px !important;
+      padding: 1px 3px !important;
+      background: transparent !important;
+      color: #000 !important;
+      border: 1px solid #000 !important;
+    }
+    .bn-ticket-vip-badge {
+      display: none !important;
+    }
+
+    /* Ticket body */
+    .bn-ticket-body {
+      padding: 0 !important;
+      gap: 1px !important;
+      flex: 1 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+    }
+    .bn-ticket-number-box {
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+    }
+    .bn-ticket-number-box > div:first-child {
+      display: none !important; /* Hide the big circular icon */
+    }
+    .bn-receipt-label {
+      font-size: 8px !important;
+      color: #000 !important;
+      margin: 0 !important;
+    }
+    .bn-receipt-number {
+      font-size: 26px !important;
+      font-weight: bold !important;
+      color: #000 !important;
+      line-height: 1 !important;
+      margin: 0 !important;
+    }
+    .bn-receipt-service {
+      font-size: 9px !important;
+      color: #000 !important;
+      margin: 1px 0 0 0 !important;
+    }
+    .bn-ticket-date {
+      font-size: 7px !important;
+      color: #000 !important;
+      margin: 1px 0 0 0 !important;
+    }
+
+    /* Wait info */
+    .bn-wait-info {
+      font-size: 8px !important;
+      color: #000 !important;
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+      margin-top: 2px !important;
+      text-align: center !important;
+    }
+  }
 `;
 
 /* ─── COMPOSANT PRINCIPAL ────────────────────────────────────────────────── */
@@ -596,9 +759,10 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
     if (isPrinting) return;
     setIsPrinting(true);
     setTimeout(() => {
+      window.print();
       setIsPrinting(false);
       setIsPrinted(true);
-    }, 700);
+    }, 100);
   };
 
   const handleScanQR = () => {

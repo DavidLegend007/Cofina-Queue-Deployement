@@ -29,7 +29,7 @@ Le **Cofina Queue System V1** a été spécifiquement développé pour répondre
 2. **Cycle Hebdomadaire Opérationnel (Lundi 00h00 $\rightarrow$ Samedi 14h00)** : La numérotation des tickets s'étale sur la semaine d'exploitation des agences (Lundi matin au Samedi 14h00). À chaque clôture du Samedi à 14h, l'intégralité des tickets et métriques de la semaine est **automatiquement sauvegardée et archivée en base de données SQLite** (`WeeklyArchive`), puis les compteurs repartent à zéro (`A-001`, `B-001`...) pour le cycle suivant.
 3. **Prise de Ticket QR Code Mobile & Boarding Pass Premium** : 
    - **Ticket Digital QR Code** affiché en moyen principal immédiat (style billet d'avion *Boarding Pass* avec thèmes couleur par service).
-   - **Ticket Papier Thermique ESC/POS** disponible sous forme d'option secondaire d'appoint.
+   - **Ticket Papier Thermique Xprinter 60x40mm** disponible sous forme d'option secondaire d'appoint (sans QR).
 4. **Annonce Audio d'Appel au Guichet** :
    - *Sur la Borne* : Confirmation visuelle instantanée sans vocalisation bruyante sur borne.
    - *Au Guichet (Écran TV)* : Carillon Gong sonore bi-tonal + Synthèse vocale de passage (*"Ticket A-008, veuillez passer à la Caisse 1"*).
@@ -177,8 +177,8 @@ npm run dev
 ```
 
 L'application sera accessible sur :
-- **Frontend** : `http://localhost:3000`
-- **Widget Caissier Bureau** : `http://localhost:3000/?widgetOnly=true`
+- **Frontend** : `http://localhost:4000`
+- **Widget Caissier Bureau** : `http://localhost:4000/?widgetOnly=true`
 - **Backend API & Socket.io** : `http://localhost:4000`
 - **Health Check** : `http://localhost:4000/health`
 

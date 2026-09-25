@@ -13,19 +13,6 @@ module.exports = {
         NODE_ENV: "production",
         PORT: 4000
       }
-    },
-    {
-      name: "cofina-queue-frontend",
-      script: "npm",
-      args: "run preview",
-      cwd: "./",
-      instances: 1,
-      exec_mode: "fork",
-      autorestart: true,
-      watch: false,
-      env: {
-        NODE_ENV: "production"
-      }
     }
   ]
 };

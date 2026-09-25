@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Navbar from './components/Navbar';
-import KioskModule from './components/KioskModule';
-import DisplayModule from './components/DisplayModule';
-import AgentModule from './components/AgentModule';
-import AdminModule from './components/AdminModule';
-import FloatingTellerWidget from './components/FloatingTellerWidget';
-import MobileTicketView from './components/MobileTicketView';
+
+// Lazy loading heavy modules
+const KioskModule = lazy(() => import('./components/KioskModule'));
+const DisplayModule = lazy(() => import('./components/DisplayModule'));
+const AgentModule = lazy(() => import('./components/AgentModule'));
+const AdminModule = lazy(() => import('./components/AdminModule'));
+const FloatingTellerWidget = lazy(() => import('./components/FloatingTellerWidget'));
+const MobileTicketView = lazy(() => import('./components/MobileTicketView'));
 import { 
   getStoredState, 
   saveStoredState, 
@@ -120,14 +122,16 @@ export default function App() {
   if (isWidgetOnly) {
     return (
       <div className="cofina-standalone-widget-root">
-        <FloatingTellerWidget 
-          lang={lang}
-          tickets={storeState.tickets || []}
-          onlineCounters={storeState.onlineCounters || []}
-          agencyName={currentAgency.name}
-          onStateChange={() => updateLocalState()}
-          isStandalone={true}
-        />
+        <Suspense fallback={<div style={{ color: 'white' }}>Chargement du widget...</div>}>
+          <FloatingTellerWidget 
+            lang={lang}
+            tickets={storeState.tickets || []}
+            onlineCounters={storeState.onlineCounters || []}
+            agencyName={currentAgency.name}
+            onStateChange={() => updateLocalState()}
+            isStandalone={true}
+          />
+        </Suspense>
         <style>{`
           html, body {
             margin: 0;
@@ -168,15 +172,17 @@ export default function App() {
 
   if (ticketParam) {
     return (
-      <MobileTicketView 
-        ticketNumber={ticketParam}
-        tickets={storeState.tickets || []}
-        agencyName={currentAgency.name}
-        lang={lang}
-        onBackToKiosk={() => {
-          if (typeof window !== 'undefined') window.location.href = '/?kiosk';
-        }}
-      />
+      <Suspense fallback={<div style={{ color: 'white', padding: '2rem', textAlign: 'center' }}>Chargement du ticket...</div>}>
+        <MobileTicketView 
+          ticketNumber={ticketParam}
+          tickets={storeState.tickets || []}
+          agencyName={currentAgency.name}
+          lang={lang}
+          onBackToKiosk={() => {
+            if (typeof window !== 'undefined') window.location.href = '/?kiosk';
+          }}
+        />
+      </Suspense>
     );
   }
 
@@ -205,51 +211,55 @@ export default function App() {
       )}
 
       <main className="main-content-area" style={{ paddingBottom: hideNav ? '0' : '2rem' }}>
-        {activeModule === 'kiosk' && (
-          <KioskModule 
-            agencyName={currentAgency.name}
-            onTicketGenerated={() => updateLocalState()}
-            lang={lang}
-          />
-        )}
+        <Suspense fallback={<div style={{ color: 'white', padding: '3rem', textAlign: 'center' }}>Chargement du module...</div>}>
+          {activeModule === 'kiosk' && (
+            <KioskModule 
+              agencyName={currentAgency.name}
+              onTicketGenerated={() => updateLocalState()}
+              lang={lang}
+            />
+          )}
 
-        {activeModule === 'display' && (
-          <DisplayModule 
-            agencyName={currentAgency.name}
-            tickets={storeState.tickets || []}
-            lastCalledTicket={storeState.lastCalledTicket}
-            lang={lang}
-          />
-        )}
+          {activeModule === 'display' && (
+            <DisplayModule 
+              agencyName={currentAgency.name}
+              tickets={storeState.tickets || []}
+              lastCalledTicket={storeState.lastCalledTicket}
+              lang={lang}
+            />
+          )}
 
-        {activeModule === 'agent' && (
-          <AgentModule 
-            agencyName={currentAgency.name}
-            tickets={storeState.tickets || []}
-            onlineCounters={storeState.onlineCounters || []}
-            lang={lang}
-          />
-        )}
+          {activeModule === 'agent' && (
+            <AgentModule 
+              agencyName={currentAgency.name}
+              tickets={storeState.tickets || []}
+              onlineCounters={storeState.onlineCounters || []}
+              lang={lang}
+            />
+          )}
 
-        {activeModule === 'admin' && (
-          <AdminModule 
-            agencyName={currentAgency.name}
-            tickets={storeState.tickets || []}
-            onRefresh={() => updateLocalState()}
-            lang={lang}
-          />
-        )}
+          {activeModule === 'admin' && (
+            <AdminModule 
+              agencyName={currentAgency.name}
+              tickets={storeState.tickets || []}
+              onRefresh={() => updateLocalState()}
+              lang={lang}
+            />
+          )}
+        </Suspense>
       </main>
 
       {/* GLOBAL FLOATING TELLER WIDGET (ONLY ON AGENT PAGE OR EXPLICITLY SHOWN) */}
       {showFloatingWidget && activeModule === 'agent' && (
-        <FloatingTellerWidget 
-          lang={lang}
-          tickets={storeState.tickets || []}
-          onlineCounters={storeState.onlineCounters || []}
-          agencyName={currentAgency.name}
-          onStateChange={() => updateLocalState()}
-        />
+        <Suspense fallback={null}>
+          <FloatingTellerWidget 
+            lang={lang}
+            tickets={storeState.tickets || []}
+            onlineCounters={storeState.onlineCounters || []}
+            agencyName={currentAgency.name}
+            onStateChange={() => updateLocalState()}
+          />
+        </Suspense>
       )}
 
       {!hideNav && (

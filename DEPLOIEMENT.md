@@ -98,7 +98,7 @@ npm run build
 PM2 garantit que l'application **redémarre automatiquement après une coupure d'électricité**.
 
 ```bash
-# 1. Lancer le frontend et le backend avec PM2
+# 1. Lancer le backend (qui sert aussi le frontend compilé) avec PM2
 pm2 start ecosystem.config.cjs
 
 # 2. Sauvegarder la liste des processus PM2
@@ -116,20 +116,20 @@ Une fois le serveur démarré sur l'IP locale (exemple : `http://192.168.1.50`),
 
 ### A. Borne Tactile Auto-Service (Entrée Agence)
 1. Ouvrir le navigateur Chrome/Edge en **mode Kiosque (Plein écran)** sur l'adresse :
-   `http://192.168.1.50:3000`
+   `http://192.168.1.50:4000`
 2. Sélectionner le module **Borne Kiosque**.
-3. Raccorder l'imprimante thermique USB (ESC/POS 80mm/58mm).
+3. Raccorder l'imprimante thermique USB (Format étiquette 60mm x 40mm sans QR).
 
 ### B. Écran TV Public (Salle d'Attente)
 1. Ouvrir le navigateur sur l'adresse :
-   `http://192.168.1.50:3000`
+   `http://192.168.1.50:4000`
 2. Sélectionner le module **Écran TV Public**.
 3. Cliquer une fois sur la page pour débloquer l'audio de la synthèse vocale (`SpeechSynthesis`).
 4. Mettre en plein écran (`F11`).
 
 ### C. Guichets Agents (Caisse 1 à 3, Opérateur 1 à 2, Accueil)
 1. Sur les PC des agents, ouvrir :
-   `http://192.168.1.50:3000`
+   `http://192.168.1.50:4000`
 2. Sélectionner le module **Poste Agent** (ou activer le widget flottant).
 3. Sélectionner le poste attribué (Caisse 1, Caisse 2, Caisse 3, Opérateur 1, Opérateur 2, ou Accueil).
 
