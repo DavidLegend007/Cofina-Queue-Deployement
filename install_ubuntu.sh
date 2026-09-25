@@ -30,12 +30,12 @@ apt-get update -y -qq
 apt-get install -y -qq curl wget git build-essential ufw net-tools
 
 # 2. Node.js 20.x LTS
-echo "[2/7] Verification de Node.js 20.x LTS..."
-if node --version 2>/dev/null | grep -q "^v20"; then
+echo "[2/7] Verification de Node.js 22.x LTS..."
+if node --version 2>/dev/null | grep -q "^v2[2-9]"; then
   echo "   OK : Node.js $(node --version) deja installe."
 else
-  echo "   Installation de Node.js 20..."
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >/dev/null 2>&1
+  echo "   Installation de Node.js 22 LTS..."
+  curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null 2>&1
   apt-get install -y -qq nodejs
   echo "   OK : Node.js $(node --version) installe."
 fi
@@ -59,13 +59,13 @@ chown -R "$REAL_USER:$REAL_USER" "$PROJECT_DIR"
 # Frontend
 rm -f "$PROJECT_DIR/package-lock.json"
 rm -rf "$PROJECT_DIR/node_modules"
-su - "$REAL_USER" -c "cd '$PROJECT_DIR' && yarn install --silent"
+su - "$REAL_USER" -c "cd '$PROJECT_DIR' && yarn install --silent --ignore-engines"
 echo "   OK : Frontend installe."
 
 # Backend
 rm -f "$PROJECT_DIR/server/package-lock.json"
 rm -rf "$PROJECT_DIR/server/node_modules"
-su - "$REAL_USER" -c "cd '$PROJECT_DIR/server' && yarn install --silent"
+su - "$REAL_USER" -c "cd '$PROJECT_DIR/server' && yarn install --silent --ignore-engines"
 echo "   OK : Backend installe."
 
 # 6. Base de donnees + compilation
