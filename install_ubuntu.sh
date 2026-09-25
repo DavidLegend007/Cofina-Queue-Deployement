@@ -58,13 +58,13 @@ chown -R "$REAL_USER:$REAL_USER" .
 # Exécution en tant qu'utilisateur réel
 su - "$REAL_USER" -c "cd $(pwd) && npm install"
 su - "$REAL_USER" -c "cd $(pwd)/server && rm -rf node_modules package-lock.json && npm cache clean --force"
-su - "$REAL_USER" -c "cd $(pwd) && npm --prefix server install"
+su - "$REAL_USER" -c "cd $(pwd)/server && npm install"
 
 # 6. Base de données & compilation
 echo "🗄️ 6/7 Génération de la base SQLite locale et compilation..."
-su - "$REAL_USER" -c "cd $(pwd) && npm --prefix server run prisma:generate"
-su - "$REAL_USER" -c "cd $(pwd) && npm --prefix server run prisma:push"
-su - "$REAL_USER" -c "cd $(pwd) && npm --prefix server run build"
+su - "$REAL_USER" -c "cd $(pwd)/server && npm run prisma:generate"
+su - "$REAL_USER" -c "cd $(pwd)/server && npm run prisma:push"
+su - "$REAL_USER" -c "cd $(pwd)/server && npm run build"
 su - "$REAL_USER" -c "cd $(pwd) && npm run build"
 
 # 7. Démarrage des processus PM2 avec persistance au démarrage de la machine
