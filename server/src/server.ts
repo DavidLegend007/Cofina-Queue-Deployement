@@ -631,30 +631,31 @@ io.on('connection', async (socket) => {
   socket.on('disconnect', () => {
     console.log(`[Socket.io LAN] Client déconnecté : ${socket.id}`);
   });
-    // Serve Frontend statically in production
-    if (process.env.NODE_ENV === 'production') {
-      // Because server.ts is inside /src (dist/server.js is inside /dist), the frontend is in ../../dist relative to src (or ../dist relative to dist)
-      const clientDist = path.resolve(__dirname, '../../dist');
-      app.use(express.static(clientDist));
-      app.get('*', (_req, res) => {
-        res.sendFile(path.join(clientDist, 'index.html'));
-      });
-    }
 });
+
+// Serve Frontend statically in production (MUST be outside socket.io handler)
+if (process.env.NODE_ENV === 'production') {
+  // server/dist/server.js → ../../dist = frontend build output
+  const clientDist = path.resolve(__dirname, '../../dist');
+  app.use(express.static(clientDist));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 httpServer.listen(Number(PORT), '0.0.0.0', () => {
   const localIp = getLocalIpAddress();
   console.log(`====================================================`);
   console.log(`🚀 SERVEUR EDGE COFINA TOGO — PERSISTANCE SQLITE ACTIVE`);
   console.log(`📍 Agence : Kodjoviakopé, Lomé`);
-  console.log(`🌐 Serveur Local (Host) : http://localhost:${PORT}`);
-  console.log(`🌐 Serveur Réseau (LAN)  : http://${localIp}:${PORT}`);
+  console.log(`🌐 Local  : http://localhost:${PORT}`);
+  console.log(`🌐 Réseau : http://${localIp}:${PORT}`);
   console.log(`----------------------------------------------------`);
-  console.log(`📲 ADRESSES POUR LES AUTRES MACHINES DU RÉSEAU LOCAL :`);
-  console.log(`   👉 Borne Tactile   : http://${localIp}:3000/?kiosk`);
-  console.log(`   👉 Écran TV        : http://${localIp}:3000/?display`);
-  console.log(`   👉 Espace Caissier : http://${localIp}:3000/?agent`);
-  console.log(`   👉 Admin / Config  : http://${localIp}:3000/?admin`);
+  console.log(`📲 ADRESSES POUR LES MACHINES DU RÉSEAU LOCAL :`);
+  console.log(`   👉 Borne Tactile   : http://${localIp}:${PORT}/?kiosk`);
+  console.log(`   👉 Écran TV        : http://${localIp}:${PORT}/?display`);
+  console.log(`   👉 Espace Caissier : http://${localIp}:${PORT}/?agent`);
+  console.log(`   👉 Admin / Config  : http://${localIp}:${PORT}/?admin`);
   console.log(`====================================================`);
 });
 
