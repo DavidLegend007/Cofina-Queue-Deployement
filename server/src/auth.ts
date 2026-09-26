@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const isProduction = process.env.NODE_ENV === 'production';
 
 if (isProduction && !process.env.JWT_SECRET) {
-  throw new Error('FATAL: La variable d\\'environnement JWT_SECRET est obligatoire en production.');
+  throw new Error("FATAL: La variable d'environnement JWT_SECRET est obligatoire en production.");
 }
 if (isProduction && (!process.env.ADMIN_PASSWORD || !process.env.AGENT_PASSWORD)) {
   throw new Error('FATAL: ADMIN_PASSWORD et AGENT_PASSWORD doivent être configurés dans le fichier .env.');

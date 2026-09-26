@@ -12,7 +12,7 @@ describe('COFINA Security & RBAC — Cryptography & JWT', () => {
     const hash2 = await bcrypt.hash(plain, await bcrypt.genSalt(10));
 
     expect(hash1).not.toBe(plain);
-    expect(hash1).not.toBe(hash2); // Les sels différents produisent des hashs distincts
+    expect(hash1).not.toBe(hash2);
 
     const match1 = await bcrypt.compare(plain, hash1);
     const match2 = await bcrypt.compare('wrong', hash1);
@@ -25,14 +25,14 @@ describe('COFINA Security & RBAC — Cryptography & JWT', () => {
     const agentPayload = { username: 'koffi', role: 'AGENT', agency: 'KODJOVIAKOPE' };
     const agentToken = jwt.sign(agentPayload, JWT_SECRET, { expiresIn: '1h' });
 
-    const decodedAgent = jwt.verify(agentToken, JWT_SECRET);
+    const decodedAgent = jwt.verify(agentToken, JWT_SECRET) as any;
     expect(decodedAgent.username).toBe('koffi');
     expect(decodedAgent.role).toBe('AGENT');
 
     const adminPayload = { username: 'admin', role: 'ADMIN', agency: 'KODJOVIAKOPE' };
     const adminToken = jwt.sign(adminPayload, JWT_SECRET, { expiresIn: '1h' });
 
-    const decodedAdmin = jwt.verify(adminToken, JWT_SECRET);
+    const decodedAdmin = jwt.verify(adminToken, JWT_SECRET) as any;
     expect(decodedAdmin.role).toBe('ADMIN');
   });
 

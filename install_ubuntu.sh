@@ -84,14 +84,14 @@ fi
 mkdir -p "$PROJECT_DIR/server/data"
 chown -R "$REAL_USER:$REAL_USER" "$PROJECT_DIR/server/data"
 
-su - "$REAL_USER" -c "cd '$PROJECT_DIR/server' && yarn prisma:generate 2>&1 | tail -2"
-su - "$REAL_USER" -c "cd '$PROJECT_DIR/server' && yarn prisma:push 2>&1 | tail -3"
+su - "$REAL_USER" -c "cd '$PROJECT_DIR/server' && yarn prisma:generate"
+su - "$REAL_USER" -c "cd '$PROJECT_DIR/server' && yarn prisma:push"
 echo "   OK : Base de donnees prete."
 
-su - "$REAL_USER" -c "cd '$PROJECT_DIR/server' && yarn build 2>&1 | tail -3"
+su - "$REAL_USER" -c "cd '$PROJECT_DIR/server' && yarn build"
 echo "   OK : Backend compile."
 
-su - "$REAL_USER" -c "cd '$PROJECT_DIR' && yarn build 2>&1 | tail -3"
+su - "$REAL_USER" -c "cd '$PROJECT_DIR' && yarn build"
 echo "   OK : Frontend compile."
 
 # 7. Demarrage PM2
@@ -103,6 +103,15 @@ su - "$REAL_USER" -c "pm2 save"
 PM2_STARTUP=$(su - "$REAL_USER" -c "pm2 startup systemd -u $REAL_USER --hp $USER_HOME 2>/dev/null" | grep "^sudo" || true)
 if [ -n "$PM2_STARTUP" ]; then
   eval "$PM2_STARTUP" || true
+fi
+
+# Verification active du demarrage effectif (evite le piege PM2 'online' sans ecoute port 4000)
+echo "Verification de l'application..."
+sleep 2
+if curl -s -f http://localhost:4000/health >/dev/null 2>&1; then
+  echo "   OK : Application operationnelle et repond sur le port 4000."
+else
+  echo "   ATTENTION : Le port 4000 ne repond pas encore. Consultez les logs avec 'pm2 logs'."
 fi
 
 LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "192.168.1.50")
