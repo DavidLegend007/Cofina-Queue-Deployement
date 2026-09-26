@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -74,9 +75,13 @@ const io = new Server(httpServer, {
   cors: corsOptions
 });
 
-// Protection des headers HTTP
+// Protection des headers HTTP adaptée au réseau local (LAN Edge HTTP sans HTTPS)
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  contentSecurityPolicy: false,
+  strictTransportSecurity: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: false,
+  originAgentCluster: false
 }));
 
 app.use(cors(corsOptions));
