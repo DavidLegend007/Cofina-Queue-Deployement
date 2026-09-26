@@ -11,7 +11,10 @@ module.exports = {
       max_memory_restart: "500M",
       env: {
         NODE_ENV: "production",
-        PORT: 4000
+        PORT: 4000,
+        JWT_SECRET: "cofina_edge_togo_secret_key_2026",
+        ADMIN_PASSWORD: "cofinaAdmin2026!",
+        AGENT_PASSWORD: "cofina2026"
       }
     }
   ]
