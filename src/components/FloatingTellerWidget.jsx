@@ -112,8 +112,8 @@ export default function FloatingTellerWidget({
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const handleCallNext = () => {
-    processNextTicket(
+  const handleCallNext = async () => {
+    await processNextTicket(
       selectedAgent.id,
       selectedAgent.name,
       counterNumber,
@@ -121,7 +121,6 @@ export default function FloatingTellerWidget({
       activeTicket?.id || null,
       lang
     );
-    onStateChange();
   };
 
   const handleRecall = () => {

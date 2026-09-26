@@ -111,22 +111,13 @@ async function getOrCreateDefaultAgency() {
   return agency;
 }
 
-// Helper: Compute start date of current weekly cycle (Monday 00:00:00 -> Saturday 14:00)
+// Helper: Compute start date of current weekly cycle (Monday 00:00:00 of current week)
 function getWeekStartDate() {
   const now = new Date();
   const day = now.getDay(); // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
-  const hour = now.getHours();
-
+  const diffToMon = (day + 6) % 7; // Mon=0, Tue=1, ..., Sat=5, Sun=6
   const mon = new Date(now);
-  if (day === 6 && hour >= 14) {
-    // If Saturday after 14h: transition to next Monday
-    const daysUntilMon = 2;
-    mon.setDate(now.getDate() + daysUntilMon);
-  } else {
-    // Compute previous Monday 00:00:00
-    const diffToMon = (day + 6) % 7; // Mon=0, Tue=1, ..., Sun=6
-    mon.setDate(now.getDate() - diffToMon);
-  }
+  mon.setDate(now.getDate() - diffToMon);
   mon.setHours(0, 0, 0, 0);
   return mon;
 }

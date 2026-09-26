@@ -289,20 +289,13 @@ const getInitialState = () => {
   };
 };
 
-// Helper: Get start of current week (Monday 00:00:00 -> Saturday 14:00)
+// Helper: Get start of current week (Monday 00:00:00)
 export const getWeekCycleStart = () => {
   const now = new Date();
   const day = now.getDay(); // 0 = Sun, 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu, 5 = Fri, 6 = Sat
-  const hour = now.getHours();
-
+  const diffToMon = (day + 6) % 7;
   const mon = new Date(now);
-  if (day === 6 && hour >= 14) {
-    const daysUntilMon = 2;
-    mon.setDate(now.getDate() + daysUntilMon);
-  } else {
-    const diffToMon = (day + 6) % 7;
-    mon.setDate(now.getDate() - diffToMon);
-  }
+  mon.setDate(now.getDate() - diffToMon);
   mon.setHours(0, 0, 0, 0);
   return mon.toISOString().slice(0, 10);
 };
@@ -322,15 +315,11 @@ export const getStoredState = () => {
 
     const state = JSON.parse(raw);
     
-    // BUG FIX (Bug 6): The old code attempted to archive tickets from localStorage.
-    // Since tickets now live in SQLite, localStorage.tickets is always empty — archiving
-    // it would produce empty WeeklyArchive records. Weekly archiving is now done
-    // exclusively via resetWeeklyAgencyQueue() which calls the server SQLite API.
-    // We only update the lastWeekStart marker so this block doesn't trigger every read.
     if (!state || !state.lastWeekStart || state.lastWeekStart !== currentWeekStart) {
       const updatedState = {
         ...state,
-        tickets: [], // tickets come from server, not localStorage
+        // Conserver les tickets actifs au lieu de vider la file
+        tickets: (state && Array.isArray(state.tickets) && state.tickets.length > 0) ? state.tickets : [],
         lastWeekStart: currentWeekStart
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedState));
