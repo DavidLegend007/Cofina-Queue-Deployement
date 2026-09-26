@@ -1,9 +1,10 @@
 import rateLimit from 'express-rate-limit';
 
-// Limite pour le login (anti force-brute) : 5 tentatives max par minute par IP
+// Limite pour le login (anti force-brute) : 30 tentatives par minute, les connexions réussies ne comptent pas
 export const authRateLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
+  max: 30,
+  skipSuccessfulRequests: true,
   message: { error: 'Trop de tentatives de connexion. Réessayez dans une minute.' },
   standardHeaders: true,
   legacyHeaders: false,

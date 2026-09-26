@@ -213,9 +213,9 @@ if (typeof window !== 'undefined') {
 
     socket.on('ticket_created', ({ ticket, serviceCode, newCounterValue }) => {
       const local = getStoredState();
-      
-      const newTickets = [ticket, ...local.tickets.filter(t => t.id !== ticket.id)];
-      const newCounters = { ...local.dailyCounter };
+      const existingTickets = Array.isArray(local.tickets) ? local.tickets : [];
+      const newTickets = [ticket, ...existingTickets.filter(t => t && t.id !== ticket.id)];
+      const newCounters = { ...(local.dailyCounter || {}) };
       if (serviceCode !== undefined && newCounterValue !== undefined) {
         newCounters[serviceCode] = newCounterValue;
       }
@@ -225,43 +225,48 @@ if (typeof window !== 'undefined') {
         dailyCounter: newCounters,
         tickets: newTickets
       };
-      saveStoredState(newState, false);
-      notifySubscribers(newState);
+      saveStoredState(newState, true);
     });
 
     socket.on('ticket_called', ({ ticket, tickets }) => {
       const local = getStoredState();
-      const newTickets = tickets || local.tickets.map(t => t.id === ticket.id ? ticket : t);
+      const existingTickets = Array.isArray(local.tickets) ? local.tickets : [];
+      const newTickets = Array.isArray(tickets) 
+        ? tickets 
+        : existingTickets.map(t => (t && t.id === ticket.id ? ticket : t));
       const newState = {
         ...local,
         lastCalledTicket: ticket,
         tickets: newTickets
       };
-      saveStoredState(newState, false);
-      notifySubscribers(newState);
+      saveStoredState(newState, true);
     });
 
     socket.on('ticket_updated', ({ ticket, tickets }) => {
       const local = getStoredState();
-      const newTickets = tickets || local.tickets.map(t => t.id === ticket.id ? ticket : t);
+      const existingTickets = Array.isArray(local.tickets) ? local.tickets : [];
+      const newTickets = Array.isArray(tickets) 
+        ? tickets 
+        : existingTickets.map(t => (t && t.id === ticket.id ? ticket : t));
       const newState = {
         ...local,
         tickets: newTickets
       };
-      saveStoredState(newState, false);
-      notifySubscribers(newState);
+      saveStoredState(newState, true);
     });
 
     socket.on('ticket_recalled', ({ ticket, tickets }) => {
       const local = getStoredState();
-      const newTickets = tickets || local.tickets.map(t => t.id === ticket.id ? ticket : t);
+      const existingTickets = Array.isArray(local.tickets) ? local.tickets : [];
+      const newTickets = Array.isArray(tickets) 
+        ? tickets 
+        : existingTickets.map(t => (t && t.id === ticket.id ? ticket : t));
       const newState = {
         ...local,
         lastCalledTicket: ticket,
         tickets: newTickets
       };
-      saveStoredState(newState, false);
-      notifySubscribers(newState);
+      saveStoredState(newState, true);
     });
 
     socket.on('reload_page', () => {
@@ -302,41 +307,62 @@ export const getWeekCycleStart = () => {
 
 export const getWeekSaturdayStart = getWeekCycleStart;
 
+// Cache en mémoire pour préserver les tickets reçus par Socket.io / SQLite
+let currentMemoryState = {
+  ...getInitialState(),
+  lastWeekStart: getWeekCycleStart()
+};
+
 export const getStoredState = () => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
     const currentWeekStart = getWeekCycleStart();
     
     if (!raw) {
       const init = { ...getInitialState(), lastWeekStart: currentWeekStart, archivedWeeks: [] };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(init));
-      return init;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(init));
+      }
+      currentMemoryState = { ...init, tickets: currentMemoryState?.tickets || [] };
+      return currentMemoryState;
     }
 
-    const state = JSON.parse(raw);
+    const state = JSON.parse(raw) || {};
     
-    if (!state || !state.lastWeekStart || state.lastWeekStart !== currentWeekStart) {
-      const updatedState = {
-        ...state,
-        // Conserver les tickets actifs au lieu de vider la file
-        tickets: (state && Array.isArray(state.tickets) && state.tickets.length > 0) ? state.tickets : [],
-        lastWeekStart: currentWeekStart
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedState));
-      return updatedState;
-    }
+    // Conserver les tickets actifs en mémoire (Socket.io/Serveur) même si localStorage n'a que les métadonnées
+    const existingTickets = (Array.isArray(state.tickets) && state.tickets.length > 0)
+      ? state.tickets
+      : (Array.isArray(currentMemoryState?.tickets) ? currentMemoryState.tickets : []);
 
-    return state;
+    currentMemoryState = {
+      ...getInitialState(),
+      ...state,
+      tickets: existingTickets,
+      dailyCounter: state.dailyCounter || currentMemoryState?.dailyCounter || getInitialState().dailyCounter,
+      lastCalledTicket: state.lastCalledTicket || currentMemoryState?.lastCalledTicket || null,
+      lastWeekStart: currentWeekStart
+    };
+
+    return currentMemoryState;
   } catch (e) {
     console.error('Failed to read queue storage:', e);
-    return getInitialState();
+    return currentMemoryState || getInitialState();
   }
 };
 
-// Auth helpers for JWT protected endpoints
+// Auth helpers for JWT protected endpoints (anti-spam et cooldown en cas de 429)
+let isLoggingIn = false;
+let loginCooldownUntil = 0;
+
 export const getAuthToken = async (forceRefresh = false) => {
-  let token = (!forceRefresh && typeof window !== 'undefined') ? localStorage.getItem('cofina_jwt_token') : null;
+  if (typeof window === 'undefined') return null;
+  let token = (!forceRefresh) ? localStorage.getItem('cofina_jwt_token') : null;
   if (!token) {
+    const now = Date.now();
+    if (now < loginCooldownUntil || isLoggingIn) {
+      return null;
+    }
+    isLoggingIn = true;
     try {
       const res = await fetch(`${SERVER_URL}/api/auth/login`, {
         method: 'POST',
@@ -346,12 +372,16 @@ export const getAuthToken = async (forceRefresh = false) => {
       if (res.ok) {
         const data = await res.json();
         token = data.token;
-        if (typeof window !== 'undefined' && token) {
+        if (token) {
           localStorage.setItem('cofina_jwt_token', token);
         }
+      } else if (res.status === 429) {
+        loginCooldownUntil = Date.now() + 15000;
       }
     } catch (e) {
       console.error('Auto login agent failed:', e);
+    } finally {
+      isLoggingIn = false;
     }
   }
   return token;
@@ -449,23 +479,29 @@ export const triggerCloudSyncAction = async () => {
 
 export const saveStoredState = (state, notify = true) => {
   try {
-    // BUG FIX (Bug 4): Only save non-ticket metadata to localStorage.
-    // Tickets come from the server (SQLite) via Socket.io — storing them
-    // in localStorage was the root cause of the split-brain state issue.
-    // We keep onlineCounters, currentAgencyId, lang prefs, lastWeekStart.
-    const metaOnly = {
-      currentAgencyId: state.currentAgencyId,
-      agencyName: state.agencyName,
-      lastWeekStart: state.lastWeekStart,
-      onlineCounters: state.onlineCounters || [],
-      archivedWeeks: state.archivedWeeks || []
+    const safeTickets = Array.isArray(state.tickets) ? state.tickets : (currentMemoryState?.tickets || []);
+    currentMemoryState = {
+      ...currentMemoryState,
+      ...state,
+      tickets: safeTickets
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(metaOnly));
+
+    // Métadonnées uniquement dans localStorage (les tickets complets vivent dans SQLite/Socket.io et le cache mémoire)
+    const metaOnly = {
+      currentAgencyId: currentMemoryState.currentAgencyId,
+      agencyName: currentMemoryState.agencyName,
+      lastWeekStart: currentMemoryState.lastWeekStart,
+      onlineCounters: currentMemoryState.onlineCounters || [],
+      archivedWeeks: currentMemoryState.archivedWeeks || []
+    };
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(metaOnly));
+    }
     if (broadcastChannel) {
-      broadcastChannel.postMessage({ type: 'STATE_UPDATED', payload: state });
+      broadcastChannel.postMessage({ type: 'STATE_UPDATED', payload: currentMemoryState });
     }
     if (notify) {
-      notifySubscribers(state);
+      notifySubscribers(currentMemoryState);
     }
   } catch (e) {
     console.error('Failed to save queue storage:', e);

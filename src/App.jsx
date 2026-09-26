@@ -66,7 +66,10 @@ export default function App() {
 
   const updateLocalState = () => {
     const latest = getStoredState();
-    setStoreState(latest);
+    setStoreState(prev => ({
+      ...latest,
+      tickets: (latest.tickets && latest.tickets.length > 0) ? latest.tickets : (prev.tickets || [])
+    }));
   };
 
   // Synchronize across multi-tabs and LAN Socket.io in real-time
@@ -106,7 +109,11 @@ export default function App() {
       channel = new BroadcastChannel(CHANNEL_NAME);
       channel.onmessage = (event) => {
         if (event.data && event.data.type === 'STATE_UPDATED') {
-          setStoreState(event.data.payload);
+          const payload = event.data.payload;
+          setStoreState(prev => ({
+            ...payload,
+            tickets: (payload.tickets && payload.tickets.length > 0) ? payload.tickets : (prev.tickets || [])
+          }));
         }
       };
     }

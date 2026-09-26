@@ -81,6 +81,9 @@ if [ ! -f "$PROJECT_DIR/server/.env" ]; then
   chown "$REAL_USER:$REAL_USER" "$PROJECT_DIR/server/.env"
 fi
 
+# Harmoniser le mot de passe agent par défaut pour l'Edge LAN
+sed -i 's/DefinirUnMotDePasseAgentSecurise2026!/cofina2026/g' "$PROJECT_DIR/server/.env" 2>/dev/null || true
+
 mkdir -p "$PROJECT_DIR/server/data"
 chown -R "$REAL_USER:$REAL_USER" "$PROJECT_DIR/server/data"
 
