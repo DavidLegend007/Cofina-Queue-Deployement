@@ -7,5 +7,5 @@ REM veuillez taper l'adresse IP du serveur dans votre navigateur.
 REM Ex: http://192.168.1.76:3000/?agent
 
 echo 🚀 Ouverture du poste Caissier Cofina...
-start http://localhost:3000/?agent
+start http://192.168.1.182:4000/?agent
 exit

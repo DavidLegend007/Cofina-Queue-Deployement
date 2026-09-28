@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { translations } from '../services/translations';
 import { COFINA_SERVICES } from '../services/queueStore';
+import { playCallChime, speakTicketCall } from '../services/utils/audioHelpers';
 
 export default function DisplayModule({ agencyName, tickets, lastCalledTicket, lang = 'fr' }) {
   const [currentTime, setCurrentTime] = React.useState(new Date());
@@ -20,6 +21,18 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  React.useEffect(() => {
+    const handleAudio = (e) => {
+      const { ticket } = e.detail;
+      if (ticket) {
+        playCallChime();
+        speakTicketCall(ticket.ticketNumber, ticket.counterNumber, lang);
+      }
+    };
+    window.addEventListener('ticket_called_audio', handleAudio);
+    return () => window.removeEventListener('ticket_called_audio', handleAudio);
+  }, [lang]);
 
   const t = translations[lang] || translations.fr;
   const activeTickets = tickets.filter(t => t.status === 'CALLED' || t.status === 'IN_PROGRESS');

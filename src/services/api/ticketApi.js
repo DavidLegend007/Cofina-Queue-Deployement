@@ -1,7 +1,6 @@
 import { SERVER_URL, COFINA_SERVICES } from '../config/constants';
 import { getAuthHeaders, getAdminAuthHeaders } from './authApi';
 import { getWeekSaturdayStart, getStoredState, saveStoredState } from '../storage/localStore';
-import { playCallChime, speakTicketCall } from '../utils/audioHelpers';
 
 export const createTicket = async (serviceCode, customerPhone = null, customerEmail = null, lang = 'fr') => {
   const service = COFINA_SERVICES.find(s => s.code === serviceCode) || COFINA_SERVICES[0];
@@ -60,8 +59,6 @@ export const callNextTicket = async (agentId, agentName, counterNumber, serviceF
     }
     
     const calledTicketObj = await res.json();
-    playCallChime();
-    speakTicketCall(calledTicketObj.ticketNumber, counterNumber, lang);
     return calledTicketObj;
   } catch (err) {
     console.error('callNextTicket failed:', err);
@@ -95,8 +92,6 @@ export const recallTicket = async (ticketId, lang = 'fr') => {
     if (!res.ok) throw new Error('API request failed');
     
     const ticket = await res.json();
-    playCallChime();
-    speakTicketCall(ticket.ticketNumber, ticket.counterNumber, lang);
     return ticket;
   } catch (err) {
     console.error('recallTicket failed:', err);

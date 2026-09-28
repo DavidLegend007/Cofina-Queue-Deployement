@@ -61,6 +61,10 @@ if (typeof window !== 'undefined') {
         tickets: newTickets
       };
       saveStoredState(newState, true);
+      
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('ticket_called_audio', { detail: { ticket } }));
+      }
     });
 
     socket.on('ticket_updated', ({ ticket, tickets }) => {
@@ -88,6 +92,10 @@ if (typeof window !== 'undefined') {
         tickets: newTickets
       };
       saveStoredState(newState, true);
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('ticket_called_audio', { detail: { ticket } }));
+      }
     });
 
     socket.on('reload_page', () => {
