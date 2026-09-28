@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import { 
   processNextTicket,
-  generateSimulationTickets,
   recallTicket, 
   updateTicketStatus, 
   getStoredAgentProfiles,
@@ -46,7 +45,6 @@ export default function FloatingTellerWidget({
 
   const [isOpen, setIsOpen] = useState(true);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [showSimulatedBanking, setShowSimulatedBanking] = useState(false);
 
   const handlePopoutWindow = () => {
     const popoutUrl = `${window.location.origin}${window.location.pathname}?widgetOnly=true`;
@@ -65,7 +63,6 @@ export default function FloatingTellerWidget({
   const [selectedAgentId, setSelectedAgentId] = useState(profiles[0]?.id || 'AGT-01');
   const [counterNumber, setCounterNumber] = useState(1);
   const [elapsedSec, setElapsedSec] = useState(0);
-  const [searchAccount, setSearchAccount] = useState('30004958201');
 
   const selectedAgent = profiles.find(p => p.id === selectedAgentId) || profiles[0];
 
@@ -155,77 +152,10 @@ export default function FloatingTellerWidget({
 
   return (
     <>
-      {/* ── SIMULATED BANKING CORE SOFTWARE OVERLAY BACKGROUND ── */}
-      {showSimulatedBanking && (
-        <div className="sim-banking-screen-overlay animate-fadeIn">
-          <div className="sim-banking-header">
-            <div className="sim-bank-brand">
-              <Building2 size={20} className="sim-bank-icon" />
-              <span>AMPLITUDE CORE BANKING V6.4 — COFINA TOGO EDGE</span>
-            </div>
-            <div className="sim-bank-user">
-              <span>AGENCE : {agencyName.toUpperCase()}</span>
-              <span className="sim-divider">|</span>
-              <span>UTILISATEUR : {selectedAgent.name} (CAISSE {counterNumber})</span>
-              <button 
-                className="sim-close-btn"
-                onClick={() => setShowSimulatedBanking(false)}
-              >
-                <X size={16} /> {t.widgetExitBankingApp}
-              </button>
-            </div>
-          </div>
 
-          <div className="sim-banking-body">
-            <div className="sim-bank-sidebar">
-              <div className="sim-side-item active"><CreditCard size={16} /> Operations Guichet</div>
-              <div className="sim-side-item"><DollarSign size={16} /> Versement / Dépôt</div>
-              <div className="sim-side-item"><Briefcase size={16} /> Consultation Compte</div>
-              <div className="sim-side-item"><Clock size={16} /> Journal Caisse</div>
-            </div>
-
-            <div className="sim-bank-main">
-              <div className="sim-card">
-                <h3>{t.widgetBankingSoftwareTitle}</h3>
-                <p className="sim-sub">{t.widgetBankingOverlayDesc}</p>
-
-                <div className="sim-form-group">
-                  <label>{t.widgetBankingAccountInput}</label>
-                  <div className="sim-input-row">
-                    <input 
-                      type="text" 
-                      value={searchAccount} 
-                      onChange={(e) => setSearchAccount(e.target.value)}
-                      className="sim-input"
-                    />
-                    <button className="sim-search-btn">
-                      <Search size={16} /> {t.widgetBankingAccountSearch}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="sim-account-details">
-                  <div className="sim-stat-box">
-                    <span>TITULAIRE</span>
-                    <strong>KOFFI EKOUE Mensah</strong>
-                  </div>
-                  <div className="sim-stat-box">
-                    <span>TYPE DE COMPTE</span>
-                    <strong>Compte Épargne Tontine Pro</strong>
-                  </div>
-                  <div className="sim-stat-box">
-                    <span>SOLDE DISPONIBLE</span>
-                    <strong className="text-green">1 850 000 FCFA</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── FLOATING OVERLAY WIDGET CONTAINER ── */}
-      <div className={`cofina-floating-widget ${isMinimized ? 'widget-minimized' : ''} ${showSimulatedBanking ? 'widget-banking-overlay' : ''}`}>
+      <div className={`cofina-floating-widget ${isMinimized ? 'widget-minimized' : ''}`}>
         
         {/* WIDGET HEADER / DRAG BAR */}
         <div className="widget-header">
@@ -253,13 +183,6 @@ export default function FloatingTellerWidget({
               </button>
             )}
 
-            <button 
-              className="widget-sim-toggle-btn"
-              onClick={() => setShowSimulatedBanking(!showSimulatedBanking)}
-              title={t.widgetSimulateBankingApp}
-            >
-              <Monitor size={14} />
-            </button>
 
             <button 
               className="widget-control-btn"

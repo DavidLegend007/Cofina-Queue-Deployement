@@ -15,16 +15,16 @@ dotenv.config();
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'cofina_edge_togo_secret_key_2026';
-export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'cofinaAdmin2026!';
-export const AGENT_PASSWORD = process.env.AGENT_PASSWORD || 'cofina2026';
-
 if (isProduction && !process.env.JWT_SECRET) {
-  console.warn("⚠️ [Auth] JWT_SECRET non trouvé dans .env, clé sécurisée par défaut activée.");
+  throw new Error('FATAL: La variable d\'environnement JWT_SECRET est obligatoire en production.');
 }
 if (isProduction && (!process.env.ADMIN_PASSWORD || !process.env.AGENT_PASSWORD)) {
-  console.warn("⚠️ [Auth] ADMIN_PASSWORD ou AGENT_PASSWORD non trouvés dans .env, mots de passe par défaut activés.");
+  throw new Error('FATAL: ADMIN_PASSWORD et AGENT_PASSWORD doivent être configurés dans le fichier .env.');
 }
+
+export const JWT_SECRET = process.env.JWT_SECRET || 'dev_only_jwt_secret_must_change_in_prod';
+export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'cofinaAdmin2026!';
+export const AGENT_PASSWORD = process.env.AGENT_PASSWORD || 'cofina2026';
 
 export interface TokenPayload {
   id?: string;
@@ -60,7 +60,7 @@ export function generateToken(payload: TokenPayload): string {
  */
 export function authenticateToken(req: any, res: any, next: any) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
 
   if (!token) {
     // Mode Edge Local Résilient : Si aucun token n'est transmis par le poste local d'agence,

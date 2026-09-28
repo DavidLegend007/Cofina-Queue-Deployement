@@ -6,7 +6,6 @@ import {
   CheckCircle2, 
   Database, 
   RefreshCw, 
-  Zap,
   TrendingUp,
   Server,
   Activity,
@@ -23,6 +22,7 @@ import {
   CloudOff,
   ShieldAlert,
   Key,
+  LogOut,
   UploadCloud
 } from 'lucide-react';
 import { 
@@ -43,7 +43,6 @@ import { translations } from '../services/translations';
 
 export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr' }) {
   const t = translations[lang] || translations.fr;
-  const [isSimulating, setIsSimulating] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
   // Authentification Admin & Sécurité RBAC
@@ -158,22 +157,6 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
     }
   };
 
-  const handleSimulateTraffic = async () => {
-    setIsSimulating(true);
-    const services = ['D', 'D', 'R', 'O', 'S'];
-    try {
-      for (let i = 0; i < 4; i++) {
-        const code = services[Math.floor(Math.random() * services.length)];
-        await createTicket(code, null, null, lang);
-      }
-      showToast(lang === 'en' ? "4 test tickets added to queue!" : "4 tickets de test ajoutés à la file !");
-    } catch (e) {
-      showToast("Erreur lors de la simulation. Vérifiez que le serveur est démarré.");
-    } finally {
-      setIsSimulating(false);
-    }
-  };
-
   const handleResetQueue = async () => {
     if (!isAdminUnlocked) {
       setShowPasswordModal(true);
@@ -210,17 +193,23 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
         </div>
 
         <div className="adm-hdr-actions">
-          <button 
-            className={`adm-btn ${isAdminUnlocked ? 'adm-btn-unlocked' : 'adm-btn-locked'}`} 
-            onClick={() => isAdminUnlocked ? handleAdminLogout() : setShowPasswordModal(true)}
-            title={isAdminUnlocked ? "Verrouiller la console Administrateur" : "Déverrouiller pour activer les fonctions sensibles"}
-          >
-            {isAdminUnlocked ? <Unlock size={16} /> : <Lock size={16} />}
-            {isAdminUnlocked ? 'Admin Déverrouillé' : 'Déverrouiller Admin'}
-          </button>
-          <button className="adm-btn adm-btn-sim" onClick={handleSimulateTraffic} disabled={isSimulating}>
-            <Zap size={16} /> {isSimulating ? 'Ajout...' : 'Simuler Trafic (+4)'}
-          </button>
+          {isAdminUnlocked ? (
+            <button 
+              className="adm-btn adm-btn-unlocked" 
+              onClick={handleAdminLogout}
+              title="Se déconnecter de la session Administrateur"
+            >
+              <LogOut size={16} /> Déconnexion
+            </button>
+          ) : (
+            <button 
+              className="adm-btn adm-btn-locked" 
+              onClick={() => setShowPasswordModal(true)}
+              title="Se connecter en tant qu'Administrateur"
+            >
+              <Lock size={16} /> Connexion
+            </button>
+          )}
           <button className="adm-btn adm-btn-danger" onClick={handleResetQueue} title="Archiver la semaine en DB et démarrer un nouveau cycle">
             <Database size={16} /> Archiver Semaine &amp; Réinitialiser (Samedi 14h)
           </button>
@@ -354,10 +343,10 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
 
               <div className="locked-feature-card">
                 <div className="lf-hdr">
-                  <span className="lf-title">🏢 Comparatif Inter-Agences (Lomé)</span>
+                  <span className="lf-title">🏢 Comparatif Inter-Services</span>
                   <Lock size={14} className="lf-lock" />
                 </div>
-                <p>Benchmarking des 4 agences (Kodjoviakopé, Grand Marché, Hédzranawoé, Bè).</p>
+                <p>Benchmarking des performances entre les différents services de l'agence.</p>
               </div>
 
               <div className="locked-feature-card">
@@ -605,6 +594,20 @@ export default function AdminModule({ agencyName, tickets, onRefresh, lang = 'fr
         }
 
         .adm-btn-danger:hover { background: #FEE2E2; transform: translateY(-1px); }
+
+        .adm-btn-locked {
+          background: #F8FAFC;
+          color: #475569;
+          border-color: #E2E8F0;
+        }
+        .adm-btn-locked:hover { background: #F1F5F9; transform: translateY(-1px); }
+
+        .adm-btn-unlocked {
+          background: #F0FDF4;
+          color: #166534;
+          border-color: #BBF7D0;
+        }
+        .adm-btn-unlocked:hover { background: #DCFCE7; transform: translateY(-1px); }
 
         .adm-toast {
           display: flex;

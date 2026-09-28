@@ -23,12 +23,8 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
 
   const t = translations[lang] || translations.fr;
   const activeTickets = tickets.filter(t => t.status === 'CALLED' || t.status === 'IN_PROGRESS');
-  const waitingTickets = tickets.filter(t => t.status === 'WAITING');
-
-  const waitingByService = COFINA_SERVICES.map(svc => {
-    const count = waitingTickets.filter(t => t.serviceCode === svc.code).length;
-    return { ...svc, count };
-  });
+  const waitingTickets = tickets.filter(t => t.status === 'WAITING')
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); // Trie du plus ancien au plus récent
 
   return (
     <div className="disp-root animate-fade-in">
@@ -148,23 +144,35 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
           </div>
 
           <div className="disp-services-list">
-            {waitingByService.map(svc => (
-              <div key={svc.code} className="disp-svc-row">
-                <div className="disp-svc-info">
-                  <span className="disp-svc-badge" style={{ background: svc.color }}>
-                    {svc.code}
-                  </span>
-                  <div className="disp-svc-names">
-                    <span className="disp-svc-name">{svc.name}</span>
-                    <span className="disp-svc-time"><Clock size={12} /> ~{svc.avgTimeMin} min</span>
+            {waitingTickets.slice(0, 7).map(ticket => {
+              const svcConfig = COFINA_SERVICES.find(s => s.code === ticket.serviceCode) || { color: '#64748B' };
+              return (
+                <div key={ticket.id} className="disp-svc-row" style={{ padding: '0.6rem 1.1rem' }}>
+                  <div className="disp-svc-info">
+                    <span className="disp-svc-badge" style={{ background: svcConfig.color, fontSize: '0.9rem', width: '40px' }}>
+                      {ticket.ticketNumber}
+                    </span>
+                    <div className="disp-svc-names">
+                      <span className="disp-svc-name" style={{ fontSize: '0.8rem' }}>{ticket.serviceName}</span>
+                      <span className="disp-svc-time"><Clock size={12} /> Reçu à {new Date(ticket.createdAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+                  <div className="disp-svc-cnt cnt-empty" style={{ width: 'auto', padding: '0 0.5rem', fontSize: '0.75rem', background: 'transparent' }}>
+                    En attente
                   </div>
                 </div>
-
-                <div className={`disp-svc-cnt ${svc.count > 0 ? 'cnt-has' : 'cnt-empty'}`}>
-                  {svc.count}
-                </div>
-              </div>
-            ))}
+              );
+            })}
+            {waitingTickets.length === 0 && (
+               <div className="disp-svc-row" style={{ justifyContent: 'center', color: '#94A3B8' }}>
+                 Aucun ticket en attente
+               </div>
+            )}
+            {waitingTickets.length > 7 && (
+               <div className="disp-svc-row" style={{ justifyContent: 'center', color: '#94A3B8', fontSize: '0.85rem', padding: '0.5rem', background: 'transparent', border: 'none' }}>
+                 + {waitingTickets.length - 7} autres ticket(s)
+               </div>
+            )}
           </div>
 
           {/* RÉCEMMENT TRAITÉS */}

@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Solution Haute-Disponibilité de Gestion de File d'Attente pour la Microfinance</b><br/>
-  <i>Déployé pour le Groupe COFINA Togo (Agence Pilote Siège Kodjoviakopé & Agences de Lomé)</i>
+  <i>Déployé pour le Groupe COFINA Togo (Agence Pilote Siège Kodjoviakopé)</i>
 </p>
 
 <p align="center">

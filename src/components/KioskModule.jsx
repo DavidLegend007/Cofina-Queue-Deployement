@@ -749,6 +749,11 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
       setIssuedTicket({ ...ticket, operationLabel: op.label, op });
       setIsSubmitting(false);
       if (onTicketGenerated) onTicketGenerated(ticket);
+      
+      // Auto-impression directe
+      setTimeout(() => {
+        handlePrintTicket();
+      }, 500); // laisser le temps au DOM (QR Code) de se charger
     } catch (error) {
       console.error('Failed to create ticket', error);
       setIsSubmitting(false);

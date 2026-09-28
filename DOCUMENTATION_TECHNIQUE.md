@@ -1,9 +1,9 @@
 # 📘 COFINA QUEUE SYSTEM — Manuel & Architecture Technique (Serveurs Edge Hors-Ligne)
 
-> **Client** : Groupe COFINA Togo (Microfinance — Agence Pilote Siège Kodjoviakopé & Réseau d'Agences de Lomé)  
+> **Client** : Groupe COFINA Togo (Microfinance — Agence Pilote Siège Kodjoviakopé)  
 > **Auteur / Prestataire** : Matrix Industrie  
 > **Architecture** : Serveur Edge Local 100% Autonome (Fonctionnement garanti Hors-Ligne / Sans Internet)  
-> **Version** : 2.1 — Configuration Agence Réelle (6 Postes Dédiés & Routage Spécialisé par Service)
+> **Version** : 1.0 — Configuration Agence Réelle (6 Postes Dédiés & Routage Spécialisé par Service)
 
 ---
 

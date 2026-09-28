@@ -1,0 +1,104 @@
+import { io } from 'socket.io-client';
+import { SERVER_URL } from '../config/constants';
+import { getStoredState, saveStoredState, notifySubscribers } from '../storage/localStore';
+
+let socket = null;
+
+if (typeof window !== 'undefined') {
+  try {
+    socket = io(SERVER_URL, {
+      reconnectionAttempts: 20,
+      reconnectionDelay: 1000,
+      timeout: 3000,
+      autoConnect: true
+    });
+
+    socket.on('connect', () => {
+      console.log('✅ Connecté au Serveur Edge Local COFINA (Socket.io LAN):', SERVER_URL);
+    });
+
+    socket.on('init_state', ({ tickets, dailyCounters }) => {
+      if (tickets && Array.isArray(tickets)) {
+        const local = getStoredState();
+        const lastCalled = tickets.find(t => t.status === 'CALLED') || local.lastCalledTicket;
+        const newState = {
+          ...local,
+          dailyCounter: dailyCounters || local.dailyCounter,
+          tickets: tickets,
+          lastCalledTicket: lastCalled
+        };
+        saveStoredState(newState, false);
+        notifySubscribers(newState);
+      }
+    });
+
+    socket.on('ticket_created', ({ ticket, serviceCode, newCounterValue }) => {
+      const local = getStoredState();
+      const existingTickets = Array.isArray(local.tickets) ? local.tickets : [];
+      const newTickets = [ticket, ...existingTickets.filter(t => t && t.id !== ticket.id)];
+      const newCounters = { ...(local.dailyCounter || {}) };
+      if (serviceCode !== undefined && newCounterValue !== undefined) {
+        newCounters[serviceCode] = newCounterValue;
+      }
+
+      const newState = {
+        ...local,
+        dailyCounter: newCounters,
+        tickets: newTickets
+      };
+      saveStoredState(newState, true);
+    });
+
+    socket.on('ticket_called', ({ ticket, tickets }) => {
+      const local = getStoredState();
+      const existingTickets = Array.isArray(local.tickets) ? local.tickets : [];
+      const newTickets = Array.isArray(tickets) 
+        ? tickets 
+        : existingTickets.map(t => (t && t.id === ticket.id ? ticket : t));
+      const newState = {
+        ...local,
+        lastCalledTicket: ticket,
+        tickets: newTickets
+      };
+      saveStoredState(newState, true);
+    });
+
+    socket.on('ticket_updated', ({ ticket, tickets }) => {
+      const local = getStoredState();
+      const existingTickets = Array.isArray(local.tickets) ? local.tickets : [];
+      const newTickets = Array.isArray(tickets) 
+        ? tickets 
+        : existingTickets.map(t => (t && t.id === ticket.id ? ticket : t));
+      const newState = {
+        ...local,
+        tickets: newTickets
+      };
+      saveStoredState(newState, true);
+    });
+
+    socket.on('ticket_recalled', ({ ticket, tickets }) => {
+      const local = getStoredState();
+      const existingTickets = Array.isArray(local.tickets) ? local.tickets : [];
+      const newTickets = Array.isArray(tickets) 
+        ? tickets 
+        : existingTickets.map(t => (t && t.id === ticket.id ? ticket : t));
+      const newState = {
+        ...local,
+        lastCalledTicket: ticket,
+        tickets: newTickets
+      };
+      saveStoredState(newState, true);
+    });
+
+    socket.on('reload_page', () => {
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
+    });
+
+  } catch (e) {
+    console.warn('Socket.io connection initialization skipped:', e);
+  }
+}
+
+export { socket };

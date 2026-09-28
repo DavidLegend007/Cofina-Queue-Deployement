@@ -12,7 +12,6 @@ import {
   processNextTicket,
   updateTicketStatus,
   exportAgencyDataCSV,
-  generateSimulationTickets,
   toggleCounterStatus
 } from '../services/queueStore';
 import { translations } from '../services/translations';
@@ -149,7 +148,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
   // Sync active ticket for this agent & counter
   useEffect(() => {
     const activeCandidates = tickets.filter(
-      t => (t.agentId === selectedAgent.id || t.counterNumber === counterNumber) && 
+      t => (t.counterNumber === counterNumber) && 
            (t.status === 'CALLED' || t.status === 'IN_PROGRESS')
     );
     activeCandidates.sort((a, b) => {
@@ -820,27 +819,6 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
 
         .dot-offline {
           background: #EF4444;
-        }
-
-        .btn-simulate-quick {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.45rem;
-          background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
-          color: #FFFFFF;
-          border: none;
-          padding: 0.5rem 0.9rem;
-          border-radius: 12px;
-          font-weight: 800;
-          font-size: 0.82rem;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-        }
-
-        .btn-simulate-quick:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
         }
 
         .btn-profile-edit {
