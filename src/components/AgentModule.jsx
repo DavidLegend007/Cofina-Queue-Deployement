@@ -16,8 +16,7 @@ import {
   toggleCounterStatus,
   loginAsAgent,
   logoutAgent,
-  playCallChime,
-  speakTicketCall
+  // playCallChime et speakTicketCall supprimés – le son est géré exclusivement par DisplayModule (TV)
 } from '../services/queueStore';
 import { translations } from '../services/translations';
 import ProfilePage from './ProfilePage';
@@ -265,13 +264,14 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
 
     setAutoStage('WAITING_VOICE_RECALL');
     await recallTicket(ticket.id, lang);
-    playCallChime();
+    // Le son est déclenché par DisplayModule via l'événement socket ticket_recalled → ticket_called_audio
 
-    speakTicketCall(ticket.ticketNumber, counterNumber, lang, () => {
+    // Attendre que la télé ait le temps de parler (~4s) avant de démarrer le compte à rebours d'absence
+    setTimeout(() => {
       if (activeTicketIdRef.current === ticket.id) {
         startAbsentCountdown(ticket);
       }
-    });
+    }, 4000);
   };
 
   const startAbsentCountdown = (ticket) => {
@@ -327,13 +327,14 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
     clearAllAutoTimers();
     activeTicketIdRef.current = ticket.id;
     setAutoStage('WAITING_VOICE_CALL');
+    // Le son est déclenché par DisplayModule via l'événement socket ticket_called → ticket_called_audio
 
-    playCallChime();
-    speakTicketCall(ticket.ticketNumber, counterNumber, lang, () => {
+    // Attendre que la télé ait le temps d'annoncer (~4s) avant de lancer le compte à rebours de rappel
+    setTimeout(() => {
       if (activeTicketIdRef.current === ticket.id) {
         startRecallCountdown(ticket);
       }
-    });
+    }, 4000);
   };
 
   // Sync agent default counter & auto-configure services when changing agent profile
@@ -464,12 +465,12 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
       autoRecallDoneTicketIdRef.current = currentTicket.id;
       setAutoStage('WAITING_VOICE_RECALL');
       await recallTicket(currentTicket.id, lang);
-      playCallChime();
-      speakTicketCall(currentTicket.ticketNumber, counterNumber, lang, () => {
+      // Le son est déclenché par DisplayModule via l'événement socket ticket_recalled → ticket_called_audio
+      setTimeout(() => {
         if (activeTicketIdRef.current === currentTicket.id) {
           startAbsentCountdown(currentTicket);
         }
-      });
+      }, 4000);
     }
   };
 

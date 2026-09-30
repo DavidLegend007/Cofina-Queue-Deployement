@@ -31,8 +31,7 @@ import {
   updateTicketStatus, 
   getStoredAgentProfiles,
   toggleCounterStatus,
-  playCallChime,
-  speakTicketCall
+  // playCallChime et speakTicketCall supprimés – le son est géré exclusivement par DisplayModule (TV)
 } from '../services/queueStore';
 import { translations } from '../services/translations';
 import { POSTES_CONFIG } from './AgentModule.jsx';
@@ -226,13 +225,12 @@ export default function FloatingTellerWidget({
 
     setAutoStage('WAITING_VOICE_RECALL');
     await recallTicket(ticket.id, lang);
-    playCallChime();
-
-    speakTicketCall(ticket.ticketNumber, counterNumber, lang, () => {
+    // Le son est déclenché par DisplayModule via socket ticket_recalled → ticket_called_audio
+    setTimeout(() => {
       if (activeTicketIdRef.current === ticket.id) {
         startAbsentCountdown(ticket);
       }
-    });
+    }, 4000);
   };
 
   const startAbsentCountdown = (ticket) => {
@@ -285,13 +283,12 @@ export default function FloatingTellerWidget({
     clearAllAutoTimers();
     activeTicketIdRef.current = ticket.id;
     setAutoStage('WAITING_VOICE_CALL');
-
-    playCallChime();
-    speakTicketCall(ticket.ticketNumber, counterNumber, lang, () => {
+    // Le son est déclenché par DisplayModule via socket ticket_called → ticket_called_audio
+    setTimeout(() => {
       if (activeTicketIdRef.current === ticket.id) {
         startRecallCountdown(ticket);
       }
-    });
+    }, 4000);
   };
 
   useEffect(() => {
@@ -335,12 +332,12 @@ export default function FloatingTellerWidget({
       clearAllAutoTimers();
       autoRecallDoneTicketIdRef.current = activeTicket.id;
       await recallTicket(activeTicket.id, lang);
-      playCallChime();
-      speakTicketCall(activeTicket.ticketNumber, counterNumber, lang, () => {
+      // Le son est déclenché par DisplayModule via socket ticket_recalled → ticket_called_audio
+      setTimeout(() => {
         if (isStandaloneMode && activeTicketIdRef.current === activeTicket.id) {
           startAbsentCountdown(activeTicket);
         }
-      });
+      }, 4000);
       onStateChange();
     }
   };
