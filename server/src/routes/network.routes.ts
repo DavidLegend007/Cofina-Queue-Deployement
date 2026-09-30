@@ -18,11 +18,18 @@ export function createNetworkRouter(PORT: string | number) {
 
   router.get('/network-info', (req, res) => {
     const localIp = getLocalIpAddress();
+    const publicUrl = process.env.PUBLIC_URL || process.env.VITE_PUBLIC_URL;
+    const isProd = process.env.NODE_ENV === 'production';
+    const effectivePort = isProd ? PORT : 3000;
+    const lanUrl = publicUrl || `http://${localIp}:${effectivePort}`;
+
     res.json({
       localIp,
       port: PORT,
-      frontendPort: 3000,
-      lanUrl: `http://${localIp}:3000`
+      frontendPort: effectivePort,
+      lanUrl,
+      publicUrl: publicUrl || null,
+      isPublic: !!publicUrl
     });
   });
 

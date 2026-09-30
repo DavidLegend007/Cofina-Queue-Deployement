@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, Megaphone, RotateCw, ArrowRight, CheckCircle2, Clock, Filter, Layers, 
-  FileDown, Edit3, X, Check, Users, Sparkles, Award, ChevronRight, Play, UserX 
+  FileDown, Edit3, X, Check, Users, Sparkles, Award, ChevronRight, Play, UserX,
+  Lock, Unlock, Key, Volume2, AlertTriangle, LogOut, ShieldCheck
 } from 'lucide-react';
 import { 
   INITIAL_AGENTS,
@@ -12,7 +13,11 @@ import {
   processNextTicket,
   updateTicketStatus,
   exportAgencyDataCSV,
-  toggleCounterStatus
+  toggleCounterStatus,
+  loginAsAgent,
+  logoutAgent,
+  playCallChime,
+  speakTicketCall
 } from '../services/queueStore';
 import { translations } from '../services/translations';
 import ProfilePage from './ProfilePage';
@@ -103,6 +108,18 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
   const [currentTicket, setCurrentTicket] = useState(null);
   const [activeTab, setActiveTab] = useState('SERVED'); // 'SERVED' or 'WAITING'
   const [serviceDurationSec, setServiceDurationSec] = useState(0);
+
+  // --- AUTOMATISATION DU RAPPEL ET GESTION DES ABSENCES (RÈGLE MÉTIER CAISSIER) ---
+  // autoStage: 'IDLE' | 'WAITING_VOICE_CALL' | 'COUNTDOWN_RECALL' | 'WAITING_VOICE_RECALL' | 'COUNTDOWN_ABSENT'
+  const [autoStage, setAutoStage] = useState('IDLE');
+  const [autoCountdownSec, setAutoCountdownSec] = useState(15);
+
+  const autoRecallTimeoutRef = useRef(null);
+  const autoAbsentTimeoutRef = useRef(null);
+  const autoCountdownIntervalRef = useRef(null);
+  const autoRecallDoneTicketIdRef = useRef(null);
+  const activeTicketIdRef = useRef(null);
+
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Horloge temps réel avec secondes
@@ -116,14 +133,213 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
   // Profile Full Page State
   const [isProfilePageOpen, setIsProfilePageOpen] = useState(false);
 
+  // Authentification & Session Sécurisée Guichet
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isAgentUnlocked, setIsAgentUnlocked] = useState(() => {
+    return typeof window !== 'undefined' && 
+      !!localStorage.getItem('cofina_jwt_token') && 
+      !!localStorage.getItem('cofina_agent_username');
+  });
+
+  // Synchronisation stricte de l'agent et de son guichet attitré selon la session active
+  useEffect(() => {
+    if (isAgentUnlocked) {
+      const storedUser = localStorage.getItem('cofina_agent_username');
+      const ag = agentsList.find(a => a.name === storedUser) || selectedAgent;
+      if (ag) {
+        setSelectedAgentId(ag.id);
+        const def = ag.defaultCounter || 1;
+        setCounterNumber(def);
+        const targetPoste = POSTES_CONFIG.find(p => p.number === def) || POSTES_CONFIG[0];
+        setServiceFilter(targetPoste.services.join(','));
+      }
+    }
+  }, [isAgentUnlocked]);
+
+  const handleAgentLogin = async (e) => {
+    e?.preventDefault();
+    setPinError('');
+    setIsLoggingIn(true);
+    try {
+      await loginAsAgent(pinInput, selectedAgent.name);
+      const defCounter = selectedAgent.defaultCounter || 1;
+      setCounterNumber(defCounter);
+      const targetPoste = POSTES_CONFIG.find(p => p.number === defCounter) || POSTES_CONFIG[0];
+      setServiceFilter(targetPoste.services.join(','));
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('cofina_agent_counter', String(defCounter));
+        localStorage.setItem('cofina_agent_username', selectedAgent.name);
+        window.dispatchEvent(new Event('cofina_auth_changed'));
+      }
+
+      // Auto-ouverture du guichet lors de la connexion réussie
+      if (!onlineCounters.includes(defCounter)) {
+        toggleCounterStatus(defCounter, true);
+      }
+
+      setIsAgentUnlocked(true);
+      setShowPinModal(false);
+      setPinInput('');
+    } catch (err) {
+      setPinError(err.message || 'Code PIN ou mot de passe incorrect');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleAgentLogout = () => {
+    clearAllAutoTimers();
+    // Fermeture automatique du guichet à la déconnexion
+    if (onlineCounters.includes(counterNumber)) {
+      toggleCounterStatus(counterNumber, false);
+    }
+    logoutAgent();
+    setIsAgentUnlocked(false);
+    setPinInput('');
+    setPinError('');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('cofina_auth_changed'));
+    }
+  };
+
   const isOnline = onlineCounters.includes(counterNumber);
 
   const handleToggleOnline = () => {
     toggleCounterStatus(counterNumber, !isOnline);
   };
 
+  // --- MOTEUR D'AUTOMATISATION RAPPEL & ABSENCE (15s + 15s) ---
+
+  const clearAllAutoTimers = () => {
+    if (autoRecallTimeoutRef.current) {
+      clearTimeout(autoRecallTimeoutRef.current);
+      autoRecallTimeoutRef.current = null;
+    }
+    if (autoAbsentTimeoutRef.current) {
+      clearTimeout(autoAbsentTimeoutRef.current);
+      autoAbsentTimeoutRef.current = null;
+    }
+    if (autoCountdownIntervalRef.current) {
+      clearInterval(autoCountdownIntervalRef.current);
+      autoCountdownIntervalRef.current = null;
+    }
+    setAutoStage('IDLE');
+    setAutoCountdownSec(15);
+  };
+
+  const startRecallCountdown = (ticket) => {
+    if (activeTicketIdRef.current !== ticket.id) return;
+    if (autoCountdownIntervalRef.current) clearInterval(autoCountdownIntervalRef.current);
+    if (autoRecallTimeoutRef.current) clearTimeout(autoRecallTimeoutRef.current);
+
+    setAutoStage('COUNTDOWN_RECALL');
+    setAutoCountdownSec(15);
+
+    let remaining = 15;
+    autoCountdownIntervalRef.current = setInterval(() => {
+      remaining -= 1;
+      setAutoCountdownSec(Math.max(0, remaining));
+      if (remaining <= 0 && autoCountdownIntervalRef.current) {
+        clearInterval(autoCountdownIntervalRef.current);
+        autoCountdownIntervalRef.current = null;
+      }
+    }, 1000);
+
+    autoRecallTimeoutRef.current = setTimeout(async () => {
+      if (activeTicketIdRef.current === ticket.id && autoRecallDoneTicketIdRef.current !== ticket.id) {
+        await executeAutoRecall(ticket);
+      }
+    }, 15000);
+  };
+
+  const executeAutoRecall = async (ticket) => {
+    autoRecallDoneTicketIdRef.current = ticket.id;
+    if (autoCountdownIntervalRef.current) {
+      clearInterval(autoCountdownIntervalRef.current);
+      autoCountdownIntervalRef.current = null;
+    }
+
+    setAutoStage('WAITING_VOICE_RECALL');
+    await recallTicket(ticket.id, lang);
+    playCallChime();
+
+    speakTicketCall(ticket.ticketNumber, counterNumber, lang, () => {
+      if (activeTicketIdRef.current === ticket.id) {
+        startAbsentCountdown(ticket);
+      }
+    });
+  };
+
+  const startAbsentCountdown = (ticket) => {
+    if (activeTicketIdRef.current !== ticket.id) return;
+    if (autoCountdownIntervalRef.current) clearInterval(autoCountdownIntervalRef.current);
+    if (autoAbsentTimeoutRef.current) clearTimeout(autoAbsentTimeoutRef.current);
+
+    setAutoStage('COUNTDOWN_ABSENT');
+    setAutoCountdownSec(15);
+
+    let remaining = 15;
+    autoCountdownIntervalRef.current = setInterval(() => {
+      remaining -= 1;
+      setAutoCountdownSec(Math.max(0, remaining));
+      if (remaining <= 0 && autoCountdownIntervalRef.current) {
+        clearInterval(autoCountdownIntervalRef.current);
+        autoCountdownIntervalRef.current = null;
+      }
+    }, 1000);
+
+    autoAbsentTimeoutRef.current = setTimeout(async () => {
+      if (activeTicketIdRef.current === ticket.id) {
+        await executeAutoAbsent(ticket);
+      }
+    }, 15000);
+  };
+
+  const executeAutoAbsent = async (ticket) => {
+    clearAllAutoTimers();
+    activeTicketIdRef.current = null;
+
+    // 1. Le ticket actuel est marqué comme "Absent"
+    await updateTicketStatus(ticket.id, 'NO_SHOW');
+    setCurrentTicket(null);
+
+    // 2. Le prochain client de la file est appelé automatiquement
+    const nextTicket = await processNextTicket(
+      selectedAgent.id,
+      selectedAgent.name,
+      counterNumber,
+      serviceFilter,
+      null,
+      lang
+    );
+    if (nextTicket) {
+      setCurrentTicket(nextTicket);
+      startTicketCallCycle(nextTicket);
+    }
+  };
+
+  const startTicketCallCycle = (ticket) => {
+    if (!ticket || ticket.status !== 'CALLED') return;
+    clearAllAutoTimers();
+    activeTicketIdRef.current = ticket.id;
+    setAutoStage('WAITING_VOICE_CALL');
+
+    playCallChime();
+    speakTicketCall(ticket.ticketNumber, counterNumber, lang, () => {
+      if (activeTicketIdRef.current === ticket.id) {
+        startRecallCountdown(ticket);
+      }
+    });
+  };
+
   // Sync agent default counter & auto-configure services when changing agent profile
   const handleSelectAgent = (agentId) => {
+    if (isAgentUnlocked) return; // Session verrouillée
+    clearAllAutoTimers();
     setSelectedAgentId(agentId);
     const ag = agentsList.find(a => a.id === agentId);
     if (ag) {
@@ -138,6 +354,8 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
 
   // Switch physical workstation and auto-configure services for that workstation
   const handleSelectCounter = (counterNum) => {
+    if (isAgentUnlocked) return; // Session verrouillée
+    clearAllAutoTimers();
     setCounterNumber(counterNum);
     const targetPoste = POSTES_CONFIG.find(p => p.number === counterNum);
     if (targetPoste) {
@@ -190,8 +408,35 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
     t.status === 'COMPLETED' && (t.agentId === selectedAgent.id || t.counterNumber === counterNumber)
   ).sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt));
 
+
+  // Surveillance et synchronisation du ticket actif CALLED
+  useEffect(() => {
+    if (!currentTicket || currentTicket.status !== 'CALLED') {
+      clearAllAutoTimers();
+      activeTicketIdRef.current = currentTicket?.id || null;
+      return;
+    }
+
+    if (activeTicketIdRef.current !== currentTicket.id) {
+      activeTicketIdRef.current = currentTicket.id;
+      startTicketCallCycle(currentTicket);
+    }
+  }, [currentTicket?.id, currentTicket?.status, counterNumber]);
+
+  // Nettoyage au démontage
+  useEffect(() => {
+    return () => {
+      clearAllAutoTimers();
+    };
+  }, []);
+
   // ACTION: Suivant
   const handleSuivant = async () => {
+    if (!isAgentUnlocked) {
+      setShowPinModal(true);
+      return;
+    }
+    clearAllAutoTimers();
     const nextTicket = await processNextTicket(
       selectedAgent.id,
       selectedAgent.name,
@@ -202,24 +447,44 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
     );
     if (nextTicket) {
       setCurrentTicket(nextTicket);
+      startTicketCallCycle(nextTicket);
+    } else {
+      setCurrentTicket(null);
     }
   };
 
-
-
   // ACTION: Rappeler
   const handleRappeler = async () => {
+    if (!isAgentUnlocked) {
+      setShowPinModal(true);
+      return;
+    }
     if (currentTicket) {
+      clearAllAutoTimers();
+      autoRecallDoneTicketIdRef.current = currentTicket.id;
+      setAutoStage('WAITING_VOICE_RECALL');
       await recallTicket(currentTicket.id, lang);
+      playCallChime();
+      speakTicketCall(currentTicket.ticketNumber, counterNumber, lang, () => {
+        if (activeTicketIdRef.current === currentTicket.id) {
+          startAbsentCountdown(currentTicket);
+        }
+      });
     }
   };
 
   // ACTION: Marquer Absent (No Show) et passer directement au ticket suivant
   const handleNoShow = async () => {
+    if (!isAgentUnlocked) {
+      setShowPinModal(true);
+      return;
+    }
     if (currentTicket) {
+      clearAllAutoTimers();
+      activeTicketIdRef.current = null;
       await updateTicketStatus(currentTicket.id, 'NO_SHOW');
       setCurrentTicket(null);
-      await processNextTicket(
+      const nextTicket = await processNextTicket(
         selectedAgent.id,
         selectedAgent.name,
         counterNumber,
@@ -227,19 +492,41 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
         null,
         lang
       );
+      if (nextTicket) {
+        setCurrentTicket(nextTicket);
+        startTicketCallCycle(nextTicket);
+      }
     }
   };
 
-  // ACTION: En traitement
+  // ACTION: Démarrer le traitement
   const handleEnTraitement = async () => {
+    if (!isAgentUnlocked) {
+      setShowPinModal(true);
+      return;
+    }
     if (currentTicket) {
+      // 1. Arrêt immédiat de tout automatisme de rappel ou absence
+      clearAllAutoTimers();
+
+      // 2. Dès que le caissier clique sur "Démarrer le traitement", le statut du client passe à "En cours de service"
       await updateTicketStatus(currentTicket.id, 'IN_PROGRESS');
+      setCurrentTicket(prev => prev ? { ...prev, status: 'IN_PROGRESS' } : null);
     }
   };
 
-  // ACTION: Terminer
+  // ACTION: Terminer le service
   const handleTerminer = async () => {
+    if (!isAgentUnlocked) {
+      setShowPinModal(true);
+      return;
+    }
     if (currentTicket) {
+      // 1. Arrêt immédiat de tous les minuteurs
+      clearAllAutoTimers();
+      activeTicketIdRef.current = null;
+
+      // 2. Lorsque le caissier clique sur "Terminer le service", le client actuel est validé et le système se met en attente du prochain appel de ticket
       await updateTicketStatus(currentTicket.id, 'COMPLETED');
       setCurrentTicket(null);
     }
@@ -278,8 +565,112 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
     );
   }
 
+  // Portail d'authentification obligatoire ou Interface Caisse active
   return (
-    <div className="agent-container animate-fade-in">
+    <>
+      {!isAgentUnlocked ? (
+        <div className="cashier-login-portal-wrapper animate-fade-in">
+          <div className="cashier-login-card glass-card">
+            <div className="cashier-login-header">
+              <div className="cashier-brand-badge">
+                <span className="cashier-brand-logo">🏦</span>
+                <div className="cashier-brand-text">
+                  <h2>GROUPE COFINA TOGO</h2>
+                  <span>Système de Gestion de File d'Attente</span>
+                </div>
+              </div>
+              <div className="cashier-agency-pill">
+                📍 {agencyName || 'Agence Siège Kodjoviakopé'}
+              </div>
+            </div>
+
+            <div className="cashier-login-title-box">
+              <div className="cashier-lock-icon-circle">
+                <Lock size={26} />
+              </div>
+              <div>
+                <h3>Portail Caissier & Guichetier</h3>
+                <p>Authentification obligatoire pour ouvrir la caisse</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAgentLogin} className="cashier-login-form">
+              <div className="login-field-group">
+                <label className="login-field-label">
+                  <User size={15} style={{ color: '#D3122A', display: 'inline', marginRight: '6px' }} />
+                  Sélectionnez votre profil Collaborateur :
+                </label>
+                <div className="login-select-wrapper">
+                  <select
+                    value={selectedAgentId}
+                    onChange={(e) => handleSelectAgent(e.target.value)}
+                    className="login-agent-select"
+                  >
+                    {agentsList.map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} — ({a.title || `Guichet ${a.defaultCounter}`})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="login-workstation-preview">
+                <div className="preview-header">
+                  <ShieldCheck size={16} style={{ color: '#16A34A' }} />
+                  <span>Poste physique assigné :</span>
+                </div>
+                <div className="preview-body">
+                  <span className="preview-icon">{currentPoste.icon}</span>
+                  <div className="preview-info">
+                    <strong>Guichet {currentPoste.number} — {currentPoste.name}</strong>
+                    <span>{currentPoste.description}</span>
+                  </div>
+                  <span className="preview-locked-pill">🔒 Assigné d'office</span>
+                </div>
+              </div>
+
+              <div className="login-field-group">
+                <label className="login-field-label">
+                  <Key size={15} style={{ color: '#D3122A', display: 'inline', marginRight: '6px' }} />
+                  Mot de passe ou Code PIN :
+                </label>
+                <input
+                  type="password"
+                  maxLength={30}
+                  placeholder="Code PIN (ex: 1234) ou mot de passe"
+                  value={pinInput}
+                  onChange={e => setPinInput(e.target.value)}
+                  autoFocus
+                  className="login-pin-input"
+                  required
+                />
+              </div>
+
+              {pinError && (
+                <div className="login-error-alert animate-shake">
+                  <AlertTriangle size={16} />
+                  <span>{pinError}</span>
+                </div>
+              )}
+
+              <button 
+                type="submit" 
+                className="login-submit-btn"
+                disabled={isLoggingIn}
+              >
+                <Unlock size={18} />
+                <span>{isLoggingIn ? 'Vérification en cours...' : 'Ouvrir ma Caisse & Démarrer le Service'}</span>
+              </button>
+
+              <div className="login-security-notice">
+                🔒 <strong>Sécurité & Traçabilité Bancaire :</strong> Dès votre connexion, votre session sera strictement verrouillée sur le <strong>Guichet {currentPoste.number} ({currentPoste.name})</strong>. Vous ne pourrez pas naviguer vers un autre guichet sans déconnexion préalable.
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : (
+        <div className="agent-container animate-fade-in">
       {/* Top Header Bar with Realtime Clock */}
       <header className="cashier-topbar glass-card">
         <div className="agent-identity">
@@ -291,39 +682,21 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
             )}
           </div>
           <div className="agent-details">
-            <div className="agent-switcher">
-              <select 
-                value={selectedAgentId}
-                onChange={(e) => handleSelectAgent(e.target.value)}
-                className="agent-switcher-select"
-              >
-                {agentsList.map(a => (
-                  <option key={a.id} value={a.id}>{a.name} — ({a.title || `Guichet ${a.defaultCounter}`})</option>
-                ))}
-              </select>
+            <div className="agent-locked-identity">
+              <span className="agent-name-display">{selectedAgent.name}</span>
             </div>
             <span className="agency-location-tag">📍 {agencyName}</span>
           </div>
         </div>
 
-        {/* Workstation Display & Dedicated Switcher ("Un seul poste à la fois") */}
-        <div className="workstation-station-box">
+        {/* Workstation Display: VERROUILLÉ EN LECTURE SEULE */}
+        <div className="workstation-station-box workstation-locked">
           <div className="station-meta-info">
             <span className="station-pole-pill">{currentPoste.pole}</span>
-            <div className="station-selector-wrapper">
+            <div className="station-locked-wrapper" title="Poste strictement assigné et verrouillé pour cette session caissier. Déconnectez-vous pour changer de poste.">
               <span className="station-icon-chip">{currentPoste.icon}</span>
-              <select 
-                value={counterNumber}
-                onChange={(e) => handleSelectCounter(Number(e.target.value))}
-                className="station-dropdown-select"
-                title="Poste de travail physique assigné"
-              >
-                {POSTES_CONFIG.map(p => (
-                  <option key={p.number} value={p.number}>
-                    Guichet {p.number} — {p.name} ({p.roleTag})
-                  </option>
-                ))}
-              </select>
+              <span className="station-locked-name">Guichet {currentPoste.number} — {currentPoste.name}</span>
+              <span className="station-locked-badge">🔒 Fixe</span>
             </div>
           </div>
         </div>
@@ -345,19 +718,30 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           </button>
         </div>
 
-        {/* Clock with Seconds & Profile Button */}
+        {/* Clock with Seconds & Actions */}
         <div className="topbar-actions">
+          <button 
+            type="button" 
+            className="btn-profile-edit btn-logout-session" 
+            onClick={handleAgentLogout}
+            style={{ background: '#FFF1F2', color: '#BE123C', border: '1px solid #FECDD3', fontWeight: 800 }}
+            title="Fermer la session caissier et verrouiller l'accès"
+          >
+            <LogOut size={14} style={{ color: '#BE123C' }} /> Déconnexion
+          </button>
+
           <div className="agent-clock-badge">
             <Clock size={15} />
             <span className="agent-clock-time">{formattedTimeStr}</span>
           </div>
 
           <button 
-            type="button"
-            className="btn-profile-edit"
+            type="button" 
+            className="btn-profile-edit" 
             onClick={openProfileModal}
+            title="Consulter ma fiche collaborateur"
           >
-            <Edit3 size={15} /> Profil
+            <User size={14} /> Profil
           </button>
 
           <button 
@@ -392,7 +776,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
                       background: currentTicket.status === 'IN_PROGRESS' ? '#2563EB' : '#10B981'
                     }}
                   ></span>
-                  {currentTicket.status === 'IN_PROGRESS' ? 'CLIENT EN TRAITEMENT' : 'TICKET APPELÉ'}
+                  {currentTicket.status === 'IN_PROGRESS' ? 'EN COURS DE SERVICE' : 'TICKET APPELÉ'}
                 </div>
                 <div className="guichet-badge">
                   GUICHET {counterNumber} — {currentPoste.name.toUpperCase()}
@@ -407,6 +791,42 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
                   <Clock size={16} />
                   <span>Durée : <strong>{formatTimer(serviceDurationSec)}</strong></span>
                 </div>
+
+                {/* Bannière interactive de suivi automatique */}
+                {currentTicket.status === 'CALLED' && autoStage === 'WAITING_VOICE_CALL' && (
+                  <div className="cashier-automation-banner voice-active">
+                    <Volume2 size={18} className="pulse-alert" />
+                    <span>Annonce vocale en cours d'appel... En attente d'arrivée du client</span>
+                  </div>
+                )}
+
+                {currentTicket.status === 'CALLED' && autoStage === 'COUNTDOWN_RECALL' && (
+                  <div className="cashier-automation-banner recall-countdown">
+                    <Clock size={18} className="pulse-alert" />
+                    <span>Rappel automatique dans <strong>{autoCountdownSec}s</strong> si non démarré</span>
+                  </div>
+                )}
+
+                {currentTicket.status === 'CALLED' && autoStage === 'WAITING_VOICE_RECALL' && (
+                  <div className="cashier-automation-banner voice-active">
+                    <Volume2 size={18} className="pulse-alert" />
+                    <span>Rappel vocal automatique en cours...</span>
+                  </div>
+                )}
+
+                {currentTicket.status === 'CALLED' && autoStage === 'COUNTDOWN_ABSENT' && (
+                  <div className="cashier-automation-banner absent-countdown">
+                    <AlertTriangle size={18} className="pulse-alert" />
+                    <span>Absence automatique & appel suivant dans <strong>{autoCountdownSec}s</strong></span>
+                  </div>
+                )}
+
+                {currentTicket.status === 'IN_PROGRESS' && (
+                  <div className="cashier-automation-banner in-progress-active">
+                    <CheckCircle2 size={18} />
+                    <span>En cours de service • Traitement actif au guichet</span>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -465,7 +885,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
                 title="Démarrer le traitement du client arrivé au guichet"
               >
                 <Clock size={20} />
-                <span>Démarrer le Traitement</span>
+                <span>Démarrer le traitement</span>
               </button>
             )}
             {currentTicket && currentTicket.status === 'IN_PROGRESS' && (
@@ -477,7 +897,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
                 title="Clôturer le service du ticket actuel"
               >
                 <CheckCircle2 size={20} />
-                <span>Terminer le Service</span>
+                <span>Terminer le service</span>
               </button>
             )}
           </div>
@@ -623,6 +1043,102 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           tickets={tickets}
           onClose={handleProfileClose}
         />
+      )}
+
+      {/* ── MODAL PIN CAISSIER / AGENT ── */}
+      {showPinModal && (
+        <div className="adm-modal-overlay">
+          <div className="adm-modal glass-card animate-scale-up" style={{ maxWidth: '420px', width: '100%', padding: '2rem', background: '#FFFFFF', borderRadius: '24px', boxShadow: '0 20px 40px rgba(0,0,0,0.15)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(211, 18, 42, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#D3122A', fontSize: '1.25rem' }}>
+                  🔐
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#0F172A' }}>Session Guichetier</h3>
+                  <span style={{ fontSize: '0.8rem', color: '#64748B' }}>{selectedAgent.name} (Poste {counterNumber})</span>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setShowPinModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: '#94A3B8', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAgentLogin}>
+              <p style={{ fontSize: '0.88rem', color: '#475569', marginBottom: '1rem', lineHeight: 1.5 }}>
+                Veuillez saisir votre code PIN pour sécuriser vos opérations de caisse (Code PIN par défaut : <strong>1234</strong>).
+              </p>
+
+              {pinError && (
+                <div style={{ padding: '0.65rem 0.85rem', background: '#FEE2E2', color: '#B91C1C', borderRadius: '10px', fontSize: '0.82rem', fontWeight: 600, marginBottom: '1rem' }}>
+                  {pinError}
+                </div>
+              )}
+
+              <input 
+                type="password"
+                maxLength={20}
+                placeholder="Code PIN (ex: 1234)"
+                value={pinInput}
+                onChange={e => setPinInput(e.target.value)}
+                autoFocus
+                style={{
+                  width: '100%',
+                  padding: '0.85rem 1rem',
+                  fontSize: '1.2rem',
+                  letterSpacing: '0.2em',
+                  textAlign: 'center',
+                  borderRadius: '12px',
+                  border: '2px solid #E2E8F0',
+                  outline: 'none',
+                  marginBottom: '1.25rem',
+                  boxSizing: 'border-box'
+                }}
+              />
+
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button 
+                  type="button"
+                  onClick={() => setShowPinModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    borderRadius: '12px',
+                    border: '1px solid #CBD5E1',
+                    background: '#F8FAFC',
+                    color: '#475569',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    flex: 1,
+                    padding: '0.75rem',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: '#D3122A',
+                    color: '#FFFFFF',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(211, 18, 42, 0.3)'
+                  }}
+                >
+                  Déverrouiller
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+        </div>
       )}
 
       {/* Styled CSS 2026 */}
@@ -951,6 +1467,65 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           font-size: 0.9rem;
           color: #334155;
           font-weight: 700;
+        }
+
+        .cashier-automation-banner {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.6rem;
+          margin-top: 1rem;
+          padding: 0.6rem 1.4rem;
+          border-radius: 99px;
+          font-size: 0.92rem;
+          font-weight: 700;
+          transition: all 0.3s ease;
+          animation: fadeInBanner 0.3s ease-in-out;
+        }
+
+        .cashier-automation-banner.voice-active {
+          background: rgba(37, 99, 235, 0.1);
+          color: #2563EB;
+          border: 1px solid rgba(37, 99, 235, 0.3);
+        }
+
+        .cashier-automation-banner.recall-countdown {
+          background: rgba(245, 158, 11, 0.12);
+          color: #D97706;
+          border: 1px solid rgba(245, 158, 11, 0.35);
+        }
+
+        .cashier-automation-banner.absent-countdown {
+          background: rgba(239, 68, 68, 0.12);
+          color: #DC2626;
+          border: 1px solid rgba(239, 68, 68, 0.35);
+          animation: pulseBorder 1.5s infinite;
+        }
+
+        .cashier-automation-banner.in-progress-active {
+          background: rgba(16, 185, 129, 0.12);
+          color: #059669;
+          border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        @keyframes pulseBorder {
+          0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+          70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        @keyframes fadeInBanner {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .pulse-alert {
+          animation: pulseAnim 1s infinite alternate;
+        }
+
+        @keyframes pulseAnim {
+          from { opacity: 0.6; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1.05); }
         }
 
         .agent-actions-grid {
@@ -1343,7 +1918,344 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
           font-size: 0.82rem;
           color: #94A3B8;
         }
+
+        /* ── PORTAIL DE CONNEXION CAISSIER OBLIGATOIRE ── */
+        .cashier-login-portal-wrapper {
+          min-height: 90vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 2rem 1rem;
+          font-family: var(--font-body, 'Inter', system-ui, sans-serif);
+        }
+
+        .cashier-login-card {
+          max-width: 480px;
+          width: 100%;
+          background: #FFFFFF;
+          border-radius: 28px;
+          padding: 2.5rem 2rem;
+          box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(226, 232, 240, 0.8);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .cashier-login-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 6px;
+          background: linear-gradient(90deg, #D3122A 0%, #B91C1C 50%, #F59E0B 100%);
+        }
+
+        .cashier-login-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding-bottom: 1.25rem;
+          border-bottom: 1px solid #F1F5F9;
+          margin-bottom: 1.5rem;
+        }
+
+        .cashier-brand-badge {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .cashier-brand-logo {
+          font-size: 2.2rem;
+        }
+
+        .cashier-brand-text h2 {
+          font-family: var(--font-heading);
+          font-size: 1.05rem;
+          font-weight: 900;
+          color: #D3122A;
+          margin: 0;
+          letter-spacing: 0.02em;
+        }
+
+        .cashier-brand-text span {
+          font-size: 0.72rem;
+          color: #64748B;
+          font-weight: 600;
+        }
+
+        .cashier-agency-pill {
+          font-size: 0.75rem;
+          font-weight: 800;
+          background: #FEF2F2;
+          color: #991B1B;
+          border: 1px solid #FECACA;
+          padding: 0.35rem 0.65rem;
+          border-radius: 8px;
+          white-space: nowrap;
+        }
+
+        .cashier-login-title-box {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          background: #F8FAFC;
+          border: 1px solid #E2E8F0;
+          border-radius: 16px;
+          padding: 1rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .cashier-lock-icon-circle {
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          background: rgba(211, 18, 42, 0.1);
+          color: #D3122A;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .cashier-login-title-box h3 {
+          margin: 0;
+          font-size: 1.1rem;
+          font-weight: 800;
+          color: #0F172A;
+        }
+
+        .cashier-login-title-box p {
+          margin: 0.15rem 0 0 0;
+          font-size: 0.8rem;
+          color: #64748B;
+        }
+
+        .login-field-group {
+          margin-bottom: 1.25rem;
+        }
+
+        .login-field-label {
+          display: block;
+          font-size: 0.82rem;
+          font-weight: 700;
+          color: #334155;
+          margin-bottom: 0.45rem;
+        }
+
+        .login-select-wrapper {
+          position: relative;
+        }
+
+        .login-agent-select {
+          width: 100%;
+          padding: 0.85rem 1rem;
+          font-size: 0.95rem;
+          font-weight: 700;
+          color: #0F172A;
+          background: #F8FAFC;
+          border: 2px solid #E2E8F0;
+          border-radius: 12px;
+          outline: none;
+          transition: all 0.2s ease;
+          cursor: pointer;
+        }
+
+        .login-agent-select:focus {
+          border-color: #D3122A;
+          background: #FFFFFF;
+          box-shadow: 0 0 0 3px rgba(211, 18, 42, 0.1);
+        }
+
+        .login-workstation-preview {
+          background: #EFF6FF;
+          border: 1.5px solid #BFDBFE;
+          border-radius: 14px;
+          padding: 0.85rem 1rem;
+          margin-bottom: 1.25rem;
+        }
+
+        .preview-header {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          font-size: 0.75rem;
+          font-weight: 800;
+          color: #1D4ED8;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+          margin-bottom: 0.4rem;
+        }
+
+        .preview-body {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .preview-icon {
+          font-size: 1.5rem;
+        }
+
+        .preview-info {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+        }
+
+        .preview-info strong {
+          font-size: 0.92rem;
+          color: #0F172A;
+          font-weight: 800;
+        }
+
+        .preview-info span {
+          font-size: 0.75rem;
+          color: #475569;
+        }
+
+        .preview-locked-pill {
+          font-size: 0.72rem;
+          font-weight: 800;
+          background: #DBEAFE;
+          color: #1E40AF;
+          padding: 0.2rem 0.55rem;
+          border-radius: 9999px;
+          border: 1px solid #BFDBFE;
+        }
+
+        .login-pin-input {
+          width: 100%;
+          padding: 0.85rem 1rem;
+          font-size: 1.15rem;
+          font-weight: 800;
+          letter-spacing: 0.15em;
+          text-align: center;
+          color: #0F172A;
+          background: #F8FAFC;
+          border: 2px solid #E2E8F0;
+          border-radius: 12px;
+          outline: none;
+          box-sizing: border-box;
+          transition: all 0.2s ease;
+        }
+
+        .login-pin-input:focus {
+          border-color: #D3122A;
+          background: #FFFFFF;
+          box-shadow: 0 0 0 3px rgba(211, 18, 42, 0.1);
+        }
+
+        .login-error-alert {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: #FEE2E2;
+          border: 1px solid #FECACA;
+          color: #B91C1C;
+          font-size: 0.82rem;
+          font-weight: 700;
+          padding: 0.7rem 0.9rem;
+          border-radius: 12px;
+          margin-bottom: 1.25rem;
+        }
+
+        .login-submit-btn {
+          width: 100%;
+          padding: 0.95rem;
+          background: linear-gradient(135deg, #D3122A 0%, #991B1B 100%);
+          color: #FFFFFF;
+          font-size: 0.98rem;
+          font-weight: 800;
+          border: none;
+          border-radius: 14px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.6rem;
+          box-shadow: 0 4px 15px rgba(211, 18, 42, 0.3);
+          transition: all 0.2s ease;
+        }
+
+        .login-submit-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 6px 20px rgba(211, 18, 42, 0.4);
+        }
+
+        .login-submit-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .login-security-notice {
+          margin-top: 1.25rem;
+          padding: 0.75rem;
+          background: #FFFBEB;
+          border: 1px solid #FDE68A;
+          border-radius: 10px;
+          font-size: 0.74rem;
+          color: #92400E;
+          line-height: 1.45;
+        }
+
+        /* ── VERROUILLAGE TOPBAR CAISSIER CONNECTÉ ── */
+        .agent-locked-identity {
+          display: flex;
+          align-items: center;
+        }
+
+        .agent-name-display {
+          font-family: var(--font-heading);
+          font-size: 1.05rem;
+          font-weight: 800;
+          color: #0F172A;
+        }
+
+        .workstation-locked {
+          background: #F8FAFC !important;
+          border-color: #E2E8F0 !important;
+        }
+
+        .station-locked-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .station-locked-name {
+          font-family: var(--font-heading);
+          font-size: 0.95rem;
+          font-weight: 800;
+          color: #0F172A;
+        }
+
+        .station-locked-badge {
+          font-size: 0.68rem;
+          font-weight: 800;
+          background: #FEF2F2;
+          color: #D3122A;
+          border: 1px solid #FECACA;
+          padding: 0.15rem 0.45rem;
+          border-radius: 6px;
+        }
+
+        .btn-logout-session {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          padding: 0.45rem 0.85rem;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .btn-logout-session:hover {
+          background: #FEE2E2 !important;
+          border-color: #FDA4AF !important;
+        }
       `}</style>
-    </div>
+    </>
   );
 }

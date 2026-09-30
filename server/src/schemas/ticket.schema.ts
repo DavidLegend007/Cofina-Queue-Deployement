@@ -21,11 +21,18 @@ export const callNextSchema = z.object({
 export const updateStatusSchema = z.object({
   ticketId: z.string().uuid('ID ticket invalide'),
   status: z.enum(['WAITING', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW']),
-  extra: z.any().optional()
+  extra: z.object({
+    satisfactionScore: z.number().int().min(1).max(5).optional(),
+    customerName: z.string().max(100).optional(),
+    customerPhone: z.string().max(30).optional(),
+    customerEmail: z.string().email().optional(),
+    counterNumber: z.number().int().min(1).max(20).optional(),
+    agentName: z.string().max(50).optional()
+  }).optional()
 });
 
 export const loginSchema = z.object({
   username: z.string().min(1).optional(),
-  password: z.string().min(1).optional(),
+  password: z.string().min(1, 'Le mot de passe ou code PIN est obligatoire'),
   role: z.enum(['ADMIN', 'AGENT', 'KIOSK']).optional()
 });

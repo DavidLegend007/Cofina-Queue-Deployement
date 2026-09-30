@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Planning Cofina</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; line-height: 1.6; color: #333; }
+  h1 { color: #C8102E; border-bottom: 2px solid #C8102E; padding-bottom: 10px; }
+  h2 { color: #C8102E; margin-top: 30px; }
+  ul { margin-bottom: 20px; }
+  li { margin-bottom: 8px; }
+  strong { color: #000; }
+</style>
+</head>
+<body>
+  <h1>Planning Prévisionnel - Déploiement du Système de Gestion de File d'Attente COFINA</h1><br><strong>Dates :</strong> Samedi 3 Octobre et Dimanche 4 Octobre
+<strong>Lieu :</strong> Agence COFINA
+<strong>Objectif :</strong> Installation, configuration réseau, tests matériels/logiciels et formation du personnel pour le nouveau système de gestion de file d'attente.<br><hr><br><h2>📅 Samedi 3 Octobre : Installation & Configuration Matérielle</h2><br><ul><li><strong>11h00 - 11h30 | Arrivée et Briefing</strong>
+<br> - Rencontre avec le responsable d'agence ou le superviseur.
+<br> - Validation des emplacements physiques (Borne, Serveur, Écran TV).<br><ul><li><strong>11h30 - 13h30 | Mise en place du Serveur & Réseau</strong>
+<br> - Démarrage et configuration du serveur local Ubuntu (IP : `192.168.1.182`).
+<br> - Vérification de la connectivité réseau (câble Ethernet / WiFi) pour tous les équipements.
+<br> - Lancement de l'application (Backend + Frontend).<br><ul><li><strong>13h30 - 14h30 | Pause déjeuner</strong><br><ul><li><strong>14h30 - 16h00 | Déploiement de la Borne Tactile (Kiosk)</strong>
+<br> - Installation de la borne à l'accueil.
+<br> - Configuration de l'imprimante thermique par défaut sur Windows.
+<br> - Déploiement du script de lancement automatique (`Lancer_Borne_Cofina.bat`) via Microsoft Edge.
+<br> - Tests d'impression silencieuse des tickets.<br><ul><li><strong>16h00 - 17h30 | Configuration de l'Écran TV (Smart TV TCL)</strong>
+<br> - Fixation/Positionnement de l'écran dans la zone d'attente.
+<br> - Connexion de la TV au réseau local.
+<br> - Affichage de l'interface d'attente en plein écran (module d'affichage).<br><ul><li><strong>17h30 - 18h00 | Bilan de fin de journée</strong>
+<br> - Validation de la communication de base entre le serveur, la borne et la TV.<br><hr><br><h2>📅 Dimanche 4 Octobre : Tests Logiciels, Audio & Formation</h2><br><ul><li><strong>10h00 - 11h30 | Configuration des Postes Caissiers/Agents</strong>
+<br> - Paramétrage des raccourcis sur les ordinateurs des caissiers/agents.
+<br> - Test de connexion à l'interface agent via leur navigateur web (Edge/Chrome).<br><ul><li><strong>11h30 - 13h00 | Tests Globaux & Ajustements Audio</strong>
+<br> - Simulation de flux : Prise de tickets sur la borne -> Affichage sur la TV -> Appel depuis une caisse.
+<br> - <strong>Test spécifique de l'audio</strong> : Vérification stricte que le carillon et l'annonce vocale ("Ticket X au guichet Y") sortent <strong>uniquement</strong> sur les haut-parleurs de la télévision, et non sur les PC des caissiers.<br><ul><li><strong>13h00 - 14h00 | Pause déjeuner</strong><br><ul><li><strong>14h00 - 15h30 | Simulations en Conditions Réelles</strong>
+<br> - Tests de bout en bout (pics d'affluence simulés).
+<br> - Vérification des rappels de tickets ("Recall").
+<br> - Test du panneau d'administration (vue globale des files).<br><ul><li><strong>15h30 - 17h00 | Prise en main du Personnel</strong>
+<br> - Accompagnement sur les nouveaux postes de travail.<br><ul><li><strong>17h00 - 17h30 | Clôture et Nettoyage</strong>
+<br> - Nettoyage de la base de données de test (remise à zéro des compteurs pour le lendemain).
+<br> - Signature de la fiche de recette (validation finale du système prêt pour lundi matin).
+
+</body>
+</html>

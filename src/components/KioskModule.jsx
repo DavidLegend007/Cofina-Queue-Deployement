@@ -84,7 +84,7 @@ const TEXTS = {
     qrSub:          'Ouvrez l\'appareil photo de votre téléphone ou une application lecteur QR et visez ce code pour suivre votre rang',
     scanBtn:        'Scanner le QR Code (Mobile)',
     printBtn:       'Imprimer le ticket papier',
-    printingText:   'Impression thermique 80mm en cours…',
+    printingText:   'Impression thermique 58mm en cours…',
     printedText:    '✓ Ticket Papier Imprimé !',
   },
   en: {
@@ -104,7 +104,7 @@ const TEXTS = {
     qrSub:          'Open your phone\'s camera or a QR scanner app and point it at this code to track your turn',
     scanBtn:        'Scan QR Code (Mobile)',
     printBtn:       'Print paper ticket',
-    printingText:   '80mm thermal printing in progress…',
+    printingText:   '58mm thermal printing in progress…',
     printedText:    '✓ Paper Ticket Printed!',
   },
 };
@@ -263,9 +263,17 @@ const buildCSS = () => `
     padding:18px 22px 16px;
     display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
   }
-  .bn-ticket-banner-logo { height:26px; object-fit:contain; filter:brightness(0) invert(1); }
+  .bn-ticket-banner-logo-box {
+    background: #ffffff;
+    padding: 4px 10px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  }
+  .bn-ticket-banner-logo { height:22px; object-fit:contain; }
   .bn-ticket-banner-agency {
-    font-size:11px; font-weight:700; color:rgba(255,255,255,0.85);
+    font-size:11px; font-weight:700; color:rgba(255,255,255,0.92);
     letter-spacing:0.04em; margin-top:5px;
   }
   .bn-ticket-service-badge {
@@ -485,166 +493,137 @@ const buildCSS = () => `
     font-weight: 900 !important;
   }
 
-  /* --- PRINT STYLES FOR THERMAL PRINTER (6cm x 4cm) --- */
-  @page {
-    size: 60mm 40mm;
-    margin: 0;
+  /* ── DEDICATED THERMAL TICKET (58mm x 50mm PAYSAGE) ── */
+  #cofina-thermal-ticket {
+    display: none;
   }
+
+  @page {
+    size: 58mm 50mm landscape;
+    margin: 0mm !important;
+  }
+
   @media print {
-    /* Hide all main kiosk UI elements */
-    .bn-header, .bn-main, .bn-footer, .bn-processing {
-      display: none !important;
-    }
-    
-    /* Hide global App UI elements from App.jsx */
-    .nav-container, .cofina-global-footer, .cofina-floating-widget {
-      display: none !important;
-    }
-    
-    body, html, #root, .cofina-app-root, .main-content-area, .bn-root {
-      background: #fff !important;
-      height: auto !important;
-      min-height: 0 !important;
+    /* Supprimer marges globales et masquer tout le contenu écran */
+    html, body {
+      background: #ffffff !important;
       margin: 0 !important;
       padding: 0 !important;
-      overflow: visible !important;
+      width: 58mm !important;
+      height: 50mm !important;
+      overflow: hidden !important;
     }
     
-    .bn-overlay {
-      background: transparent !important;
-      backdrop-filter: none !important;
-      position: relative !important;
-      width: 60mm !important;
-      height: 40mm !important;
-      display: block !important;
-      page-break-inside: avoid;
-    }
-    .bn-ticket-card, .bn-ticket-card * {
-      visibility: visible;
-    }
-    .bn-ticket-card {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 60mm !important;
-      height: 40mm !important;
-      margin: 0;
-      padding: 2mm !important;
-      box-shadow: none !important;
-      transform: none !important;
-      border: none !important;
-      border-radius: 0 !important;
-      display: block !important;
-      overflow: hidden;
-      background: #fff !important;
-      color: #000 !important;
-      box-sizing: border-box !important;
-    }
-    
-    /* Hide the perforated line, right QR section, and footer buttons */
-    .bn-perforated-vertical,
-    .bn-ticket-card > div:nth-child(3),
-    .bn-ticket-footer {
-      display: none !important;
+    body * {
+      visibility: hidden !important;
     }
 
-    /* Adjust the left section (ticket info) to occupy the whole print area */
-    .bn-ticket-card > div:nth-child(1) {
+    /* Rendre UNIQUEMENT visible le ticket thermique 58mm x 50mm */
+    #cofina-thermal-ticket, #cofina-thermal-ticket * {
+      visibility: visible !important;
+    }
+
+    #cofina-thermal-ticket {
       display: flex !important;
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 58mm !important;
+      height: 50mm !important;
+      max-width: 58mm !important;
+      max-height: 50mm !important;
+      margin: 0 !important;
+      padding: 2mm 3mm !important;
+      box-sizing: border-box !important;
       flex-direction: column !important;
-      width: 100% !important;
-      height: 100% !important;
-      padding: 0 !important;
-      justify-content: center !important;
-    }
-
-    /* Compress the banner */
-    .bn-ticket-banner {
-      padding: 0 !important;
-      margin-bottom: 2px !important;
-      min-height: auto !important;
-      flex-direction: row !important;
       justify-content: space-between !important;
       align-items: center !important;
-      background: transparent !important;
-      color: #000 !important;
-      border-bottom: 1px dashed #000 !important;
-    }
-    .bn-ticket-banner-logo {
-      height: 10px !important;
-    }
-    .bn-ticket-banner-agency {
-      font-size: 7px !important;
-      color: #000 !important;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .bn-ticket-service-badge {
-      font-size: 7px !important;
-      padding: 1px 3px !important;
-      background: transparent !important;
-      color: #000 !important;
-      border: 1px solid #000 !important;
-    }
-    .bn-ticket-vip-badge {
-      display: none !important;
+      text-align: center !important;
+      background: #ffffff !important;
+      color: #000000 !important;
+      overflow: hidden !important;
+      page-break-after: avoid !important;
+      page-break-inside: avoid !important;
     }
 
-    /* Ticket body */
-    .bn-ticket-body {
-      padding: 0 !important;
-      gap: 1px !important;
-      flex: 1 !important;
-      display: flex !important;
-      flex-direction: column !important;
-      justify-content: center !important;
-    }
-    .bn-ticket-number-box {
-      padding: 0 !important;
-      margin: 0 !important;
-      border: none !important;
-      background: transparent !important;
-      box-shadow: none !important;
+    .th-header {
+      width: 100% !important;
       display: flex !important;
       flex-direction: column !important;
       align-items: center !important;
+      gap: 1px !important;
     }
-    .bn-ticket-number-box > div:first-child {
-      display: none !important; /* Hide the big circular icon */
+    .th-logo-row {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 5px !important;
     }
-    .bn-receipt-label {
+    .th-logo {
+      height: 14px !important;
+      object-fit: contain !important;
+    }
+    .th-brand {
+      font-size: 11px !important;
+      font-weight: 900 !important;
+      letter-spacing: 0.04em !important;
+      color: #000000 !important;
+    }
+    .th-agency {
       font-size: 8px !important;
-      color: #000 !important;
-      margin: 0 !important;
+      color: #000000 !important;
+      font-weight: 600 !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      max-width: 100% !important;
     }
-    .bn-receipt-number {
-      font-size: 26px !important;
-      font-weight: bold !important;
-      color: #000 !important;
+    .th-divider {
+      width: 100% !important;
+      border-top: 1px dashed #000000 !important;
+      margin: 1.5px 0 !important;
+    }
+    .th-body {
+      width: 100% !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      flex: 1 !important;
+    }
+    .th-ticket-num {
+      font-size: 38px !important;
+      font-weight: 900 !important;
       line-height: 1 !important;
-      margin: 0 !important;
+      color: #000000 !important;
+      letter-spacing: 1.5px !important;
+      margin: 1px 0 !important;
     }
-    .bn-receipt-service {
-      font-size: 9px !important;
-      color: #000 !important;
-      margin: 1px 0 0 0 !important;
-    }
-    .bn-ticket-date {
-      font-size: 7px !important;
-      color: #000 !important;
-      margin: 1px 0 0 0 !important;
-    }
-
-    /* Wait info */
-    .bn-wait-info {
-      font-size: 8px !important;
-      color: #000 !important;
-      background: transparent !important;
-      border: none !important;
-      padding: 0 !important;
+    .th-service {
+      font-size: 12px !important;
+      font-weight: 800 !important;
+      color: #000000 !important;
       margin-top: 2px !important;
-      text-align: center !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.05em !important;
+    }
+    .th-vip {
+      font-size: 8px !important;
+      font-weight: 800 !important;
+      border: 1px solid #000000 !important;
+      padding: 0 4px !important;
+      border-radius: 2px !important;
+      margin-top: 1px !important;
+    }
+    .th-footer {
+      width: 100% !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 8px !important;
+      color: #000000 !important;
+      font-weight: 600 !important;
+      padding-bottom: 0.5mm !important;
     }
   }
 `;
@@ -662,7 +641,8 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   const [clockTime,      setClockTime]      = useState(new Date());
   const [waitingCount,   setWaitingCount]   = useState(0);
 
-  // URL du serveur pour le QR Code mobile (détection auto IP LAN)
+  // URL du serveur pour le QR Code mobile (détection auto IP LAN ou URL Publique 4G)
+  const [isPublicUrl, setIsPublicUrl] = useState(false);
   const [lanBaseUrl, setLanBaseUrl] = useState(() => {
     if (typeof window !== 'undefined') {
       const { hostname, origin } = window.location;
@@ -670,16 +650,21 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
         return origin;
       }
     }
-    return 'http://192.168.1.100:3000';
+    return 'http://192.168.1.100:4000';
   });
 
   useEffect(() => {
     fetch('/api/network-info')
       .then(res => res.json())
       .then(data => {
-        if (data && data.lanUrl) {
-          if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-            setLanBaseUrl(data.lanUrl);
+        if (data) {
+          if (data.isPublic && data.publicUrl) {
+            setLanBaseUrl(data.publicUrl);
+            setIsPublicUrl(true);
+          } else if (data.lanUrl) {
+            if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+              setLanBaseUrl(data.lanUrl);
+            }
           }
         }
       })
@@ -749,11 +734,6 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
       setIssuedTicket({ ...ticket, operationLabel: op.label, op });
       setIsSubmitting(false);
       if (onTicketGenerated) onTicketGenerated(ticket);
-      
-      // Auto-impression directe
-      setTimeout(() => {
-        handlePrintTicket();
-      }, 500); // laisser le temps au DOM (QR Code) de se charger
     } catch (error) {
       console.error('Failed to create ticket', error);
       setIsSubmitting(false);
@@ -763,11 +743,14 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   const handlePrintTicket = () => {
     if (isPrinting) return;
     setIsPrinting(true);
+    const origTitle = document.title;
+    document.title = '';
     setTimeout(() => {
       window.print();
+      document.title = origTitle;
       setIsPrinting(false);
       setIsPrinted(true);
-    }, 100);
+    }, 120);
   };
 
   const handleScanQR = () => {
@@ -948,14 +931,17 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
         const avgMin = (COFINA_SERVICES.find(s => s.code === issuedTicket.serviceCode) || {}).avgTimeMin || 5;
         const estWait = Math.max(2, waitingCount * avgMin);
         return (
-          <div className="bn-overlay" onClick={handleReset} role="dialog" aria-modal="true" aria-label="Ticket de passage généré">
+          <>
+            <div className="bn-overlay" onClick={handleReset} role="dialog" aria-modal="true" aria-label="Ticket de passage généré">
             <div className="bn-ticket-card" onClick={e => e.stopPropagation()} aria-live="polite">
 
               {/* ── SECTION GAUCHE (INFOS TICKET) ── */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <div className="bn-ticket-banner" style={{ background: theme.gradient }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <img src="/cofina.jpeg" alt="Cofina" className="bn-ticket-banner-logo" />
+                    <div className="bn-ticket-banner-logo-box">
+                      <img src="/cofina.jpeg" alt="Cofina Logo" className="bn-ticket-banner-logo" />
+                    </div>
                     <span className="bn-ticket-banner-agency">📍 {agencyName}</span>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
@@ -1051,9 +1037,13 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                     {txt.qrSub}
                   </p>
                   <p style={{ fontSize: '11px', color: '#64748b', textAlign: 'center', margin: '0 0 14px 0', lineHeight: '1.3' }}>
-                    {currentLang === 'en' 
-                      ? '📶 Connect to agency Wi-Fi to track your turn on your mobile' 
-                      : '📶 Connectez-vous au Wi-Fi de l\'agence pour le suivi en direct'}
+                    {isPublicUrl
+                      ? (currentLang === 'en' 
+                          ? '🌐 Compatible with 4G Mobile Data & Wi-Fi' 
+                          : '🌐 Compatible 4G Mobile & Wi-Fi')
+                      : (currentLang === 'en' 
+                          ? '📶 Connect to agency Wi-Fi to track your turn on your mobile' 
+                          : '📶 Connectez-vous au Wi-Fi de l\'agence pour le suivi en direct')}
                   </p>
                   <div className="bn-qr-pulse">
                     <div className="bn-pulse-dot" />
@@ -1064,8 +1054,34 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
 
             </div>
           </div>
-        );
-      })()}
+
+          {/* ── TICKET THERMIQUE 58mm x 50mm PAYSAGE (UNIQUEMENT POUR L'IMPRIMANTE) ── */}
+          <div id="cofina-thermal-ticket" aria-hidden="true">
+            <div className="th-header">
+              <div className="th-logo-row">
+                <img src="/cofina.jpeg" alt="Cofina" className="th-logo" />
+                <span className="th-brand">COFINA TOGO</span>
+              </div>
+              <div className="th-agency">{agencyName}</div>
+            </div>
+
+            <div className="th-divider" />
+
+            <div className="th-body">
+              <div className="th-ticket-num">{issuedTicket.ticketNumber}</div>
+              <div className="th-service">{issuedTicket.operationLabel || issuedTicket.serviceName}</div>
+              {theme.vip && <div className="th-vip">★ ACCÈS PRIORITAIRE VIP ★</div>}
+            </div>
+
+            <div className="th-divider" />
+
+            <div className="th-footer">
+              <span>{new Date(issuedTicket.createdAt || Date.now()).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })} · {timeStr}</span>
+            </div>
+          </div>
+        </>
+      );
+    })()}
 
       {/* HELP MODAL */}
       {showHelp && (

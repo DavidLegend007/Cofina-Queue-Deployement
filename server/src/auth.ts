@@ -63,17 +63,12 @@ export function authenticateToken(req: any, res: any, next: any) {
   const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
 
   if (!token) {
-    // Mode Edge Local Résilient : Si aucun token n'est transmis par le poste local d'agence,
-    // attribuer automatiquement la session locale AGENT pour ne jamais bloquer les opérations guichets.
-    req.user = { username: 'agent', role: 'AGENT', agency: 'KODJOVIAKOPE' };
-    return next();
+    return res.status(401).json({ error: 'Jeton d\'authentification manquant' });
   }
 
   jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
     if (err) {
-      // Jeton expiré ou secret différent : secours automatique session Agent locale
-      req.user = { username: 'agent', role: 'AGENT', agency: 'KODJOVIAKOPE' };
-      return next();
+      return res.status(403).json({ error: 'Jeton d\'authentification invalide ou expiré' });
     }
     req.user = user as TokenPayload;
     next();

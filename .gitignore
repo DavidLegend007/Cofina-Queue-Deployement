@@ -14,6 +14,10 @@ server/prisma/cofina_edge.db-journal
 *.log
 npm-debug.log*
 
+# Executables & Binaries
+cloudflared.exe
+*.exe
+
 # Environment & Local Files
 .env
 .env.local

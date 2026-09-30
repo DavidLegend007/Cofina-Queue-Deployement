@@ -25,13 +25,7 @@ export function createAuthRouter(prisma: PrismaClient) {
       return res.status(401).json({ message: 'Mot de passe Administrateur incorrect' });
     }
 
-    // 2. Authentification Caissier / Agent (Tolérance résiliente LAN pour AGENT_PASSWORD ou cofina2026)
-    if (password === AGENT_PASSWORD || password === 'cofina2026' || !password) {
-      const token = generateToken({ username: username || 'agent', role: 'AGENT', agency: 'KODJOVIAKOPE' });
-      return res.json({ token, username: username || 'agent', role: 'AGENT' });
-    }
-
-    // 3. Authentification par code PIN ou mot de passe individuel en base
+    // 2. Authentification par code PIN ou mot de passe individuel en base pour un agent
     if (username) {
       try {
         const agent = await prisma.agent.findFirst({ where: { name: username } });
@@ -44,7 +38,13 @@ export function createAuthRouter(prisma: PrismaClient) {
       }
     }
 
-    res.status(401).json({ message: 'Identifiant ou mot de passe incorrect' });
+    // 3. Authentification Caissier / Agent avec le mot de passe d'agence sécurisé (AGENT_PASSWORD)
+    if (password === AGENT_PASSWORD) {
+      const token = generateToken({ username: username || 'agent', role: 'AGENT', agency: 'KODJOVIAKOPE' });
+      return res.json({ token, username: username || 'agent', role: 'AGENT' });
+    }
+
+    res.status(401).json({ message: 'Identifiant ou mot de passe / code PIN incorrect' });
   });
 
   return router;

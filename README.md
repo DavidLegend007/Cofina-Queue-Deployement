@@ -1,4 +1,4 @@
-# 🏦 COFINA QUEUE SYSTEM V1 — Système de Gestion de File d'Attente Edge Local
+# 🏦 COFINA QUEUE SYSTEM V2 — Système de Gestion de File d'Attente Edge Local & 4G
 
 <p align="center">
   <img src="public/cofina.jpeg" alt="Cofina Togo Logo" width="220"/>
@@ -6,62 +6,84 @@
 
 <p align="center">
   <b>Solution Haute-Disponibilité de Gestion de File d'Attente pour la Microfinance</b><br/>
-  <i>Déployé pour le Groupe COFINA Togo (Agence Pilote Siège Kodjoviakopé)</i>
+  <i>Déployé pour le Groupe COFINA Togo (Agence Pilote Siège Kodjoviakopé & Réseau Agences)</i>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Architecture-100%25%20Edge%20Local-red?style=for-the-badge" alt="Edge Local"/>
+  <img src="https://img.shields.io/badge/Architecture-100%25%20Edge%20Local%20%2B%204G-red?style=for-the-badge" alt="Edge Local + 4G"/>
   <img src="https://img.shields.io/badge/Hors--Ligne-Garanti%20Sans%20Internet-059669?style=for-the-badge" alt="Offline"/>
-  <img src="https://img.shields.io/badge/Cycle-Lundi--Samedi%2014h-1D4ED8?style=for-the-badge" alt="Cycle Hebdomadaire"/>
-  <img src="https://img.shields.io/badge/React-18.3.1-61DAFB?style=for-the-badge&logo=react" alt="React"/>
-  <img src="https://img.shields.io/badge/Node.js-Socket.io-339933?style=for-the-badge&logo=node.js" alt="Node.js"/>
-  <img src="https://img.shields.io/badge/Database-SQLite%20%2F%20Prisma-2563EB?style=for-the-badge&logo=prisma" alt="SQLite Prisma"/>
+  <img src="https://img.shields.io/badge/Tunnel-Cloudflare%204G%20HTTPS-orange?style=for-the-badge" alt="Tunnel 4G"/>
+  <img src="https://img.shields.io/badge/React-19%20%2F%20Vite-61DAFB?style=for-the-badge&logo=react" alt="React 19"/>
+  <img src="https://img.shields.io/badge/Node.js-22%20LTS-339933?style=for-the-badge&logo=node.js" alt="Node.js"/>
+  <img src="https://img.shields.io/badge/Database-SQLite%20WAL%20Prisma-2563EB?style=for-the-badge&logo=prisma" alt="SQLite Prisma"/>
 </p>
 
 ---
 
-## 📌 CONTEXTE MÉTIER & ARCHITECTURE HORS-LIGNE
+## 📌 CONTEXTE MÉTIER & PRINCIPES DIRECTEURS
 
-Le **Cofina Queue System V1** a été spécifiquement développé pour répondre aux réalités opérationnelles des agences de microfinance en Afrique de l'Ouest (Lomé, Togo). Il résout la contrainte majeure des **coupures fréquentes de connexion Internet** grâce à un **Serveur Edge Local 100% Autonome**.
+Le **Cofina Queue System** a été conçu pour répondre aux exigences réelles des agences bancaires et de microfinance en Afrique de l'Ouest (Lomé, Togo). Il associe la robustesse d'un **serveur Edge local 100% autonome** à la flexibilité d'une **passerelle mobile 4G sécurisée**.
 
-### 🌟 Principes Directeurs
-1. **0% Dépendance Cloud / Internet** : L'ensemble de la file d'attente (Borne tactile, Écran TV d'accueil, Postes Caissiers) fonctionne en **réseau local interne (LAN)**. Si la fibre ou la connexion 4G coupe, l'agence continue de servir les clients sans aucune interruption.
-2. **Cycle Hebdomadaire Opérationnel (Lundi 00h00 $\rightarrow$ Samedi 14h00)** : La numérotation des tickets s'étale sur la semaine d'exploitation des agences (Lundi matin au Samedi 14h00). À chaque clôture du Samedi à 14h, l'intégralité des tickets et métriques de la semaine est **automatiquement sauvegardée et archivée en base de données SQLite** (`WeeklyArchive`), puis les compteurs repartent à zéro (`A-001`, `B-001`...) pour le cycle suivant.
-3. **Prise de Ticket QR Code Mobile & Boarding Pass Premium** : 
-   - **Ticket Digital QR Code** affiché en moyen principal immédiat (style billet d'avion *Boarding Pass* avec thèmes couleur par service).
-   - **Ticket Papier Thermique Xprinter 60x40mm** disponible sous forme d'option secondaire d'appoint (sans QR).
-4. **Annonce Audio d'Appel au Guichet** :
-   - *Sur la Borne* : Confirmation visuelle instantanée sans vocalisation bruyante sur borne.
-   - *Au Guichet (Écran TV)* : Carillon Gong sonore bi-tonal + Synthèse vocale de passage (*"Ticket A-008, veuillez passer à la Caisse 1"*).
-5. **Persistance SQLite & Widget Bureau Indépendant** : Base SQLite locale (`cofina_edge.db`) avec persistance absolue en cas de délestage électrique + **Widget Caissier détachable** dans une petite fenêtre bureau ultra-compacte (`360px x 420px`).
+### 🌟 Principes Clés
+
+1. **0% Dépendance Cloud pour l'Agence (Hors-Ligne Garanti)** :
+   - L'ensemble des postes de travail de l'agence (Borne tactile, Caisses, Écran TV, Administration) fonctionne exclusivement en **réseau local (LAN)** sur le port unifié **4000**.
+   - Même en cas de coupure totale d'Internet ou de fibre, l'agence fonctionne normalement sans interruption.
+
+2. **Accès Hybride Wi-Fi & 4G pour le QR Code Client** :
+   - Les clients peuvent scanner le QR Code de leur ticket depuis leur smartphone, **qu'ils soient connectés au Wi-Fi de l'agence ou en données mobiles 4G/5G**.
+   - La passerelle publique optionnelle s'active via un **tunnel Cloudflare chiffré en TLS** (`Lancer_Tunnel_4G.bat`), sans exposer la base de données ni nécessiter d'adresse IP publique fixe.
+
+3. **Interface Hardware Épurée (Zéro Barre de Navigation en Production)** :
+   - Les écrans opérationnels (Borne tactile, Guichets caissiers, Écran TV, Console superviseur) se lancent en **plein écran immersif sans barre de navigation ni menu de démo**.
+   - Un mode démo reste accessible aux administrateurs et formateurs via le paramètre URL `?demo=true` ou `?nav=true`.
+
+4. **Automatisation Métier Complète du Caissier** :
+   - Synchronisation vocale intelligente : le système attend la fin effective de l'annonce vocale avant de lancer les minuteurs.
+   - **Rappel automatique (15s)** si le client ne s'est pas présenté au guichet.
+   - **Absence automatique & appel du client suivant (15s)** sans manipulation manuelle requise du caissier.
+   - Transition fluide : *Appelé* $\rightarrow$ *En cours de service* $\rightarrow$ *Terminé* ou *Absent (No-Show)*.
+
+5. **Impression Thermique 58mm × 50mm Format Paysage** :
+   - Impression calibrée pour imprimante **Xprinter 58mm USB** avec commande native de découpe papier ESC/POS (`\x1DV\x41\x00`).
+   - Déclenchement maîtrisé par bouton explicite pour éviter le gaspillage de papier.
+
+6. **Persistance SQLite WAL & Sauvegardes Atomiques Quotidiennes** :
+   - Base de données locale ultra-rapide en mode Write-Ahead Logging (`WAL`).
+   - Sauvegardes automatiques quotidiennes à minuit via `VACUUM INTO` sans blocage de service, avec rétention tournante de 14 jours.
 
 ---
 
-## 📐 ARCHITECTURE RÉSEAU LOCAL (LAN EDGE)
+## 📐 ARCHITECTURE RÉSEAU HYBRIDE (LAN + TUNNEL 4G)
 
 ```mermaid
-graph TD
-    subgraph Réseau Local Intérieur de l'Agence (SANS INTERNET REQUIRED)
-        Kiosk[🖥️ Borne Tactile Auto-Service] -->|Socket.io / HTTP Local| EdgeServer[💻 Serveur Edge Local Node.js / Express]
-        Agent1[👨🏽‍💼 Poste Caisse 1] -->|Socket.io / HTTP Local| EdgeServer
-        Agent2[👩🏽‍💼 Poste Caisse 2] -->|Socket.io / HTTP Local| EdgeServer
-        Agent3[👨🏿‍💼 Poste Caisse 3] -->|Socket.io / HTTP Local| EdgeServer
-        Agent4[👨🏽‍💼 Poste Opérateur 1] -->|Socket.io / HTTP Local| EdgeServer
-        Agent5[👩🏽‍💼 Poste Opérateur 2] -->|Socket.io / HTTP Local| EdgeServer
-        Agent6[👩🏽‍💼 Poste Accueil] -->|Socket.io / HTTP Local| EdgeServer
-        Widget[📱 Widget Bureau Indépendant] -->|Socket.io LAN| EdgeServer
-        Display[📺 Écran TV Salle d'Attente + Audio] <--|Socket.io Realtime| EdgeServer
-        EdgeServer --> LocalDB[(🗄️ Base SQLite Locale Prisma)]
+graph TB
+    subgraph AGENCE ["🏦 Agence COFINA Togo — Réseau Local Sécurisé (LAN)"]
+        EDGE["💻 Serveur Edge Local (Mini-PC)\nNode.js 22 + Express + SQLite WAL\nPort Unifié : 4000"]
+        BORNE["🖥️ Borne Tactile Accueil\n/?kiosk (Plein Écran)"]
+        CAISSE1["🏧 Caisse 1 (Guichet 1)\n/?agent"]
+        CAISSE2["🏧 Caisse 2 (Guichet 2)\n/?agent"]
+        CAISSE3["🏧 Caisse 3 (Guichet 3)\n/?agent"]
+        TV["📺 Écran TV Salle d'Attente\n/?display (Audio + Gong)"]
+        ADMIN["🖥️ Console Supervision\n/?admin"]
     end
 
-    subgraph Supervision & Business Intelligence (Docker Local)
-        EdgeServer -->|Health Check| UptimeKuma[💚 Supervision Uptime Kuma]
-        LocalDB -->|Consolidation| Metabase[📊 Dashboard BI Metabase]
+    subgraph CLIENTS ["📱 Clients — Suivi du Ticket Digital"]
+        WIFI["📶 Client sur Wi-Fi Agence\nAccès direct LAN : http://192.168.x.x:4000"]
+        MOBILE["📱 Client en 4G / Données Mobiles\nAccès HTTPS chiffré via Tunnel Cloudflare"]
     end
 
-    subgraph Data Analytics Groupe DG (Mensuel)
-        LocalDB -->|Export CSV / Sync Différée| DataAnalyst[📈 Data Analyste — Bilan Direction]
-    end
+    EDGE -->|LAN HTTP :4000| BORNE
+    EDGE -->|LAN HTTP :4000| CAISSE1
+    EDGE -->|LAN HTTP :4000| CAISSE2
+    EDGE -->|LAN HTTP :4000| CAISSE3
+    EDGE -->|LAN HTTP :4000| TV
+    EDGE -->|LAN HTTP :4000| ADMIN
+
+    BORNE -->|QR Code Dynamique| CLIENTS
+    WIFI -->|HTTP LAN direct| EDGE
+    MOBILE -->|HTTPS TLS| CF["☁️ Passerelle Cloudflare Tunnel\n*.trycloudflare.com"]
+    CF -->|Forwarding sécurisé vers :4000| EDGE
 ```
 
 ---
@@ -69,165 +91,134 @@ graph TD
 ## 🚀 LES MODULES DU SYSTÈME
 
 ### 1. 🖥️ Borne Tactile Kiosque (`KioskModule.jsx`)
-- **12 Services Officiels COFINA Togo (avec 12 Icônes Uniques)** :
-   - **D** : Dépôt (💵 Banknote)
-   - **R** : Retrait (👛 Wallet)
-   - **TN** : Transfert national (📤 Send)
-   - **TI** : Transfert international (🌐 Globe)
-   - **O** : Ouverture de compte (👤 UserPlus)
-   - **RC** : Remise de chèque (📑 FileCheck)
-   - **V** : Virement (🔄 ArrowRightLeft)
-   - **DR** : Demande de Relevé (📄 FileText)
-   - **CM** : COFINA Mobile+ (📱 Smartphone)
-   - **C** : Crédit (💳 CreditCard)
-   - **PC** : Parler à un conseiller (🎧 Headphones)
-   - **PMR** : Mobilité Réduite (♿ Accessibility - Prioritaire)
+- **12 Services Officiels COFINA Togo** avec icônes distinctes et codes couleurs :
+  - **D** : Dépôt d'espèces | **R** : Retrait d'espèces | **TN** : Transfert national | **TI** : Transfert international
+  - **O** : Ouverture de compte | **RC** : Remise de chèque | **V** : Virement bancaire | **DR** : Demande de relevé
+  - **CM** : COFINA Mobile+ | **C** : Crédit / Prêt | **PC** : Parler à un conseiller | **PMR** : Mobilité réduite (Prioritaire)
+- **QR Code Adaptatif Automatique** : génère dynamiquement l'URL publique 4G si le tunnel est actif, ou l'URL locale LAN si seul le Wi-Fi est utilisé.
+- **Impression thermique d'appoint** : bouton d'impression Xprinter 58x50mm paysage avec massicot automatique.
+- **Affichage plein écran épuré** : aucune barre de navigation ni pied de page distrayant pour l'usager.
 
-- **Sélecteur Multilingue & Assistance Client** :
-   - Traduction instantanée FR / EN.
-   - Pop-up d'orientation avec contact d'assistance au **92686060**.
-   - Statut en ligne/hors ligne pour chaque caissier (bouton "Caisse Ouverte" / "Caisse Fermée").
-   - Les tickets générés sont instantanément assignés à une caisse libre et annoncés à l'écran, sans aucune intervention manuelle.
-   - S'il n'y a pas de caisse libre, ils sont mis en file d'attente classique.
-- Modal Ticket Style **Boarding Pass Premium** avec ligne perforée et suivi du rang sur mobile.
-- Auto-réinitialisation dynamique après 15 secondes d'inactivité.
+### 2. 📺 Écran TV Salle d'Attente (`DisplayModule.jsx`)
+- Affichage temps réel de l'état des 6 guichets (3 Caisses, 2 Opérateurs, 1 Accueil).
+- Animation d'appel dynamique grand format avec numéro clignotant.
+- **Sonorisation binationale** : Carillon attention bi-tonal + Synthèse vocale de passage (*"Ticket D-008, veuillez passer à la Caisse 1"*).
+- Mode plein écran TV sans barre d'adresse ni navbar.
 
-### 2. 📺 Écran TV Public & Annonces Vocales (`DisplayModule.jsx`)
-- Grille dynamique d'affichage en direct des postes (Caisses, Opérateurs, Accueil).
-- Bannière d'appel clignotante avec animation visuelle d'urgence.
-- Synthèse vocale Web Audio (`SpeechSynthesis`) et Carillon Gong bi-tonal.
+### 3. 👨🏽‍💼 Station Agent & Caissier (`AgentModule.jsx` & `FloatingTellerWidget.jsx`)
+- Session individuelle par guichet avec statut `🟢 Ouvert` / `🔴 Fermé`.
+- Commandes d'appel complètes : **Suivant**, **Démarrer le traitement**, **Rappeler**, **Absent (No-Show)**, **Terminer**.
+- Décompte visuel temps réel des minuteurs (15s rappel auto $\rightarrow$ 15s absence auto & appel suivant).
+- **Widget Bureau Indépendant (<kbd>↗</kbd>)** : mini-fenêtre flottante (`360px x 420px`) détachable pour opérer tout en travaillant sur le progiciel bancaire (*Amplitude Core Banking* ou *Excel*).
 
-### 3. 👨🏽‍💼 Station Agent & Widget Flottant Bureau (`AgentModule.jsx` & `FloatingTellerWidget.jsx`)
-- Statut de la caisse : **Caisse Ouverte (🟢)** ou **Caisse Fermée (🔴)**.
-- Contrôle d'appel complet : **Suivant**, **En traitement**, **Rappeler**, **Absent (No-Show)**, **Terminer**.
-- **Widget Bureau Indépendant** : Réservé à l'Agent. Bouton détachable (<kbd>↗</kbd>) pour garder le contrôle de la file d'attente dans une petite fenêtre flottante compacte (`360px x 420px`), même lorsque le navigateur principal est réduit ou que le caissier travaille sur son logiciel métier (*Amplitude Core Banking*, *Excel*).
-- URL dédiée autonome : `http://<IP_SERVEUR>:3000/?widgetOnly=true`.
-
-### 4. 👤 Profils Agents & Administration (`ProfilePage.jsx` & `AdminModule.jsx`)
-- Visualisation et édition des profils caissiers (Nom, Titre, Avatar emoji / photo).
-- Attribution automatique de **Badges d'Excellence** (*Rapide*, *Performant*, *Senior*, *Fiable*).
-- **Archivage Hebdomadaire (Lundi $\rightarrow$ Samedi 14h)** et **Export CSV sécurisé** pour le Data Analyste.
+### 4. 🔐 Console d'Administration & Supervision (`AdminModule.jsx`)
+- Vue d'ensemble des flux du jour, des temps d'attente et du traitement par guichet.
+- Gestion des utilisateurs et profils agents avec attribution de badges d'excellence.
+- Déclenchement manuel de sauvegarde SQLite et archivage hebdomadaire.
+- Export CSV sécurisé pour le reporting et l'analytique DSI.
 
 ---
 
-## 📦 STRUCTURE DU PROJET
+## 📁 STRUCTURE DU PROJET
 
 ```
-Cofina/
-├── 📄 DEPLOIEMENT.md             # Guide de déploiement en production pas à pas
-├── 📄 DOCUMENTATION_TECHNIQUE.md # Architecture technique et spécifications
-├── 📄 README.md                  # Présentation générale du système
-├── 📄 deploy.sh                  # Script de déploiement automatisé (Linux / Mac)
-├── 📄 deploy.bat                  # Script de déploiement automatisé (Windows)
-├── 📄 docker-compose.yml         # Stack PostgreSQL, Metabase BI et Uptime Kuma
-├── 📄 ecosystem.config.js        # Configuration de démarrage PM2 Process Manager
-├── 📄 package.json               # Dépendances Frontend React
-├── 📄 vite.config.js             # Configuration du bundler Vite
+Cofina-Queue-Deployement/
+├── 📄 Lancer_Borne_Cofina.bat     # ⭐ Script MAÎTRE : Démarre Serveur Edge (4000) + Borne Kiosk
+├── 📄 Lancer_Tunnel_4G.bat        # 🌐 Active la passerelle 4G Cloudflare pour QR Codes
+├── 📄 ouvrir_caisse.bat           # 🏧 Lance le poste Caissier sur le réseau local
+├── 📄 ouvrir_ecran_tv.bat         # 📺 Lance l'affichage TV salle d'attente
+├── 📄 ouvrir_borne.bat            # 🖥️ Raccourci vers la borne tactile seule
+├── 📄 ouvrir_admin.bat            # 🔐 Lance la console d'administration et supervision
+├── 📄 Lancer_Serveur.bat          # 🔄 Alias de compatibilité vers Lancer_Borne_Cofina.bat
+├── 📄 RAPPORT_AUDIT.md            # 🛡️ Rapport d'audit technique, sécurité et fonctionnel (V3)
+├── 📄 DEPLOIEMENT.md              # 📖 Guide de déploiement pas à pas (Windows / Ubuntu)
+├── 📄 DOCUMENTATION_TECHNIQUE.md  # 📘 Manuel technique complet et matrice de routage
+├── 📄 cloudflared.exe             # Binaire officiel Cloudflare Tunnel (accès 4G)
 │
-├── 📁 server/                    # SERVEUR BACKEND NODE.JS EDGE
-│   ├── 📄 package.json           # Dépendances Backend (Express, Socket.io, Prisma)
-│   ├── 📁 prisma/
-│   │   ├── 📄 schema.prisma      # Schéma de base de données SQLite (Ticket & WeeklyArchive)
-│   │   └── 📄 seed.js            # Données d'initialisation d'agence
-│   └── 📁 src/
-│       └── 📄 server.ts          # Serveur Express, WebSocket & REST API
+├── 📁 server/                     # BACKEND EXPRESS / TYPESCRIPT / SQLITE
+│   ├── 📁 prisma/                 # Schéma Prisma SQLite (Ticket, User, Archive, SyncOutbox)
+│   ├── 📁 src/
+│   │   ├── 📄 server.ts           # Serveur Express, CORS RFC 1918 + Cloudflare, Socket.io
+│   │   ├── 📄 auth.ts             # Middleware JWT & RBAC strict
+│   │   ├── 📁 routes/             # Routes REST (/tickets, /auth, /network-info, /backup...)
+│   │   └── 📁 services/           # Service de sauvegarde SQLite (VACUUM INTO)
+│   └── 📄 package.json
 │
-└── 📁 src/                       # APPLICATION FRONTEND REACT
-    ├── 📄 App.jsx                # Application principale & Routeur de modules (?widgetOnly=true)
-    ├── 📁 components/
-    │   ├── 📄 KioskModule.jsx    # Borne tactile & Ticket Boarding Pass
-    │   ├── 📄 DisplayModule.jsx  # Écran TV Public & Synthèse vocale
-    │   ├── 📄 AgentModule.jsx    # Poste de travail Caissier
-    │   ├── 📄 FloatingTellerWidget.jsx # Widget bureau indépendant détachable
-    │   ├── 📄 AdminModule.jsx    # Administration & Archivage Hebdomadaire (Lundi - Samedi 14h)
-    │   ├── 📄 ProfilePage.jsx    # Profil Caissier & Badges
-    │   └── 📄 Navbar.jsx         # Barre de navigation & Sélecteur de langue
-    └── 📁 services/
-        ├── 📄 queueStore.js      # Moteur de synchronisation Socket.io + Cycle hebdomadaire
-        └── 📄 translations.js   # Dictionnaire de traduction FR / EN
+└── 📁 src/                        # FRONTEND REACT 19 / VITE / TAILWIND
+    ├── 📄 App.jsx                 # Routeur avec masquage navbar/footer automatique
+    ├── 📁 components/             # KioskModule, DisplayModule, AgentModule, AdminModule...
+    └── 📁 services/               # Client API, WebSocket, helpers d'impression ESC/POS & audio
 ```
 
 ---
 
-## ⚡ DÉMARRAGE RAPIDE (MODE DÉVELOPPEMENT)
+## ⚡ SCRIPTS D'EXPLOITATION EN AGENCE (WINDOWS)
 
-### 1. Cloner et installer les dépendances
-```bash
-git clone https://github.com/DavidLegend007/Cofina-Queue.git Cofina
-cd Cofina
+Pour une utilisation simple au quotidien par les équipes de l'agence, des raccourcis Windows `.bat` préconfigurés sont disponibles à la racine :
 
-# Installer les dépendances Frontend & Backend
-npm install
-npm --prefix server install
+| Script | Rôle | Machine Cible |
+| :--- | :--- | :--- |
+| ⭐ **`Lancer_Borne_Cofina.bat`** | **Script MAÎTRE tout-en-un** : Détecte et lance automatiquement le serveur backend (Port 4000) puis ouvre la borne tactile en plein écran Kiosk sans barre d'adresse. | Mini-PC Serveur Edge de l'agence |
+| 🌐 **`Lancer_Tunnel_4G.bat`** | **Passerelle 4G** : Active le tunnel Cloudflare pour rendre le QR code scannable par les clients en 4G. | Mini-PC Serveur Edge (optionnel) |
+| 🏧 **`ouvrir_caisse.bat`** | Ouvre l'espace de travail caissier sur le poste de travail. | PC Caisses 1 à 3 & Opérateurs 4 à 6 |
+| 📺 **`ouvrir_ecran_tv.bat`** | Lance l'affichage public de la salle d'attente avec audio. | Écran TV Salle d'attente (HDMI) |
+| 🖥️ **`ouvrir_borne.bat`** | Ouvre uniquement l'interface de la borne tactile. | Borne tactile d'accueil |
+| 🔐 **`ouvrir_admin.bat`** | Ouvre la console d'administration et de supervision. | PC Superviseur / Responsable d'agence |
+
+### Procédure de démarrage type le matin en agence :
 ```
-
-### 2. Initialiser la base SQLite locale
-```bash
-npm --prefix server run prisma:generate
-npm --prefix server run prisma:push
+1. Sur le Mini-PC Serveur : Double-clic sur Lancer_Borne_Cofina.bat
+2. [Optionnel 4G]         : Double-clic sur Lancer_Tunnel_4G.bat
+3. Sur chaque PC Caissier : Double-clic sur ouvrir_caisse.bat
+4. Sur l'Écran TV Salle   : Double-clic sur ouvrir_ecran_tv.bat
+5. Sur le PC Superviseur  : Double-clic sur ouvrir_admin.bat
 ```
-
-### 3. Lancer le serveur et le frontend en mode dev
-```bash
-# Terminal 1 : Serveur Backend Node.js
-npm run server:dev
-
-# Terminal 2 : Frontend React Vite
-npm run dev
-```
-
-L'application sera accessible sur :
-- **Frontend** : `http://localhost:4000`
-- **Widget Caissier Bureau** : `http://localhost:4000/?widgetOnly=true`
-- **Backend API & Socket.io** : `http://localhost:4000`
-- **Health Check** : `http://localhost:4000/health`
 
 ---
 
-## 🚀 DÉPLOIEMENT AUTOMATISÉ EN AGENCE (1-CLIC)
+## 🌐 URLs D'ACCÈS PAR TYPE DE POSTE
 
-Pour déployer le système sur le serveur Edge d'une agence en production :
+En production, **l'ensemble du système est unifié sur le port 4000** :
 
-### Sur Linux / Ubuntu Server :
-```bash
-chmod +x deploy.sh
-./deploy.sh
-```
-
-### Sur Windows Server / Windows 10-11 :
-Double-cliquez sur **`deploy.bat`** ou exécutez `deploy.bat` dans l'invite de commande.
-
-> Pour tous les détails de configuration du réseau LAN d'agence et des navigateurs en mode Kiosque, consultez le guide [DEPLOIEMENT.md](file:///d:/Cofina/DEPLOIEMENT.md).
+| Écran | URL Réseau Local | Mode d'Affichage |
+| :--- | :--- | :--- |
+| **Borne Tactile Kiosque** | `http://<IP_SERVEUR>:4000/?kiosk` | Plein écran tactile épuré (sans navbar ni footer) |
+| **Écran TV Salle d'Attente** | `http://<IP_SERVEUR>:4000/?display` | Plein écran public avec carillon & voix |
+| **Poste Caissier / Conseiller** | `http://<IP_SERVEUR>:4000/?agent` | Interface guichet sans navbar |
+| **Console Administration** | `http://<IP_SERVEUR>:4000/?admin` | Console de supervision sécurisée par JWT |
+| **Widget Caissier Bureau** | `http://<IP_SERVEUR>:4000/?widgetOnly=true` | Fenêtre pop-out détachable compacte |
+| **Mode Démonstration / Tests** | `http://<IP_SERVEUR>:4000/?demo=true` | Interface avec barre de navigation visible |
+| **Health Check Serveur** | `http://<IP_SERVEUR>:4000/health` | Vérification santé JSON (statut UP) |
+| **Informations Réseau & QR** | `http://<IP_SERVEUR>:4000/api/network-info` | Détection IP locale & URL publique 4G |
 
 ---
 
-## 🛠️ ENDPOINTS API REST & SOCKET.IO
+## 🧪 TESTS AUTOMATISÉS & VALIDATION
 
-### REST API Endpoints (`http://localhost:4000`)
-- `GET /health` : État du serveur et nombre de tickets actifs pour Uptime Kuma.
-- `GET /api/tickets` : Récupère la liste des tickets de la semaine en cours et les compteurs par service.
-- `POST /api/tickets/create` : Crée un nouveau ticket depuis la borne.
-- `POST /api/tickets/call-next` : Appelle le ticket suivant pour un caissier (priorité gérée automatiquement).
-- `POST /api/tickets/update-status` : Met à jour le statut (`IN_PROGRESS`, `COMPLETED`, `NO_SHOW`, `CANCELLED`).
-- `POST /api/tickets/recall` : Rappelle le ticket courant sur l'écran TV.
-- `POST /api/tickets/weekly-archive` : Enregistre l'archive hebdomadaire de la semaine (Samedi 14h) dans SQLite.
-- `GET /api/tickets/weekly-archives` : Récupère l'historique des semaines archivées.
-- `POST /api/auth/login` : Authentification sécurisée des caissiers par JWT.
+Le projet dispose d'une suite complète de tests unitaires et d'intégration couvrant le frontend et le backend :
 
-### Événements WebSocket (`Socket.io LAN`)
-- `init_state` : État initial diffusé à la connexion d'un écran.
-- `ticket_created` : Émis lors de la création d'un ticket sur la borne.
-- `ticket_called` : Émis lorsqu'un caissier appelle un ticket.
-- `ticket_updated` : Émis lors du changement d'état d'un ticket.
-- `ticket_recalled` : Émis lors d'un rappel sonore de ticket.
-- `weekly_archived` : Émis lors de l'archivage hebdomadaire d'une semaine.
+```bash
+# Tests Frontend (Logique Métier, ESC/POS, Cycle Ticket, Services COFINA)
+npm test
+
+# Tests Backend (API REST, Authentification JWT, Sécurité RBAC)
+npm run test --prefix server
+
+# Compilation de production Vite
+npm run build
+```
+
+**Résultats de validation :**
+- Frontend : 5/5 tests passants (Vitest)
+- Backend : 8/8 tests passants (Vitest)
+- Compilation de production : 0 erreur, 0 avertissement critique
 
 ---
 
 ## 📄 LICENCE & CRÉDITS
 
 - **Client** : Groupe COFINA Togo (Compagnie Financière Africaine)
-- **Auteur / Prestataire** : Matrix Industrie
-- **Projet** : Cofina Queue System V1 Edge
+- **Agence Pilote** : Agence Siège de Kodjoviakopé, Lomé
+- **Développement & Homologation** : Équipe Architecture & Sécurité Applicative
 
 *© 2026 Groupe COFINA — Tous droits réservés.*

@@ -22,21 +22,30 @@ export default function App() {
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
 
   const isWidgetOnly = urlParams.has('widgetOnly') || urlParams.get('mode') === 'widget';
-  const isKioskOnly = urlParams.has('kioskOnly') || urlParams.has('kiosk') || urlParams.get('mode') === 'kiosk';
-  const isDisplayOnly = urlParams.has('displayOnly') || urlParams.has('display') || urlParams.get('mode') === 'display';
-  const isAgentOnly = urlParams.has('agentOnly') || urlParams.has('agent') || urlParams.get('mode') === 'agent';
-  const isAdminOnly = urlParams.has('adminOnly') || urlParams.has('admin') || urlParams.get('mode') === 'admin';
+  const isKioskOnly = urlParams.has('kioskOnly') || urlParams.has('kiosk') || urlParams.get('mode') === 'kiosk' || urlParams.get('module') === 'kiosk';
+  const isDisplayOnly = urlParams.has('displayOnly') || urlParams.has('display') || urlParams.get('mode') === 'display' || urlParams.get('module') === 'display';
+  const isAgentOnly = urlParams.has('agentOnly') || urlParams.has('agent') || urlParams.get('mode') === 'agent' || urlParams.get('module') === 'agent' || urlParams.has('caisse');
+  const isAdminOnly = urlParams.has('adminOnly') || urlParams.has('admin') || urlParams.get('mode') === 'admin' || urlParams.get('module') === 'admin' || urlParams.has('supervision');
 
-  // Hide Navbar & Footer for clean hardware screens (Kiosk will now keep the Navbar as requested)
-  const hideNav = urlParams.has('hideNav') || urlParams.has('clean') || isDisplayOnly;
+  // Masquage de la bannière de navigation de démonstration sur tous les modules opérationnels (Borne, Caisses, Admin, Écran TV)
+  // Accessible uniquement si le paramètre démo/dev est explicitement passé (?demo=true ou ?nav=true)
+  const showNavbar = urlParams.has('demo') || urlParams.has('nav');
 
   const [activeModule, setActiveModule] = useState(() => {
     if (isDisplayOnly) return 'display';
     if (isAgentOnly) return 'agent';
     if (isAdminOnly) return 'admin';
     if (isKioskOnly) return 'kiosk';
+    const mod = urlParams.get('module');
+    if (mod === 'agent' || mod === 'caisse') return 'agent';
+    if (mod === 'admin' || mod === 'supervision') return 'admin';
+    if (mod === 'display' || mod === 'tv') return 'display';
+    if (mod === 'kiosk' || mod === 'borne') return 'kiosk';
     return 'kiosk';
   });
+
+  // Masquage du pied de page sur les écrans matériels dédiés (Borne tactile et Écran TV)
+  const hideFooter = isDisplayOnly || isKioskOnly || activeModule === 'kiosk' || urlParams.has('clean');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showFloatingWidget, setShowFloatingWidget] = useState(true);
 
@@ -202,7 +211,7 @@ export default function App() {
 
   return (
     <div className="cofina-app-root">
-      {!hideNav && (
+      {showNavbar && (
         <Navbar 
           activeModule={activeModule}
           setActiveModule={setActiveModule}
@@ -217,7 +226,7 @@ export default function App() {
         />
       )}
 
-      <main className="main-content-area" style={{ paddingBottom: hideNav ? '0' : '2rem' }}>
+      <main className="main-content-area" style={{ paddingBottom: hideFooter ? '0' : '2rem' }}>
         <Suspense fallback={<div style={{ color: 'white', padding: '3rem', textAlign: 'center' }}>Chargement du module...</div>}>
           {activeModule === 'kiosk' && (
             <KioskModule 
@@ -269,11 +278,13 @@ export default function App() {
         </Suspense>
       )}
 
-      {!hideNav && (
+      {!hideFooter && (
         <footer className="cofina-global-footer">
           <div className="footer-content">
             <div className="footer-left">
-              <img src="/cofina.jpeg" alt="Cofina Logo" className="footer-logo" />
+              <div className="footer-logo-badge">
+                <img src="/cofina.jpeg" alt="Groupe Cofina" className="footer-logo-img" />
+              </div>
               <span>© 2026 Groupe Cofina — Compagnie Financière Africaine. Tous droits réservés.</span>
             </div>
             <div className="footer-right">
@@ -319,10 +330,21 @@ export default function App() {
           gap: 1rem;
         }
 
-        .footer-logo {
-          height: 24px;
-          filter: brightness(0) invert(1);
-          opacity: 0.8;
+        .footer-logo-badge {
+          background: #FFFFFF;
+          padding: 3px 8px;
+          border-radius: 6px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .footer-logo-img {
+          height: 18px;
+          width: auto;
+          object-fit: contain;
+          display: block;
         }
 
         .footer-tag {

@@ -104,12 +104,50 @@ export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
   }
 };
 
-export const speakTicketCall = (ticketNumber, counterNumber, lang = 'fr') => {
+let pendingSpeakTimeout = null;
+let currentSafetyTimer = null;
+
+export const speakTicketCall = (ticketNumber, counterNumber, lang = 'fr', onEndCallback = null) => {
+  let finished = false;
+
+  if (pendingSpeakTimeout) {
+    clearTimeout(pendingSpeakTimeout);
+    pendingSpeakTimeout = null;
+  }
+  if (currentSafetyTimer) {
+    clearTimeout(currentSafetyTimer);
+    currentSafetyTimer = null;
+  }
+
+  const triggerEnd = () => {
+    if (finished) return;
+    finished = true;
+    if (currentSafetyTimer) {
+      clearTimeout(currentSafetyTimer);
+      currentSafetyTimer = null;
+    }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('ticket_voice_ended', { 
+        detail: { ticketNumber, counterNumber } 
+      }));
+    }
+    if (typeof onEndCallback === 'function') {
+      try {
+        onEndCallback();
+      } catch (err) {
+        console.error('Error in speakTicketCall callback:', err);
+      }
+    }
+  };
+
   try {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      triggerEnd();
+      return;
+    }
 
     window.speechSynthesis.cancel();
-    const formattedTicket = ticketNumber.split('-').map((part, i) => i === 1 ? part.split('').join(' ') : part).join(' ');
+    const formattedTicket = ticketNumber ? ticketNumber.split('-').map((part, i) => i === 1 ? part.split('').join(' ') : part).join(' ') : '';
     const isEn = lang === 'en';
     const text = isEn 
       ? `Ticket ${formattedTicket}, please proceed to Counter ${counterNumber}.`
@@ -120,13 +158,36 @@ export const speakTicketCall = (ticketNumber, counterNumber, lang = 'fr') => {
     utterance.rate = 0.88;
     utterance.pitch = 1.05;
 
+    utterance.onend = () => {
+      triggerEnd();
+    };
+
+    utterance.onerror = (e) => {
+      // Les événements 'interrupted' ou 'canceled' surviennent normalement quand un appel est remplacé
+      if (e && (e.error === 'interrupted' || e.error === 'canceled')) {
+        return;
+      }
+      triggerEnd();
+    };
+
     const matchedVoice = getAfricanOrBestVoice(isEn ? 'en' : 'fr');
     if (matchedVoice) utterance.voice = matchedVoice;
 
-    setTimeout(() => {
-      window.speechSynthesis.speak(utterance);
+    // Délai de sécurité : si la voix est muette ou bloquée, débloquer après 5.5s
+    currentSafetyTimer = setTimeout(() => {
+      triggerEnd();
+    }, 5500);
+
+    pendingSpeakTimeout = setTimeout(() => {
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        triggerEnd();
+      }
     }, 450);
   } catch (e) {
-    console.warn('Speech synthesis TEMPS 2 error:', e);
+    triggerEnd();
   }
 };
+
+

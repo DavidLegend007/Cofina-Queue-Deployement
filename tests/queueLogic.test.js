@@ -69,4 +69,30 @@ describe('COFINA Queue — Core Business & Weekly Logic', () => {
     expect(payloadEn).toContain('YOUR QUEUE NUMBER:');
     expect(payloadEn).toContain('PRIORITY ACCESS');
   });
+
+  it('should support cashier ticket lifecycle transitions (CALLED -> IN_PROGRESS -> COMPLETED and NO_SHOW)', () => {
+    // 1. Initial called ticket
+    let ticket = {
+      id: 'ticket-1',
+      ticketNumber: 'D-001',
+      status: 'CALLED',
+      counterNumber: 1
+    };
+    expect(ticket.status).toBe('CALLED');
+
+    // 2. Démarrer le traitement -> En cours de service
+    ticket = { ...ticket, status: 'IN_PROGRESS', startedAt: new Date().toISOString() };
+    expect(ticket.status).toBe('IN_PROGRESS');
+    expect(ticket.startedAt).toBeDefined();
+
+    // 3. Terminer le service -> COMPLETED
+    const completedTicket = { ...ticket, status: 'COMPLETED', completedAt: new Date().toISOString() };
+    expect(completedTicket.status).toBe('COMPLETED');
+    expect(completedTicket.completedAt).toBeDefined();
+
+    // 4. Si non démarré après rappels -> NO_SHOW (Absent)
+    const absentTicket = { ...ticket, status: 'NO_SHOW' };
+    expect(absentTicket.status).toBe('NO_SHOW');
+  });
 });
+

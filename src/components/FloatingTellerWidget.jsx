@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   UserCheck, 
   Play, 
@@ -22,16 +22,20 @@ import {
   CreditCard,
   DollarSign,
   Briefcase,
-  ExternalLink
+  ExternalLink,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   processNextTicket,
   recallTicket, 
   updateTicketStatus, 
   getStoredAgentProfiles,
-  toggleCounterStatus
+  toggleCounterStatus,
+  playCallChime,
+  speakTicketCall
 } from '../services/queueStore';
 import { translations } from '../services/translations';
+import { POSTES_CONFIG } from './AgentModule.jsx';
 
 export default function FloatingTellerWidget({ 
   lang = 'fr', 
@@ -60,11 +64,62 @@ export default function FloatingTellerWidget({
   
   // Active teller and counter state
   const profiles = getStoredAgentProfiles();
-  const [selectedAgentId, setSelectedAgentId] = useState(profiles[0]?.id || 'AGT-01');
-  const [counterNumber, setCounterNumber] = useState(1);
+
+  const [isAgentLoggedIn, setIsAgentLoggedIn] = useState(() => {
+    return typeof window !== 'undefined' && 
+      !!localStorage.getItem('cofina_jwt_token') && 
+      !!localStorage.getItem('cofina_agent_username');
+  });
+
+  const getInitialAgentId = () => {
+    if (typeof window !== 'undefined') {
+      const storedUser = localStorage.getItem('cofina_agent_username');
+      if (storedUser) {
+        const ag = profiles.find(p => p.name === storedUser);
+        if (ag) return ag.id;
+      }
+    }
+    return profiles[0]?.id || 'AGT-01';
+  };
+
+  const getInitialCounter = () => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('cofina_agent_counter');
+      if (stored) return parseInt(stored, 10);
+    }
+    return 1;
+  };
+
+  const [selectedAgentId, setSelectedAgentId] = useState(getInitialAgentId);
+  const [counterNumber, setCounterNumber] = useState(getInitialCounter);
   const [elapsedSec, setElapsedSec] = useState(0);
 
+  useEffect(() => {
+    const handleAuthChange = () => {
+      const logged = typeof window !== 'undefined' && 
+        !!localStorage.getItem('cofina_jwt_token') && 
+        !!localStorage.getItem('cofina_agent_username');
+      setIsAgentLoggedIn(logged);
+      if (logged) {
+        const storedUser = localStorage.getItem('cofina_agent_username');
+        const ag = profiles.find(p => p.name === storedUser);
+        if (ag) setSelectedAgentId(ag.id);
+        const storedCounter = parseInt(localStorage.getItem('cofina_agent_counter') || '1', 10);
+        if (storedCounter) setCounterNumber(storedCounter);
+      }
+    };
+
+    window.addEventListener('storage', handleAuthChange);
+    window.addEventListener('cofina_auth_changed', handleAuthChange);
+    return () => {
+      window.removeEventListener('storage', handleAuthChange);
+      window.removeEventListener('cofina_auth_changed', handleAuthChange);
+    };
+  }, [profiles]);
+
   const selectedAgent = profiles.find(p => p.id === selectedAgentId) || profiles[0];
+  const currentPoste = POSTES_CONFIG.find(p => p.number === counterNumber) || POSTES_CONFIG[0];
+  const currentServiceFilter = currentPoste?.services ? currentPoste.services.join(',') : 'ALL';
 
   // Find active ticket currently CALLED or IN_PROGRESS for this counter
   const activeTicketCandidates = tickets.filter(
@@ -109,46 +164,216 @@ export default function FloatingTellerWidget({
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const handleCallNext = async () => {
-    await processNextTicket(
+  const isStandaloneMode = isStandalone || (typeof window !== 'undefined' && (window.location.search.includes('widgetOnly') || window.location.search.includes('mode=widget')));
+
+  // --- AUTOMATISATION DU RAPPEL ET GESTION DES ABSENCES (SI POPUP / STANDALONE) ---
+  const [autoStage, setAutoStage] = useState('IDLE');
+  const [autoCountdownSec, setAutoCountdownSec] = useState(15);
+  const autoRecallTimeoutRef = useRef(null);
+  const autoAbsentTimeoutRef = useRef(null);
+  const autoCountdownIntervalRef = useRef(null);
+  const autoRecallDoneTicketIdRef = useRef(null);
+  const activeTicketIdRef = useRef(null);
+
+  const clearAllAutoTimers = () => {
+    if (autoRecallTimeoutRef.current) {
+      clearTimeout(autoRecallTimeoutRef.current);
+      autoRecallTimeoutRef.current = null;
+    }
+    if (autoAbsentTimeoutRef.current) {
+      clearTimeout(autoAbsentTimeoutRef.current);
+      autoAbsentTimeoutRef.current = null;
+    }
+    if (autoCountdownIntervalRef.current) {
+      clearInterval(autoCountdownIntervalRef.current);
+      autoCountdownIntervalRef.current = null;
+    }
+    setAutoStage('IDLE');
+    setAutoCountdownSec(15);
+  };
+
+  const startRecallCountdown = (ticket) => {
+    if (activeTicketIdRef.current !== ticket.id) return;
+    if (autoCountdownIntervalRef.current) clearInterval(autoCountdownIntervalRef.current);
+    if (autoRecallTimeoutRef.current) clearTimeout(autoRecallTimeoutRef.current);
+
+    setAutoStage('COUNTDOWN_RECALL');
+    setAutoCountdownSec(15);
+
+    let remaining = 15;
+    autoCountdownIntervalRef.current = setInterval(() => {
+      remaining -= 1;
+      setAutoCountdownSec(Math.max(0, remaining));
+      if (remaining <= 0 && autoCountdownIntervalRef.current) {
+        clearInterval(autoCountdownIntervalRef.current);
+        autoCountdownIntervalRef.current = null;
+      }
+    }, 1000);
+
+    autoRecallTimeoutRef.current = setTimeout(async () => {
+      if (activeTicketIdRef.current === ticket.id && autoRecallDoneTicketIdRef.current !== ticket.id) {
+        await executeAutoRecall(ticket);
+      }
+    }, 15000);
+  };
+
+  const executeAutoRecall = async (ticket) => {
+    autoRecallDoneTicketIdRef.current = ticket.id;
+    if (autoCountdownIntervalRef.current) {
+      clearInterval(autoCountdownIntervalRef.current);
+      autoCountdownIntervalRef.current = null;
+    }
+
+    setAutoStage('WAITING_VOICE_RECALL');
+    await recallTicket(ticket.id, lang);
+    playCallChime();
+
+    speakTicketCall(ticket.ticketNumber, counterNumber, lang, () => {
+      if (activeTicketIdRef.current === ticket.id) {
+        startAbsentCountdown(ticket);
+      }
+    });
+  };
+
+  const startAbsentCountdown = (ticket) => {
+    if (activeTicketIdRef.current !== ticket.id) return;
+    if (autoCountdownIntervalRef.current) clearInterval(autoCountdownIntervalRef.current);
+    if (autoAbsentTimeoutRef.current) clearTimeout(autoAbsentTimeoutRef.current);
+
+    setAutoStage('COUNTDOWN_ABSENT');
+    setAutoCountdownSec(15);
+
+    let remaining = 15;
+    autoCountdownIntervalRef.current = setInterval(() => {
+      remaining -= 1;
+      setAutoCountdownSec(Math.max(0, remaining));
+      if (remaining <= 0 && autoCountdownIntervalRef.current) {
+        clearInterval(autoCountdownIntervalRef.current);
+        autoCountdownIntervalRef.current = null;
+      }
+    }, 1000);
+
+    autoAbsentTimeoutRef.current = setTimeout(async () => {
+      if (activeTicketIdRef.current === ticket.id) {
+        await executeAutoAbsent(ticket);
+      }
+    }, 15000);
+  };
+
+  const executeAutoAbsent = async (ticket) => {
+    clearAllAutoTimers();
+    activeTicketIdRef.current = null;
+
+    await updateTicketStatus(ticket.id, 'NO_SHOW');
+    onStateChange();
+
+    const nextTicket = await processNextTicket(
       selectedAgent.id,
       selectedAgent.name,
       counterNumber,
-      'ALL',
+      currentServiceFilter,
+      null,
+      lang
+    );
+    if (nextTicket && isStandaloneMode) {
+      startTicketCallCycle(nextTicket);
+    }
+  };
+
+  const startTicketCallCycle = (ticket) => {
+    if (!ticket || ticket.status !== 'CALLED' || !isStandaloneMode) return;
+    clearAllAutoTimers();
+    activeTicketIdRef.current = ticket.id;
+    setAutoStage('WAITING_VOICE_CALL');
+
+    playCallChime();
+    speakTicketCall(ticket.ticketNumber, counterNumber, lang, () => {
+      if (activeTicketIdRef.current === ticket.id) {
+        startRecallCountdown(ticket);
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (!isStandaloneMode) return;
+    if (!activeTicket || activeTicket.status !== 'CALLED') {
+      clearAllAutoTimers();
+      activeTicketIdRef.current = activeTicket?.id || null;
+      return;
+    }
+
+    if (activeTicketIdRef.current !== activeTicket.id) {
+      activeTicketIdRef.current = activeTicket.id;
+      startTicketCallCycle(activeTicket);
+    }
+  }, [activeTicket?.id, activeTicket?.status, counterNumber, isStandaloneMode]);
+
+  useEffect(() => {
+    return () => {
+      clearAllAutoTimers();
+    };
+  }, []);
+
+  const handleCallNext = async () => {
+    clearAllAutoTimers();
+    const nextTicket = await processNextTicket(
+      selectedAgent.id,
+      selectedAgent.name,
+      counterNumber,
+      currentServiceFilter,
       activeTicket?.id || null,
       lang
     );
+    onStateChange();
+    if (nextTicket && isStandaloneMode) {
+      startTicketCallCycle(nextTicket);
+    }
   };
 
-  const handleRecall = () => {
+  const handleRecall = async () => {
     if (activeTicket) {
-      recallTicket(activeTicket.id, lang);
+      clearAllAutoTimers();
+      autoRecallDoneTicketIdRef.current = activeTicket.id;
+      await recallTicket(activeTicket.id, lang);
+      playCallChime();
+      speakTicketCall(activeTicket.ticketNumber, counterNumber, lang, () => {
+        if (isStandaloneMode && activeTicketIdRef.current === activeTicket.id) {
+          startAbsentCountdown(activeTicket);
+        }
+      });
+      onStateChange();
     }
   };
 
   const handleNoShow = async () => {
     if (activeTicket) {
+      clearAllAutoTimers();
+      activeTicketIdRef.current = null;
       await updateTicketStatus(activeTicket.id, 'NO_SHOW');
       onStateChange();
       await handleCallNext();
     }
   };
 
-  const handleStartProcessing = () => {
+  const handleStartProcessing = async () => {
     if (activeTicket) {
-      updateTicketStatus(activeTicket.id, 'IN_PROGRESS');
+      clearAllAutoTimers();
+      await updateTicketStatus(activeTicket.id, 'IN_PROGRESS');
       onStateChange();
     }
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (activeTicket) {
-      updateTicketStatus(activeTicket.id, 'COMPLETED');
+      clearAllAutoTimers();
+      activeTicketIdRef.current = null;
+      await updateTicketStatus(activeTicket.id, 'COMPLETED');
       onStateChange();
     }
   };
 
   if (!isOpen) return null;
+  if (!isStandaloneMode && !isAgentLoggedIn) return null;
 
   return (
     <>
@@ -233,21 +458,23 @@ export default function FloatingTellerWidget({
             <div className="widget-config-row">
               <div className="widget-select-group">
                 <label>Guichet :</label>
-                <select 
-                  value={counterNumber} 
-                  onChange={(e) => {
-                    const num = Number(e.target.value);
-                    setCounterNumber(num);
-                    const ag = profiles.find(p => p.defaultCounter === num) || profiles[0];
-                    if (ag) setSelectedAgentId(ag.id);
+                <div 
+                  style={{
+                    fontSize: '0.82rem',
+                    fontWeight: 800,
+                    color: '#0F172A',
+                    background: '#F1F5F9',
+                    border: '1px solid #CBD5E1',
+                    padding: '0.25rem 0.6rem',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem'
                   }}
-                  className="widget-select"
+                  title="Poste physique assigné et verrouillé"
                 >
-                  <option value={1}>Caisse 1</option>
-                  <option value={2}>Caisse 2</option>
-                  <option value={3}>Caisse 3</option>
-                  <option value={4}>Caisse 4</option>
-                </select>
+                  🔒 Guichet {counterNumber} ({currentPoste.name})
+                </div>
               </div>
 
               <button 
@@ -271,7 +498,7 @@ export default function FloatingTellerWidget({
               {activeTicket ? (
                 <>
                   <div className="widget-ticket-top">
-                    <span className="ticket-status-pill">{activeTicket.status === 'CALLED' ? t.displayStatusCalled : t.displayStatusServing}</span>
+                    <span className="ticket-status-pill">{activeTicket.status === 'IN_PROGRESS' ? 'En cours de service' : (activeTicket.status === 'CALLED' ? t.displayStatusCalled : activeTicket.status)}</span>
                     {activeTicket.priority && (
                       <span className="priority-pill">★ {t.agentPriorityBadge}</span>
                     )}
@@ -285,6 +512,33 @@ export default function FloatingTellerWidget({
                     <span>{t.agentTimerLabel} :</span>
                     <strong className="timer-val">{formatTimer(elapsedSec)}</strong>
                   </div>
+
+                  {/* Bannière décompte automatique si mode standalone */}
+                  {isStandaloneMode && activeTicket.status === 'CALLED' && autoStage === 'WAITING_VOICE_CALL' && (
+                    <div style={{ fontSize: '0.75rem', color: '#2563EB', marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', fontWeight: 600 }}>
+                      <Volume2 size={13} /> Annonce vocale d'appel...
+                    </div>
+                  )}
+                  {isStandaloneMode && activeTicket.status === 'CALLED' && autoStage === 'COUNTDOWN_RECALL' && (
+                    <div style={{ fontSize: '0.75rem', color: '#D97706', marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', fontWeight: 700 }}>
+                      <Clock size={13} /> Rappel auto dans {autoCountdownSec}s
+                    </div>
+                  )}
+                  {isStandaloneMode && activeTicket.status === 'CALLED' && autoStage === 'WAITING_VOICE_RECALL' && (
+                    <div style={{ fontSize: '0.75rem', color: '#2563EB', marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', fontWeight: 600 }}>
+                      <Volume2 size={13} /> Rappel vocal en cours...
+                    </div>
+                  )}
+                  {isStandaloneMode && activeTicket.status === 'CALLED' && autoStage === 'COUNTDOWN_ABSENT' && (
+                    <div style={{ fontSize: '0.75rem', color: '#DC2626', marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', fontWeight: 700 }}>
+                      <AlertTriangle size={13} /> Absence auto dans {autoCountdownSec}s
+                    </div>
+                  )}
+                  {activeTicket.status === 'IN_PROGRESS' && (
+                    <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', fontWeight: 700 }}>
+                      <CheckCircle2 size={13} /> En cours de service
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="widget-empty-msg">
@@ -329,7 +583,7 @@ export default function FloatingTellerWidget({
                   style={{ gridColumn: 'span 2' }}
                 >
                   <Clock size={16} />
-                  <span>Démarrer le Traitement</span>
+                  <span>Démarrer le traitement</span>
                 </button>
               )}
 
@@ -340,7 +594,7 @@ export default function FloatingTellerWidget({
                   style={{ gridColumn: 'span 2' }}
                 >
                   <CheckCircle2 size={16} />
-                  <span>Terminer le Service</span>
+                  <span>Terminer le service</span>
                 </button>
               )}
             </div>

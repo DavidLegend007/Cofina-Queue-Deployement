@@ -14,6 +14,9 @@ const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 4000;
 const prisma = new PrismaClient();
 
+// --- Auth & RBAC ---
+import { authenticateToken, requireRole } from './auth.js';
+
 // --- Middlewares ---
 import { apiRateLimiter } from './middlewares/rateLimiter.js';
 
@@ -42,9 +45,13 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',') 
   : ['http://localhost:3000', 'http://127.0.0.1:3000'];
 
+// Validation stricte des origines privées RFC 1918 (192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, localhost)
+const LAN_IP_REGEX = /^https?:\/\/(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}|127\.0\.0\.1|localhost)(:\d+)?$/;
+
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://192.168.') || origin.startsWith('http://10.')) {
+    const pubUrl = process.env.PUBLIC_URL;
+    if (!origin || allowedOrigins.includes(origin) || LAN_IP_REGEX.test(origin) || origin.endsWith('.trycloudflare.com') || (pubUrl && origin === pubUrl)) {
       callback(null, true);
     } else {
       callback(new Error('Bloqué par la politique CORS Cofina'));
@@ -83,7 +90,7 @@ app.use('/api/tickets', createTicketRouter(prisma, io));
 app.use('/api/backup', createBackupRouter());
 app.use('/api/sync', createSyncRouter(prisma));
 
-app.get('/api/reload-clients', (req, res) => {
+app.get('/api/reload-clients', authenticateToken, requireRole(['ADMIN']), (req, res) => {
   io.emit('reload_page');
   res.json({ message: 'Ordre de rafraîchissement envoyé à tous les écrans en direct' });
 });

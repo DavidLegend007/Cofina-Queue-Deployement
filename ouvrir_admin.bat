@@ -1,30 +1,30 @@
 @echo off
-title "Groupe Cofina - Ouverture du Poste Caissier"
+title "Groupe Cofina - Console d'Administration & Supervision"
 chcp 65001 >nul
 
 cd /d "%~dp0"
 
 echo ==============================================================================
-echo    GROUPE COFINA TOGO - ESPACE CAISSIER ET GUICHETIER SECURISE
+echo    GROUPE COFINA TOGO - CONSOLE D'ADMINISTRATION ET DE SUPERVISION
 echo ==============================================================================
 echo.
-echo Lancement de la session caissier dans le navigateur...
+echo Lancement de la console d'administration dans le navigateur...
 echo.
 
 set SERVER_HOST=localhost
 if not "%1"=="" set SERVER_HOST=%1
 
-set CAISSE_URL=http://%SERVER_HOST%:4000/?agent
+set ADMIN_URL=http://%SERVER_HOST%:4000/?admin
 
 where msedge >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
-    start msedge.exe "%CAISSE_URL%" --no-first-run
+    start msedge.exe "%ADMIN_URL%" --no-first-run
 ) else (
     where chrome >nul 2>&1
     if %ERRORLEVEL% EQU 0 (
-        start chrome.exe "%CAISSE_URL%" --no-first-run
+        start chrome.exe "%ADMIN_URL%" --no-first-run
     ) else (
-        start %CAISSE_URL%
+        start %ADMIN_URL%
     )
 )
 

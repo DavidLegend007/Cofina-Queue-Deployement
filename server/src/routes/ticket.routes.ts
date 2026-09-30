@@ -137,19 +137,6 @@ export function createTicketRouter(prisma: PrismaClient, io: Server) {
         ]
       });
 
-      if (waiting.length === 0 && serviceFilter && serviceFilter !== 'ALL') {
-        waiting = await prisma.ticket.findMany({
-          where: {
-            status: 'WAITING',
-            createdAt: { gte: startOfWeek }
-          },
-          orderBy: [
-            { priority: 'desc' },
-            { createdAt: 'asc' }
-          ]
-        });
-      }
-
       if (waiting.length === 0) {
         return res.status(404).json({ message: 'Aucun ticket en attente' });
       }
@@ -204,13 +191,24 @@ export function createTicketRouter(prisma: PrismaClient, io: Server) {
       const { ticketId, status, extra } = req.body;
       const now = new Date();
 
+      // Assainissement défensif des champs optionnels autorisés sur le modèle Ticket
+      const allowedKeys = ['satisfactionScore', 'customerName', 'customerPhone', 'customerEmail', 'counterNumber', 'agentName'];
+      const safeExtra: Record<string, any> = {};
+      if (extra && typeof extra === 'object') {
+        for (const key of allowedKeys) {
+          if (extra[key] !== undefined) {
+            safeExtra[key] = extra[key];
+          }
+        }
+      }
+
       const updated = await prisma.ticket.update({
         where: { id: ticketId },
         data: {
           status,
           ...(status === 'IN_PROGRESS' ? { startedAt: now } : {}),
           ...(status === 'COMPLETED' ? { completedAt: now } : {}),
-          ...(extra || {})
+          ...safeExtra
         }
       });
 

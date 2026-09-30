@@ -36,7 +36,7 @@ export const generateSimulationTickets = async () => {
 
 export const callNextTicket = async (agentId, agentName, counterNumber, serviceFilter = 'ALL', lang = 'fr') => {
   try {
-    let headers = await getAuthHeaders();
+    let headers = await getAuthHeaders(false, agentName);
     let res = await fetch(`${SERVER_URL}/api/tickets/call-next`, {
       method: 'POST',
       headers,
@@ -45,7 +45,7 @@ export const callNextTicket = async (agentId, agentName, counterNumber, serviceF
     
     if (res.status === 401 || res.status === 403) {
       if (typeof window !== 'undefined') localStorage.removeItem('cofina_jwt_token');
-      headers = await getAuthHeaders(true);
+      headers = await getAuthHeaders(true, agentName);
       res = await fetch(`${SERVER_URL}/api/tickets/call-next`, {
         method: 'POST',
         headers,

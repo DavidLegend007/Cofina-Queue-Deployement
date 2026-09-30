@@ -3,7 +3,10 @@ export const CHANNEL_NAME = 'cofina_queue_sync_v1_togo';
 export const AGENT_PROFILES_KEY = 'cofina_agent_profiles_v1_togo';
 
 export const COFINA_AGENCIES = [
-  { id: 'AGC-01', name: 'Agence Siège Cofina Togo (Kodjoviakopé)', city: 'Kodjoviakopé', address: 'Rue de la Paix, Kodjoviakopé' }
+  { id: 'AGC-01', name: 'Agence Siège Cofina Togo (Kodjoviakopé)', city: 'Kodjoviakopé', address: 'Rue de la Paix, Kodjoviakopé' },
+  { id: 'AGC-02', name: 'Agence COFINA Agoè Assiyéyé', city: 'Lomé', address: 'Carrefour Agoè Assiyéyé' },
+  { id: 'AGC-03', name: 'Agence COFINA Adidogomé', city: 'Lomé', address: 'Route de Kpalimé, Adidogomé' },
+  { id: 'AGC-04', name: 'Agence COFINA Akodessewa', city: 'Lomé', address: 'Zone Portuaire, Akodessewa' }
 ];
 
 export const COFINA_SERVICES = [

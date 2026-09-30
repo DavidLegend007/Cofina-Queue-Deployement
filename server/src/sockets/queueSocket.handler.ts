@@ -14,7 +14,8 @@ export function setupSocketHandlers(io: Server, prisma: PrismaClient) {
     }
 
     socket.on('trigger_reload', () => {
-      io.emit('reload_page');
+      // Sécurité : rejet des ordres de rechargement anonymes via WebSocket
+      console.warn(`[Socket.io LAN] Événement trigger_reload anonyme ignoré (socket ${socket.id})`);
     });
 
     socket.on('disconnect', () => {

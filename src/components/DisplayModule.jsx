@@ -157,33 +157,33 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
           </div>
 
           <div className="disp-services-list">
-            {waitingTickets.slice(0, 7).map(ticket => {
+            {waitingTickets.slice(0, 5).map(ticket => {
               const svcConfig = COFINA_SERVICES.find(s => s.code === ticket.serviceCode) || { color: '#64748B' };
               return (
-                <div key={ticket.id} className="disp-svc-row" style={{ padding: '0.6rem 1.1rem' }}>
+                <div key={ticket.id} className="disp-svc-row" style={{ padding: '1rem 1.2rem', marginBottom: '0.3rem' }}>
                   <div className="disp-svc-info">
-                    <span className="disp-svc-badge" style={{ background: svcConfig.color, fontSize: '0.9rem', width: '40px' }}>
+                    <span className="disp-svc-badge" style={{ background: svcConfig.color, fontSize: '1.25rem', width: '60px', height: '60px' }}>
                       {ticket.ticketNumber}
                     </span>
                     <div className="disp-svc-names">
-                      <span className="disp-svc-name" style={{ fontSize: '0.8rem' }}>{ticket.serviceName}</span>
-                      <span className="disp-svc-time"><Clock size={12} /> Reçu à {new Date(ticket.createdAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="disp-svc-name" style={{ fontSize: '1.15rem' }}>{ticket.serviceName}</span>
+                      <span className="disp-svc-time" style={{ fontSize: '0.95rem' }}><Clock size={15} /> Reçu à {new Date(ticket.createdAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
-                  <div className="disp-svc-cnt cnt-empty" style={{ width: 'auto', padding: '0 0.5rem', fontSize: '0.75rem', background: 'transparent' }}>
+                  <div className="disp-svc-cnt cnt-empty" style={{ width: 'auto', padding: '0.5rem 0.8rem', fontSize: '0.9rem', background: 'transparent' }}>
                     En attente
                   </div>
                 </div>
               );
             })}
             {waitingTickets.length === 0 && (
-               <div className="disp-svc-row" style={{ justifyContent: 'center', color: '#94A3B8' }}>
+               <div className="disp-svc-row" style={{ justifyContent: 'center', color: '#94A3B8', padding: '2rem 1rem', fontSize: '1.1rem' }}>
                  Aucun ticket en attente
                </div>
             )}
-            {waitingTickets.length > 7 && (
-               <div className="disp-svc-row" style={{ justifyContent: 'center', color: '#94A3B8', fontSize: '0.85rem', padding: '0.5rem', background: 'transparent', border: 'none' }}>
-                 + {waitingTickets.length - 7} autres ticket(s)
+            {waitingTickets.length > 5 && (
+               <div className="disp-svc-row" style={{ justifyContent: 'center', color: '#94A3B8', fontSize: '1rem', padding: '0.75rem', background: 'transparent', border: 'none' }}>
+                 + {waitingTickets.length - 5} autres ticket(s)
                </div>
             )}
           </div>
