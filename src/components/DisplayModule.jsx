@@ -32,6 +32,28 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
     return () => window.removeEventListener('ticket_called_audio', handleAudio);
   }, [lang]);
 
+  // Déblocage automatique des restrictions Autoplay des navigateurs dès le premier clic
+  React.useEffect(() => {
+    const unlockAudio = () => {
+      try {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.resume();
+        }
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          ctx.resume().then(() => ctx.close()).catch(() => {});
+        }
+      } catch (_) {}
+    };
+    window.addEventListener('click', unlockAudio, { once: true });
+    window.addEventListener('touchstart', unlockAudio, { once: true });
+    return () => {
+      window.removeEventListener('click', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
+
   const t = translations[lang] || translations.fr;
   const activeTickets = tickets.filter(t => t.status === 'CALLED' || t.status === 'IN_PROGRESS');
   const waitingTickets = tickets.filter(t => t.status === 'WAITING')
@@ -52,7 +74,15 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         </div>
 
         <div className="disp-hdr-right">
-          <div className="disp-badge disp-badge-audio">
+          <div 
+            className="disp-badge disp-badge-audio"
+            onClick={() => {
+              playCallChime();
+              speakTicketCall('TI-001', '1', 'fr');
+            }}
+            style={{ cursor: 'pointer' }}
+            title="Cliquer pour tester le carillon et la voix sur la TV"
+          >
             <Volume2 size={15} className="audio-icon-pulse" />
             <span>{t.soundActive}</span>
           </div>
