@@ -14,7 +14,7 @@ echo.
 set SERVER_HOST=192.168.1.182
 if not "%1"=="" set SERVER_HOST=%1
 
-set CAISSE_URL=http://%SERVER_HOST%:4000/?agent
+set CAISSE_URL=http://%SERVER_HOST%:4000/?agent^&v=%RANDOM%
 
 where msedge >nul 2>&1
 if %ERRORLEVEL% EQU 0 (

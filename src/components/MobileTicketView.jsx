@@ -91,7 +91,7 @@ export default function MobileTicketView({
       const currentStatus = currentTicket.status;
       if (prevStatusRef.current && prevStatusRef.current !== 'CALLED' && currentStatus === 'CALLED') {
         if (soundEnabled) {
-          playCallChime();
+          playCallChime(true);
         }
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
           try { navigator.vibrate([400, 200, 400, 200, 600]); } catch (e) {}

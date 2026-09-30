@@ -108,16 +108,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
   const [activeTab, setActiveTab] = useState('SERVED'); // 'SERVED' or 'WAITING'
   const [serviceDurationSec, setServiceDurationSec] = useState(0);
 
-  // --- AUTOMATISATION DU RAPPEL ET GESTION DES ABSENCES (RÈGLE MÉTIER CAISSIER) ---
-  // autoStage: 'IDLE' | 'WAITING_VOICE_CALL' | 'COUNTDOWN_RECALL' | 'WAITING_VOICE_RECALL' | 'COUNTDOWN_ABSENT'
-  const [autoStage, setAutoStage] = useState('IDLE');
-  const [autoCountdownSec, setAutoCountdownSec] = useState(15);
 
-  const autoRecallTimeoutRef = useRef(null);
-  const autoAbsentTimeoutRef = useRef(null);
-  const autoCountdownIntervalRef = useRef(null);
-  const autoRecallDoneTicketIdRef = useRef(null);
-  const activeTicketIdRef = useRef(null);
 
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -211,136 +202,9 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
     toggleCounterStatus(counterNumber, !isOnline);
   };
 
-  // --- MOTEUR D'AUTOMATISATION RAPPEL & ABSENCE (15s + 15s) ---
-
-  const clearAllAutoTimers = () => {
-    if (autoRecallTimeoutRef.current) {
-      clearTimeout(autoRecallTimeoutRef.current);
-      autoRecallTimeoutRef.current = null;
-    }
-    if (autoAbsentTimeoutRef.current) {
-      clearTimeout(autoAbsentTimeoutRef.current);
-      autoAbsentTimeoutRef.current = null;
-    }
-    if (autoCountdownIntervalRef.current) {
-      clearInterval(autoCountdownIntervalRef.current);
-      autoCountdownIntervalRef.current = null;
-    }
-    setAutoStage('IDLE');
-    setAutoCountdownSec(15);
-  };
-
-  const startRecallCountdown = (ticket) => {
-    if (activeTicketIdRef.current !== ticket.id) return;
-    if (autoCountdownIntervalRef.current) clearInterval(autoCountdownIntervalRef.current);
-    if (autoRecallTimeoutRef.current) clearTimeout(autoRecallTimeoutRef.current);
-
-    setAutoStage('COUNTDOWN_RECALL');
-    setAutoCountdownSec(15);
-
-    let remaining = 15;
-    autoCountdownIntervalRef.current = setInterval(() => {
-      remaining -= 1;
-      setAutoCountdownSec(Math.max(0, remaining));
-      if (remaining <= 0 && autoCountdownIntervalRef.current) {
-        clearInterval(autoCountdownIntervalRef.current);
-        autoCountdownIntervalRef.current = null;
-      }
-    }, 1000);
-
-    autoRecallTimeoutRef.current = setTimeout(async () => {
-      if (activeTicketIdRef.current === ticket.id && autoRecallDoneTicketIdRef.current !== ticket.id) {
-        await executeAutoRecall(ticket);
-      }
-    }, 15000);
-  };
-
-  const executeAutoRecall = async (ticket) => {
-    autoRecallDoneTicketIdRef.current = ticket.id;
-    if (autoCountdownIntervalRef.current) {
-      clearInterval(autoCountdownIntervalRef.current);
-      autoCountdownIntervalRef.current = null;
-    }
-
-    setAutoStage('WAITING_VOICE_RECALL');
-    await recallTicket(ticket.id, lang);
-    // Le son est déclenché par DisplayModule via l'événement socket ticket_recalled → ticket_called_audio
-
-    // Attendre que la télé ait le temps de parler (~4s) avant de démarrer le compte à rebours d'absence
-    setTimeout(() => {
-      if (activeTicketIdRef.current === ticket.id) {
-        startAbsentCountdown(ticket);
-      }
-    }, 4000);
-  };
-
-  const startAbsentCountdown = (ticket) => {
-    if (activeTicketIdRef.current !== ticket.id) return;
-    if (autoCountdownIntervalRef.current) clearInterval(autoCountdownIntervalRef.current);
-    if (autoAbsentTimeoutRef.current) clearTimeout(autoAbsentTimeoutRef.current);
-
-    setAutoStage('COUNTDOWN_ABSENT');
-    setAutoCountdownSec(15);
-
-    let remaining = 15;
-    autoCountdownIntervalRef.current = setInterval(() => {
-      remaining -= 1;
-      setAutoCountdownSec(Math.max(0, remaining));
-      if (remaining <= 0 && autoCountdownIntervalRef.current) {
-        clearInterval(autoCountdownIntervalRef.current);
-        autoCountdownIntervalRef.current = null;
-      }
-    }, 1000);
-
-    autoAbsentTimeoutRef.current = setTimeout(async () => {
-      if (activeTicketIdRef.current === ticket.id) {
-        await executeAutoAbsent(ticket);
-      }
-    }, 15000);
-  };
-
-  const executeAutoAbsent = async (ticket) => {
-    clearAllAutoTimers();
-    activeTicketIdRef.current = null;
-
-    // 1. Le ticket actuel est marqué comme "Absent"
-    await updateTicketStatus(ticket.id, 'NO_SHOW');
-    setCurrentTicket(null);
-
-    // 2. Le prochain client de la file est appelé automatiquement
-    const nextTicket = await processNextTicket(
-      selectedAgent.id,
-      selectedAgent.name,
-      counterNumber,
-      serviceFilter,
-      null,
-      lang
-    );
-    if (nextTicket) {
-      setCurrentTicket(nextTicket);
-      startTicketCallCycle(nextTicket);
-    }
-  };
-
-  const startTicketCallCycle = (ticket) => {
-    if (!ticket || ticket.status !== 'CALLED') return;
-    clearAllAutoTimers();
-    activeTicketIdRef.current = ticket.id;
-    setAutoStage('WAITING_VOICE_CALL');
-    // Le son est déclenché par DisplayModule via l'événement socket ticket_called → ticket_called_audio
-
-    // Attendre que la télé ait le temps d'annoncer (~4s) avant de lancer le compte à rebours de rappel
-    setTimeout(() => {
-      if (activeTicketIdRef.current === ticket.id) {
-        startRecallCountdown(ticket);
-      }
-    }, 4000);
-  };
-
   // Sync agent default counter & auto-configure services when changing agent profile
   const handleSelectAgent = (agentId) => {
     if (isAgentUnlocked) return; // Session verrouillée
-    clearAllAutoTimers();
     setSelectedAgentId(agentId);
     const ag = agentsList.find(a => a.id === agentId);
     if (ag) {
@@ -356,7 +220,6 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
   // Switch physical workstation and auto-configure services for that workstation
   const handleSelectCounter = (counterNum) => {
     if (isAgentUnlocked) return; // Session verrouillée
-    clearAllAutoTimers();
     setCounterNumber(counterNum);
     const targetPoste = POSTES_CONFIG.find(p => p.number === counterNum);
     if (targetPoste) {
@@ -409,35 +272,12 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
     t.status === 'COMPLETED' && (t.agentId === selectedAgent.id || t.counterNumber === counterNumber)
   ).sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt));
 
-
-  // Surveillance et synchronisation du ticket actif CALLED
-  useEffect(() => {
-    if (!currentTicket || currentTicket.status !== 'CALLED') {
-      clearAllAutoTimers();
-      activeTicketIdRef.current = currentTicket?.id || null;
-      return;
-    }
-
-    if (activeTicketIdRef.current !== currentTicket.id) {
-      activeTicketIdRef.current = currentTicket.id;
-      startTicketCallCycle(currentTicket);
-    }
-  }, [currentTicket?.id, currentTicket?.status, counterNumber]);
-
-  // Nettoyage au démontage
-  useEffect(() => {
-    return () => {
-      clearAllAutoTimers();
-    };
-  }, []);
-
-  // ACTION: Suivant
+  // ACTION: Suivant (Appeler le prochain ticket de la file)
   const handleSuivant = async () => {
     if (!isAgentUnlocked) {
       setShowPinModal(true);
       return;
     }
-    clearAllAutoTimers();
     const nextTicket = await processNextTicket(
       selectedAgent.id,
       selectedAgent.name,
@@ -448,69 +288,41 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
     );
     if (nextTicket) {
       setCurrentTicket(nextTicket);
-      startTicketCallCycle(nextTicket);
     } else {
       setCurrentTicket(null);
     }
   };
 
-  // ACTION: Rappeler
+  // ACTION: Rappeler (Faire retentir le carillon et la voix sur l'écran TV)
   const handleRappeler = async () => {
     if (!isAgentUnlocked) {
       setShowPinModal(true);
       return;
     }
     if (currentTicket) {
-      clearAllAutoTimers();
-      autoRecallDoneTicketIdRef.current = currentTicket.id;
-      setAutoStage('WAITING_VOICE_RECALL');
       await recallTicket(currentTicket.id, lang);
-      // Le son est déclenché par DisplayModule via l'événement socket ticket_recalled → ticket_called_audio
-      setTimeout(() => {
-        if (activeTicketIdRef.current === currentTicket.id) {
-          startAbsentCountdown(currentTicket);
-        }
-      }, 4000);
     }
   };
 
-  // ACTION: Marquer Absent (No Show) et passer directement au ticket suivant
+  // ACTION: Marquer Absent (No Show)
   const handleNoShow = async () => {
     if (!isAgentUnlocked) {
       setShowPinModal(true);
       return;
     }
     if (currentTicket) {
-      clearAllAutoTimers();
-      activeTicketIdRef.current = null;
       await updateTicketStatus(currentTicket.id, 'NO_SHOW');
       setCurrentTicket(null);
-      const nextTicket = await processNextTicket(
-        selectedAgent.id,
-        selectedAgent.name,
-        counterNumber,
-        serviceFilter,
-        null,
-        lang
-      );
-      if (nextTicket) {
-        setCurrentTicket(nextTicket);
-        startTicketCallCycle(nextTicket);
-      }
     }
   };
 
-  // ACTION: Démarrer le traitement
+  // ACTION: Démarrer le traitement (En cours de service)
   const handleEnTraitement = async () => {
     if (!isAgentUnlocked) {
       setShowPinModal(true);
       return;
     }
     if (currentTicket) {
-      // 1. Arrêt immédiat de tout automatisme de rappel ou absence
-      clearAllAutoTimers();
-
-      // 2. Dès que le caissier clique sur "Démarrer le traitement", le statut du client passe à "En cours de service"
       await updateTicketStatus(currentTicket.id, 'IN_PROGRESS');
       setCurrentTicket(prev => prev ? { ...prev, status: 'IN_PROGRESS' } : null);
     }
@@ -523,11 +335,6 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
       return;
     }
     if (currentTicket) {
-      // 1. Arrêt immédiat de tous les minuteurs
-      clearAllAutoTimers();
-      activeTicketIdRef.current = null;
-
-      // 2. Lorsque le caissier clique sur "Terminer le service", le client actuel est validé et le système se met en attente du prochain appel de ticket
       await updateTicketStatus(currentTicket.id, 'COMPLETED');
       setCurrentTicket(null);
     }
@@ -796,32 +603,11 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
                   <span>Durée : <strong>{formatTimer(serviceDurationSec)}</strong></span>
                 </div>
 
-                {/* Bannière interactive de suivi automatique */}
-                {currentTicket.status === 'CALLED' && autoStage === 'WAITING_VOICE_CALL' && (
+                {/* Statut du client au guichet */}
+                {currentTicket.status === 'CALLED' && (
                   <div className="cashier-automation-banner voice-active">
                     <Volume2 size={18} className="pulse-alert" />
-                    <span>Annonce vocale en cours d'appel... En attente d'arrivée du client</span>
-                  </div>
-                )}
-
-                {currentTicket.status === 'CALLED' && autoStage === 'COUNTDOWN_RECALL' && (
-                  <div className="cashier-automation-banner recall-countdown">
-                    <Clock size={18} className="pulse-alert" />
-                    <span>Rappel automatique dans <strong>{autoCountdownSec}s</strong> si non démarré</span>
-                  </div>
-                )}
-
-                {currentTicket.status === 'CALLED' && autoStage === 'WAITING_VOICE_RECALL' && (
-                  <div className="cashier-automation-banner voice-active">
-                    <Volume2 size={18} className="pulse-alert" />
-                    <span>Rappel vocal automatique en cours...</span>
-                  </div>
-                )}
-
-                {currentTicket.status === 'CALLED' && autoStage === 'COUNTDOWN_ABSENT' && (
-                  <div className="cashier-automation-banner absent-countdown">
-                    <AlertTriangle size={18} className="pulse-alert" />
-                    <span>Absence automatique & appel suivant dans <strong>{autoCountdownSec}s</strong></span>
+                    <span>Ticket appelé • En attente de l'arrivée du client au guichet</span>
                   </div>
                 )}
 

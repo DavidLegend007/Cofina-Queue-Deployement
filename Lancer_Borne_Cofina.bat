@@ -63,7 +63,7 @@ timeout /t 1 /nobreak >nul
 
 REM 6. Lancement de Microsoft Edge en Mode Kiosk Plein Ecran avec Impression Silencieuse
 echo [3/4] Demarrage de la Borne Tactile (Mode Kiosk + Xprinter 58mm)...
-set KIOSK_URL=http://localhost:4000/?kiosk
+set KIOSK_URL=http://localhost:4000/?kiosk^&v=%RANDOM%
 
 where msedge >nul 2>&1
 if %ERRORLEVEL% EQU 0 (

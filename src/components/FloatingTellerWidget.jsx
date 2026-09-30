@@ -165,155 +165,8 @@ export default function FloatingTellerWidget({
 
   const isStandaloneMode = isStandalone || (typeof window !== 'undefined' && (window.location.search.includes('widgetOnly') || window.location.search.includes('mode=widget')));
 
-  // --- AUTOMATISATION DU RAPPEL ET GESTION DES ABSENCES (SI POPUP / STANDALONE) ---
-  const [autoStage, setAutoStage] = useState('IDLE');
-  const [autoCountdownSec, setAutoCountdownSec] = useState(15);
-  const autoRecallTimeoutRef = useRef(null);
-  const autoAbsentTimeoutRef = useRef(null);
-  const autoCountdownIntervalRef = useRef(null);
-  const autoRecallDoneTicketIdRef = useRef(null);
-  const activeTicketIdRef = useRef(null);
-
-  const clearAllAutoTimers = () => {
-    if (autoRecallTimeoutRef.current) {
-      clearTimeout(autoRecallTimeoutRef.current);
-      autoRecallTimeoutRef.current = null;
-    }
-    if (autoAbsentTimeoutRef.current) {
-      clearTimeout(autoAbsentTimeoutRef.current);
-      autoAbsentTimeoutRef.current = null;
-    }
-    if (autoCountdownIntervalRef.current) {
-      clearInterval(autoCountdownIntervalRef.current);
-      autoCountdownIntervalRef.current = null;
-    }
-    setAutoStage('IDLE');
-    setAutoCountdownSec(15);
-  };
-
-  const startRecallCountdown = (ticket) => {
-    if (activeTicketIdRef.current !== ticket.id) return;
-    if (autoCountdownIntervalRef.current) clearInterval(autoCountdownIntervalRef.current);
-    if (autoRecallTimeoutRef.current) clearTimeout(autoRecallTimeoutRef.current);
-
-    setAutoStage('COUNTDOWN_RECALL');
-    setAutoCountdownSec(15);
-
-    let remaining = 15;
-    autoCountdownIntervalRef.current = setInterval(() => {
-      remaining -= 1;
-      setAutoCountdownSec(Math.max(0, remaining));
-      if (remaining <= 0 && autoCountdownIntervalRef.current) {
-        clearInterval(autoCountdownIntervalRef.current);
-        autoCountdownIntervalRef.current = null;
-      }
-    }, 1000);
-
-    autoRecallTimeoutRef.current = setTimeout(async () => {
-      if (activeTicketIdRef.current === ticket.id && autoRecallDoneTicketIdRef.current !== ticket.id) {
-        await executeAutoRecall(ticket);
-      }
-    }, 15000);
-  };
-
-  const executeAutoRecall = async (ticket) => {
-    autoRecallDoneTicketIdRef.current = ticket.id;
-    if (autoCountdownIntervalRef.current) {
-      clearInterval(autoCountdownIntervalRef.current);
-      autoCountdownIntervalRef.current = null;
-    }
-
-    setAutoStage('WAITING_VOICE_RECALL');
-    await recallTicket(ticket.id, lang);
-    // Le son est déclenché par DisplayModule via socket ticket_recalled → ticket_called_audio
-    setTimeout(() => {
-      if (activeTicketIdRef.current === ticket.id) {
-        startAbsentCountdown(ticket);
-      }
-    }, 4000);
-  };
-
-  const startAbsentCountdown = (ticket) => {
-    if (activeTicketIdRef.current !== ticket.id) return;
-    if (autoCountdownIntervalRef.current) clearInterval(autoCountdownIntervalRef.current);
-    if (autoAbsentTimeoutRef.current) clearTimeout(autoAbsentTimeoutRef.current);
-
-    setAutoStage('COUNTDOWN_ABSENT');
-    setAutoCountdownSec(15);
-
-    let remaining = 15;
-    autoCountdownIntervalRef.current = setInterval(() => {
-      remaining -= 1;
-      setAutoCountdownSec(Math.max(0, remaining));
-      if (remaining <= 0 && autoCountdownIntervalRef.current) {
-        clearInterval(autoCountdownIntervalRef.current);
-        autoCountdownIntervalRef.current = null;
-      }
-    }, 1000);
-
-    autoAbsentTimeoutRef.current = setTimeout(async () => {
-      if (activeTicketIdRef.current === ticket.id) {
-        await executeAutoAbsent(ticket);
-      }
-    }, 15000);
-  };
-
-  const executeAutoAbsent = async (ticket) => {
-    clearAllAutoTimers();
-    activeTicketIdRef.current = null;
-
-    await updateTicketStatus(ticket.id, 'NO_SHOW');
-    onStateChange();
-
-    const nextTicket = await processNextTicket(
-      selectedAgent.id,
-      selectedAgent.name,
-      counterNumber,
-      currentServiceFilter,
-      null,
-      lang
-    );
-    if (nextTicket && isStandaloneMode) {
-      startTicketCallCycle(nextTicket);
-    }
-  };
-
-  const startTicketCallCycle = (ticket) => {
-    if (!ticket || ticket.status !== 'CALLED' || !isStandaloneMode) return;
-    clearAllAutoTimers();
-    activeTicketIdRef.current = ticket.id;
-    setAutoStage('WAITING_VOICE_CALL');
-    // Le son est déclenché par DisplayModule via socket ticket_called → ticket_called_audio
-    setTimeout(() => {
-      if (activeTicketIdRef.current === ticket.id) {
-        startRecallCountdown(ticket);
-      }
-    }, 4000);
-  };
-
-  useEffect(() => {
-    if (!isStandaloneMode) return;
-    if (!activeTicket || activeTicket.status !== 'CALLED') {
-      clearAllAutoTimers();
-      activeTicketIdRef.current = activeTicket?.id || null;
-      return;
-    }
-
-    if (activeTicketIdRef.current !== activeTicket.id) {
-      activeTicketIdRef.current = activeTicket.id;
-      startTicketCallCycle(activeTicket);
-    }
-  }, [activeTicket?.id, activeTicket?.status, counterNumber, isStandaloneMode]);
-
-  useEffect(() => {
-    return () => {
-      clearAllAutoTimers();
-    };
-  }, []);
-
   const handleCallNext = async () => {
-    clearAllAutoTimers();
-    const nextTicket = await processNextTicket(
+    await processNextTicket(
       selectedAgent.id,
       selectedAgent.name,
       counterNumber,
@@ -322,39 +175,24 @@ export default function FloatingTellerWidget({
       lang
     );
     onStateChange();
-    if (nextTicket && isStandaloneMode) {
-      startTicketCallCycle(nextTicket);
-    }
   };
 
   const handleRecall = async () => {
     if (activeTicket) {
-      clearAllAutoTimers();
-      autoRecallDoneTicketIdRef.current = activeTicket.id;
       await recallTicket(activeTicket.id, lang);
-      // Le son est déclenché par DisplayModule via socket ticket_recalled → ticket_called_audio
-      setTimeout(() => {
-        if (isStandaloneMode && activeTicketIdRef.current === activeTicket.id) {
-          startAbsentCountdown(activeTicket);
-        }
-      }, 4000);
       onStateChange();
     }
   };
 
   const handleNoShow = async () => {
     if (activeTicket) {
-      clearAllAutoTimers();
-      activeTicketIdRef.current = null;
       await updateTicketStatus(activeTicket.id, 'NO_SHOW');
       onStateChange();
-      await handleCallNext();
     }
   };
 
   const handleStartProcessing = async () => {
     if (activeTicket) {
-      clearAllAutoTimers();
       await updateTicketStatus(activeTicket.id, 'IN_PROGRESS');
       onStateChange();
     }
@@ -362,8 +200,6 @@ export default function FloatingTellerWidget({
 
   const handleComplete = async () => {
     if (activeTicket) {
-      clearAllAutoTimers();
-      activeTicketIdRef.current = null;
       await updateTicketStatus(activeTicket.id, 'COMPLETED');
       onStateChange();
     }
@@ -510,25 +346,9 @@ export default function FloatingTellerWidget({
                     <strong className="timer-val">{formatTimer(elapsedSec)}</strong>
                   </div>
 
-                  {/* Bannière décompte automatique si mode standalone */}
-                  {isStandaloneMode && activeTicket.status === 'CALLED' && autoStage === 'WAITING_VOICE_CALL' && (
+                  {activeTicket.status === 'CALLED' && (
                     <div style={{ fontSize: '0.75rem', color: '#2563EB', marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', fontWeight: 600 }}>
-                      <Volume2 size={13} /> Annonce vocale d'appel...
-                    </div>
-                  )}
-                  {isStandaloneMode && activeTicket.status === 'CALLED' && autoStage === 'COUNTDOWN_RECALL' && (
-                    <div style={{ fontSize: '0.75rem', color: '#D97706', marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', fontWeight: 700 }}>
-                      <Clock size={13} /> Rappel auto dans {autoCountdownSec}s
-                    </div>
-                  )}
-                  {isStandaloneMode && activeTicket.status === 'CALLED' && autoStage === 'WAITING_VOICE_RECALL' && (
-                    <div style={{ fontSize: '0.75rem', color: '#2563EB', marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', fontWeight: 600 }}>
-                      <Volume2 size={13} /> Rappel vocal en cours...
-                    </div>
-                  )}
-                  {isStandaloneMode && activeTicket.status === 'CALLED' && autoStage === 'COUNTDOWN_ABSENT' && (
-                    <div style={{ fontSize: '0.75rem', color: '#DC2626', marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', fontWeight: 700 }}>
-                      <AlertTriangle size={13} /> Absence auto dans {autoCountdownSec}s
+                      <Volume2 size={13} /> Ticket appelé • En attente
                     </div>
                   )}
                   {activeTicket.status === 'IN_PROGRESS' && (

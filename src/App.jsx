@@ -49,12 +49,6 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showFloatingWidget, setShowFloatingWidget] = useState(true);
 
-  // Marquer la fenêtre TV pour bloquer le son sur les autres pages
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.COFINA_IS_DISPLAY_TV = (activeModule === 'display');
-    }
-  }, [activeModule]);
 
   
   // Persisted language state ('fr' | 'en')
