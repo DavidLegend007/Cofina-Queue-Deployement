@@ -499,7 +499,7 @@ const buildCSS = () => `
   }
 
   @page {
-    size: 58mm 50mm landscape;
+    size: 58mm auto;
     margin: 0mm !important;
   }
 
@@ -510,7 +510,6 @@ const buildCSS = () => `
       margin: 0 !important;
       padding: 0 !important;
       width: 58mm !important;
-      height: 50mm !important;
       overflow: hidden !important;
     }
     
@@ -518,7 +517,7 @@ const buildCSS = () => `
       visibility: hidden !important;
     }
 
-    /* Rendre UNIQUEMENT visible le ticket thermique 58mm x 50mm */
+    /* Rendre UNIQUEMENT visible le ticket thermique 58mm */
     #cofina-thermal-ticket, #cofina-thermal-ticket * {
       visibility: visible !important;
     }
@@ -528,12 +527,10 @@ const buildCSS = () => `
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
-      width: 58mm !important;
-      height: 50mm !important;
-      max-width: 58mm !important;
-      max-height: 50mm !important;
-      margin: 0 !important;
-      padding: 2mm 3mm !important;
+      width: 54mm !important;
+      max-width: 54mm !important;
+      margin: 0 auto !important;
+      padding: 1.5mm 1mm !important;
       box-sizing: border-box !important;
       flex-direction: column !important;
       justify-content: space-between !important;
@@ -557,26 +554,27 @@ const buildCSS = () => `
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
-      gap: 5px !important;
+      gap: 4px !important;
     }
     .th-logo {
-      height: 14px !important;
+      height: 12px !important;
       object-fit: contain !important;
     }
     .th-brand {
-      font-size: 11px !important;
+      font-size: 10px !important;
       font-weight: 900 !important;
       letter-spacing: 0.04em !important;
       color: #000000 !important;
     }
     .th-agency {
-      font-size: 8px !important;
+      font-size: 7.5px !important;
       color: #000000 !important;
-      font-weight: 600 !important;
+      font-weight: 700 !important;
       white-space: nowrap !important;
       overflow: hidden !important;
       text-overflow: ellipsis !important;
       max-width: 100% !important;
+      text-align: center !important;
     }
     .th-divider {
       width: 100% !important;
@@ -590,40 +588,51 @@ const buildCSS = () => `
       align-items: center !important;
       justify-content: center !important;
       flex: 1 !important;
+      padding: 1px 0 !important;
     }
     .th-ticket-num {
-      font-size: 38px !important;
+      font-size: 26px !important;
       font-weight: 900 !important;
-      line-height: 1 !important;
+      line-height: 1.1 !important;
       color: #000000 !important;
-      letter-spacing: 1.5px !important;
+      letter-spacing: 0.5px !important;
       margin: 1px 0 !important;
+      text-align: center !important;
+      white-space: nowrap !important;
+      width: 100% !important;
     }
     .th-service {
-      font-size: 12px !important;
+      font-size: 10px !important;
       font-weight: 800 !important;
       color: #000000 !important;
-      margin-top: 2px !important;
+      margin-top: 1px !important;
       text-transform: uppercase !important;
-      letter-spacing: 0.05em !important;
+      letter-spacing: 0.02em !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      max-width: 100% !important;
+      text-align: center !important;
     }
     .th-vip {
-      font-size: 8px !important;
+      font-size: 7.5px !important;
       font-weight: 800 !important;
       border: 1px solid #000000 !important;
       padding: 0 4px !important;
       border-radius: 2px !important;
       margin-top: 1px !important;
+      white-space: nowrap !important;
     }
     .th-footer {
       width: 100% !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
-      font-size: 8px !important;
+      font-size: 7.5px !important;
       color: #000000 !important;
       font-weight: 600 !important;
       padding-bottom: 0.5mm !important;
+      text-align: center !important;
     }
   }
 `;
