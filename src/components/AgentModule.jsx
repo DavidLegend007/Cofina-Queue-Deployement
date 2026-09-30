@@ -1030,7 +1030,13 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
                 {waitingTickets.length === 0 && (
                   <div className="empty-state">
                     <Clock size={32} />
-                    <p>Aucun ticket en attente</p>
+                    <p>Aucun ticket pour vos services</p>
+                    {tickets.filter(t => t.status === 'WAITING').length > 0 && (
+                      <small style={{ color: '#94a3b8', fontSize: '11px', marginTop: '4px', display: 'block', lineHeight: '1.4' }}>
+                        {tickets.filter(t => t.status === 'WAITING').length} ticket(s) en attente dans l'agence<br/>
+                        pour d'autres guichets
+                      </small>
+                    )}
                   </div>
                 )}
               </div>
