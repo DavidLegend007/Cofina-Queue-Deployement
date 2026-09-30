@@ -107,7 +107,7 @@ export const playCallChime = () => {
   }
 };
 
-// ── 2. Sélection de la meilleure voix disponible ────────────
+// ── 2. Sélection de la meilleure voix disponible (100% Hors-Ligne) ────────────
 export const getAfricanOrBestVoice = (targetLang = 'fr') => {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
   let voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
@@ -116,7 +116,19 @@ export const getAfricanOrBestVoice = (targetLang = 'fr') => {
   const isFr = targetLang.startsWith('fr');
 
   if (isFr) {
-    // 1. Recherche d'une voix africaine francophone
+    // 1. Voix locales hors-ligne françaises en priorité absolue (Hortense, Julie, Paul, Desktop)
+    // EXCLURE absolument les voix 'online' ou 'google' qui nécessitent internet et échouent en agence !
+    const localFrVoice = voices.find(v => {
+      const l = (v.lang || '').toLowerCase();
+      const n = (v.name || '').toLowerCase();
+      const isLocal = v.localService === true || n.includes('desktop') || n.includes('local');
+      return l.startsWith('fr') && !n.includes('online') && !n.includes('google') && (
+        isLocal || n.includes('hortense') || n.includes('julie') || n.includes('paul') || n.includes('microsoft')
+      );
+    });
+    if (localFrVoice) return localFrVoice;
+
+    // 2. Recherche d'une voix africaine francophone (si installée localement)
     const africanVoice = voices.find(v => {
       const l = (v.lang || '').toLowerCase();
       const n = (v.name || '').toLowerCase();
@@ -128,26 +140,20 @@ export const getAfricanOrBestVoice = (targetLang = 'fr') => {
     });
     if (africanVoice) return africanVoice;
 
-    // 2. Recherche d'une voix française locale de qualité
-    const preferredVoice = voices.find(v => {
-      const l = (v.lang || '').toLowerCase();
-      const n = (v.name || '').toLowerCase();
-      return l.startsWith('fr') && !n.includes('online') && (
-        n.includes('google') || n.includes('hortense') || n.includes('julie') || 
-        n.includes('celine') || n.includes('paul') || n.includes('desktop')
-      );
-    });
-    if (preferredVoice) return preferredVoice;
+    // 3. Toute voix française locale (localService)
+    const anyLocalFr = voices.find(v => (v.lang || '').toLowerCase().startsWith('fr') && v.localService === true);
+    if (anyLocalFr) return anyLocalFr;
 
-    // 3. Toute voix française disponible
+    // 4. Toute voix française disponible (même si Google en dernier recours)
     const anyFrVoice = voices.find(v => (v.lang || '').toLowerCase().startsWith('fr'));
     if (anyFrVoice) return anyFrVoice;
   } else {
-    const anyEnVoice = voices.find(v => (v.lang || '').toLowerCase().startsWith('en'));
+    const anyEnVoice = voices.find(v => (v.lang || '').toLowerCase().startsWith('en') && v.localService === true) 
+      || voices.find(v => (v.lang || '').toLowerCase().startsWith('en'));
     if (anyEnVoice) return anyEnVoice;
   }
 
-  // 4. Repli de secours : voix par défaut du système pour ne jamais être silencieux
+  // 5. Repli de secours : voix par défaut du système pour ne jamais être silencieux
   return voices.find(v => v.default) || voices[0] || null;
 };
 
@@ -160,7 +166,10 @@ export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
       window.speechSynthesis.resume();
     }
 
-    const formattedTicket = (ticketNumber || '').replace('-', ' ');
+    const rawTicket = String(ticketNumber || '').trim();
+    const formattedTicket = rawTicket
+      .replace(/-/g, ' ')
+      .replace(/([A-Za-z]+)(\d+)/g, '$1 $2');
     const isEn = lang === 'en';
     const text = isEn 
       ? `Welcome to Cofina Togo. Your ticket ${formattedTicket} has been created. Please take a seat in the waiting room.`
@@ -174,7 +183,6 @@ export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
     const matchedVoice = getAfricanOrBestVoice(isEn ? 'en' : 'fr');
     if (matchedVoice) utterance.voice = matchedVoice;
 
-    // Fix garbage collector Chromium
     currentUtterance = utterance;
     window.__cofina_speech = utterance;
 
@@ -189,7 +197,6 @@ export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
 
     setTimeout(() => {
       try {
-        window.speechSynthesis.cancel();
         window.speechSynthesis.speak(utterance);
         if (window.speechSynthesis.paused) {
           window.speechSynthesis.resume();
@@ -204,54 +211,65 @@ export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
 // ── 4. Annonce vocale d'appel (Écran TV) ────────────────────
 export const speakTicketCall = (ticketNumber, counterNumber, lang = 'fr') => {
   try {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (typeof window === 'undefined') return;
 
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-    }
+    const rawTicket = String(ticketNumber || '').trim();
+    // Séparer les lettres et chiffres pour une prononciation claire et distincte
+    // Ex: "D-001" ou "D001" -> "D 0 0 1"
+    const cleanNum = rawTicket.replace('-', '');
+    const letterPart = cleanNum.replace(/[0-9]/g, '');
+    const digitPart = cleanNum.replace(/[^0-9]/g, '');
+    const formattedTicket = `${letterPart} ${digitPart.split('').join(' ')}`.trim();
 
-    const formattedTicket = (ticketNumber || '').replace('-', ' ');
     const isEn = lang === 'en';
 
-    // Phrase concrète directe
+    // Phrase concrète et directe
     const text = isEn 
       ? `Ticket ${formattedTicket}, please proceed to Counter ${counterNumber}.`
       : `Ticket ${formattedTicket}, veuillez passer à la caisse ${counterNumber}.`;
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = isEn ? 'en-US' : 'fr-FR';
-    utterance.rate = 0.90;
-    utterance.pitch = 1.0;
-
-    const matchedVoice = getAfricanOrBestVoice(isEn ? 'en' : 'fr');
-    if (matchedVoice) utterance.voice = matchedVoice;
-
-    // Fix bug garbage collection Chrome : conserver la référence en mémoire vive
-    currentUtterance = utterance;
-    window.__cofina_speech = utterance;
-
-    utterance.onend = () => {
-      currentUtterance = null;
-      window.__cofina_speech = null;
-    };
-    utterance.onerror = (err) => {
-      console.warn('SpeechSynthesis error:', err);
-      currentUtterance = null;
-      window.__cofina_speech = null;
-    };
-
-    // Déclencher 450ms après le carillon pour un enchaînement naturel
-    setTimeout(() => {
-      try {
-        window.speechSynthesis.cancel(); // Vide tout appel précédent en attente
-        window.speechSynthesis.speak(utterance);
-        if (window.speechSynthesis.paused) {
-          window.speechSynthesis.resume();
-        }
-      } catch (err) {
-        console.warn('SpeechSynthesis speak error:', err);
+    if ('speechSynthesis' in window) {
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
       }
-    }, 450);
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = isEn ? 'en-US' : 'fr-FR';
+      utterance.rate = 0.88;
+      utterance.pitch = 1.0;
+
+      const matchedVoice = getAfricanOrBestVoice(isEn ? 'en' : 'fr');
+      if (matchedVoice) {
+        utterance.voice = matchedVoice;
+      }
+
+      // Fix bug garbage collection Chrome : conserver la référence en mémoire vive
+      currentUtterance = utterance;
+      window.__cofina_speech = utterance;
+
+      utterance.onend = () => {
+        currentUtterance = null;
+        window.__cofina_speech = null;
+      };
+      utterance.onerror = (err) => {
+        console.warn('SpeechSynthesis error:', err);
+        currentUtterance = null;
+        window.__cofina_speech = null;
+      };
+
+      // Déclencher 450ms après le carillon pour un enchaînement naturel
+      // IMPORTANT : Ne PAS appeler cancel() dans ce timeout pour ne pas tuer l'utterance
+      setTimeout(() => {
+        try {
+          window.speechSynthesis.speak(utterance);
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+        } catch (err) {
+          console.warn('SpeechSynthesis speak error:', err);
+        }
+      }, 450);
+    }
 
   } catch (e) {
     console.warn('Speech synthesis TEMPS 2 error:', e);

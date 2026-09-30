@@ -3,7 +3,7 @@ node_modules
 server/node_modules
 
 # Production Build Outputs
-dist
+# dist is tracked so git pull on edge server immediately deploys latest build
 server/dist
 
 # SQLite Local Database & Logs
