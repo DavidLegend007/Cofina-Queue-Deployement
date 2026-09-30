@@ -1,7 +1,63 @@
 // ============================================================
 // audioHelpers.js — Logique concrète de diffusion sonore
-// Carillon Web Audio + Synthèse vocale fluide
+// Carillon Web Audio + Synthèse vocale fluide et fiable
 // ============================================================
+
+// Références persistantes globales pour éviter le bug de garbage-collection de Chromium
+let currentUtterance = null;
+let cachedVoices = [];
+
+const loadCachedVoices = () => {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      const v = window.speechSynthesis.getVoices();
+      if (v && v.length > 0) {
+        cachedVoices = v;
+      }
+    } catch (_) {}
+  }
+};
+
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  loadCachedVoices();
+  window.speechSynthesis.onvoiceschanged = loadCachedVoices;
+}
+
+// ── 0. Déblocage universel de l'audio et de la parole ─────────
+export const unlockAudio = () => {
+  try {
+    if (typeof window === 'undefined') return;
+
+    // Déblocage SpeechSynthesis
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.resume();
+      loadCachedVoices();
+      // Envoi d'une énonciation vide pour forcer Chrome à accorder les droits
+      const silent = new SpeechSynthesisUtterance(' ');
+      silent.volume = 0.01;
+      silent.rate = 10;
+      window.speechSynthesis.speak(silent);
+    }
+
+    // Déblocage Web Audio
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      const ctx = new AudioCtx();
+      ctx.resume().then(() => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.value = 0.001;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.05);
+        setTimeout(() => ctx.close().catch(() => {}), 200);
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.warn('unlockAudio error:', e);
+  }
+};
 
 // ── 1. Carillon d'annonce (Bip 2 tons) ──────────────────────
 export const playCallChime = () => {
@@ -54,7 +110,7 @@ export const playCallChime = () => {
 // ── 2. Sélection de la meilleure voix disponible ────────────
 export const getAfricanOrBestVoice = (targetLang = 'fr') => {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
-  const voices = window.speechSynthesis.getVoices();
+  let voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
   if (!voices || voices.length === 0) return null;
 
   const isFr = targetLang.startsWith('fr');
@@ -86,9 +142,13 @@ export const getAfricanOrBestVoice = (targetLang = 'fr') => {
     // 3. Toute voix française disponible
     const anyFrVoice = voices.find(v => (v.lang || '').toLowerCase().startsWith('fr'));
     if (anyFrVoice) return anyFrVoice;
+  } else {
+    const anyEnVoice = voices.find(v => (v.lang || '').toLowerCase().startsWith('en'));
+    if (anyEnVoice) return anyEnVoice;
   }
 
-  return voices.find(v => (v.lang || '').toLowerCase().startsWith(targetLang)) || null;
+  // 4. Repli de secours : voix par défaut du système pour ne jamais être silencieux
+  return voices.find(v => v.default) || voices[0] || null;
 };
 
 // ── 3. Annonce de création de ticket (Borne) ────────────────
@@ -96,7 +156,10 @@ export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
   try {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
-    window.speechSynthesis.cancel();
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+
     const formattedTicket = (ticketNumber || '').replace('-', ' ');
     const isEn = lang === 'en';
     const text = isEn 
@@ -111,9 +174,26 @@ export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
     const matchedVoice = getAfricanOrBestVoice(isEn ? 'en' : 'fr');
     if (matchedVoice) utterance.voice = matchedVoice;
 
+    // Fix garbage collector Chromium
+    currentUtterance = utterance;
+    window.__cofina_speech = utterance;
+
+    utterance.onend = () => {
+      currentUtterance = null;
+      window.__cofina_speech = null;
+    };
+    utterance.onerror = () => {
+      currentUtterance = null;
+      window.__cofina_speech = null;
+    };
+
     setTimeout(() => {
       try {
+        window.speechSynthesis.cancel();
         window.speechSynthesis.speak(utterance);
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
       } catch (_) {}
     }, 200);
   } catch (e) {
@@ -126,7 +206,6 @@ export const speakTicketCall = (ticketNumber, counterNumber, lang = 'fr') => {
   try {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
-    window.speechSynthesis.cancel();
     if (window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
     }
@@ -147,14 +226,32 @@ export const speakTicketCall = (ticketNumber, counterNumber, lang = 'fr') => {
     const matchedVoice = getAfricanOrBestVoice(isEn ? 'en' : 'fr');
     if (matchedVoice) utterance.voice = matchedVoice;
 
-    // Déclencher après le bip (600ms)
+    // Fix bug garbage collection Chrome : conserver la référence en mémoire vive
+    currentUtterance = utterance;
+    window.__cofina_speech = utterance;
+
+    utterance.onend = () => {
+      currentUtterance = null;
+      window.__cofina_speech = null;
+    };
+    utterance.onerror = (err) => {
+      console.warn('SpeechSynthesis error:', err);
+      currentUtterance = null;
+      window.__cofina_speech = null;
+    };
+
+    // Déclencher 450ms après le carillon pour un enchaînement naturel
     setTimeout(() => {
       try {
+        window.speechSynthesis.cancel(); // Vide tout appel précédent en attente
         window.speechSynthesis.speak(utterance);
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
       } catch (err) {
         console.warn('SpeechSynthesis speak error:', err);
       }
-    }, 600);
+    }, 450);
 
   } catch (e) {
     console.warn('Speech synthesis TEMPS 2 error:', e);

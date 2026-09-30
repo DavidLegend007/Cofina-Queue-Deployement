@@ -10,10 +10,11 @@ import {
 } from 'lucide-react';
 import { translations } from '../services/translations';
 import { COFINA_SERVICES } from '../services/queueStore';
-import { playCallChime, speakTicketCall } from '../services/utils/audioHelpers';
+import { playCallChime, speakTicketCall, unlockAudio } from '../services/utils/audioHelpers';
 
 export default function DisplayModule({ agencyName, tickets, lastCalledTicket, lang = 'fr' }) {
   const [currentTime, setCurrentTime] = React.useState(new Date());
+  const [isAudioUnlocked, setIsAudioUnlocked] = React.useState(false);
 
   React.useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -32,27 +33,24 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
     return () => window.removeEventListener('ticket_called_audio', handleAudio);
   }, [lang]);
 
-  // Déblocage automatique des restrictions Autoplay des navigateurs dès le premier clic
-  React.useEffect(() => {
-    const unlockAudio = () => {
-      try {
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-          window.speechSynthesis.resume();
-        }
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (AudioCtx) {
-          const ctx = new AudioCtx();
-          ctx.resume().then(() => ctx.close()).catch(() => {});
-        }
-      } catch (_) {}
-    };
-    window.addEventListener('click', unlockAudio, { once: true });
-    window.addEventListener('touchstart', unlockAudio, { once: true });
-    return () => {
-      window.removeEventListener('click', unlockAudio);
-      window.removeEventListener('touchstart', unlockAudio);
-    };
+  // Déblocage universel dès la moindre interaction (clic, touche, pointer)
+  const handleUnlock = React.useCallback(() => {
+    unlockAudio();
+    setIsAudioUnlocked(true);
   }, []);
+
+  React.useEffect(() => {
+    window.addEventListener('click', handleUnlock);
+    window.addEventListener('pointerdown', handleUnlock);
+    window.addEventListener('touchstart', handleUnlock);
+    window.addEventListener('keydown', handleUnlock);
+    return () => {
+      window.removeEventListener('click', handleUnlock);
+      window.removeEventListener('pointerdown', handleUnlock);
+      window.removeEventListener('touchstart', handleUnlock);
+      window.removeEventListener('keydown', handleUnlock);
+    };
+  }, [handleUnlock]);
 
   const t = translations[lang] || translations.fr;
   const activeTickets = tickets.filter(t => t.status === 'CALLED' || t.status === 'IN_PROGRESS');
@@ -61,6 +59,44 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
 
   return (
     <div className="disp-root animate-fade-in">
+      {/* ── BANDEAU D'ACTIVATION AUDIO EN CAS DE RECHARGEMENT PUR DU NAVIGATEUR ── */}
+      {!isAudioUnlocked && (
+        <div 
+          className="disp-audio-unlock-banner"
+          onClick={() => {
+            handleUnlock();
+            playCallChime();
+            speakTicketCall('A-01', '1', lang);
+          }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 999999,
+            backgroundColor: '#dc2626',
+            color: '#ffffff',
+            padding: '12px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '14px',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(220, 38, 38, 0.5)',
+            letterSpacing: '0.5px'
+          }}
+          title="Cliquez pour autoriser le son et la synthèse vocale sur ce navigateur"
+        >
+          <Volume2 size={24} className="audio-icon-pulse" />
+          <span>🔊 CLIQUEZ UNE FOIS SUR L'ÉCRAN POUR ACTIVER LE SON ET LA VOIX DE LA TV</span>
+          <span style={{ fontSize: '12px', background: 'rgba(0,0,0,0.25)', padding: '4px 10px', borderRadius: '12px' }}>
+            Requis après chaque rechargement
+          </span>
+        </div>
+      )}
+
       {/* ── TOP HEADER ── */}
       <header className="disp-header">
         <div className="disp-hdr-left">
@@ -77,14 +113,20 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
           <div 
             className="disp-badge disp-badge-audio"
             onClick={() => {
+              handleUnlock();
               playCallChime();
-              speakTicketCall('TI-001', '1', 'fr');
+              speakTicketCall('A-01', '1', lang);
             }}
-            style={{ cursor: 'pointer' }}
+            style={{ 
+              cursor: 'pointer',
+              backgroundColor: isAudioUnlocked ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.2)',
+              borderColor: isAudioUnlocked ? '#22c55e' : '#ef4444',
+              color: isAudioUnlocked ? '#22c55e' : '#fca5a5'
+            }}
             title="Cliquer pour tester le carillon et la voix sur la TV"
           >
             <Volume2 size={15} className="audio-icon-pulse" />
-            <span>{t.soundActive}</span>
+            <span>{isAudioUnlocked ? t.soundActive : "Activer le Son (Cliquer)"}</span>
           </div>
           <div className="disp-clock">
             {currentTime.toLocaleTimeString(lang === 'en' ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
