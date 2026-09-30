@@ -164,7 +164,7 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
     setPinError('');
     setIsLoggingIn(true);
     try {
-      await loginAsAgent(pinInput, selectedAgent.name);
+      await loginAsAgent(pinInput.trim(), selectedAgent.name);
       const defCounter = selectedAgent.defaultCounter || 1;
       setCounterNumber(defCounter);
       const targetPoste = POSTES_CONFIG.find(p => p.number === defCounter) || POSTES_CONFIG[0];
@@ -633,18 +633,21 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
               <div className="login-field-group">
                 <label className="login-field-label">
                   <Key size={15} style={{ color: '#D3122A', display: 'inline', marginRight: '6px' }} />
-                  Mot de passe ou Code PIN :
+                  Mot de passe :
                 </label>
                 <input
                   type="password"
                   maxLength={30}
-                  placeholder="Code PIN (ex: 1234) ou mot de passe"
+                  placeholder="cofina2026  (ou PIN : 1234)"
                   value={pinInput}
                   onChange={e => setPinInput(e.target.value)}
                   autoFocus
                   className="login-pin-input"
                   required
                 />
+                <small style={{ color: '#888', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                  Mot de passe agence : <strong>cofina2026</strong> &nbsp;|&nbsp; PIN court : <strong>1234</strong>
+                </small>
               </div>
 
               {pinError && (
