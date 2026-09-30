@@ -6,9 +6,7 @@ import {
   Sparkles, 
   Tv, 
   CheckCircle2, 
-  Users,
-  ShieldCheck,
-  Megaphone
+  Users
 } from 'lucide-react';
 import { translations } from '../services/translations';
 import { COFINA_SERVICES } from '../services/queueStore';
@@ -37,7 +35,7 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
   const t = translations[lang] || translations.fr;
   const activeTickets = tickets.filter(t => t.status === 'CALLED' || t.status === 'IN_PROGRESS');
   const waitingTickets = tickets.filter(t => t.status === 'WAITING')
-    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)); // Trie du plus ancien au plus récent
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   return (
     <div className="disp-root animate-fade-in">
@@ -55,7 +53,7 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
 
         <div className="disp-hdr-right">
           <div className="disp-badge disp-badge-audio">
-            <Volume2 size={16} className="audio-icon-pulse" />
+            <Volume2 size={15} className="audio-icon-pulse" />
             <span>{t.soundActive}</span>
           </div>
           <div className="disp-clock">
@@ -69,14 +67,14 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         <section className="disp-hero-call animate-scale-up">
           <div className="disp-call-left">
             <span className="disp-call-badge">
-              <Sparkles size={16} /> {t.displayNowCalling}
+              <Sparkles size={14} /> {t.displayNowCalling}
             </span>
             <div className="disp-call-ticket">{lastCalledTicket.ticketNumber}</div>
             <div className="disp-call-service">{lastCalledTicket.serviceName}</div>
           </div>
 
           <div className="disp-call-arrow">
-            <ArrowRight size={54} />
+            <ArrowRight size={38} />
           </div>
 
           <div className="disp-call-right">
@@ -87,7 +85,7 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         </section>
       ) : (
         <section className="disp-hero-empty">
-          <div className="disp-empty-icon"><Tv size={36} /></div>
+          <div className="disp-empty-icon"><Tv size={26} /></div>
           <div className="disp-empty-txt">
             <h2>EN ATTENTE D'UN NOUVEL APPEL</h2>
             <p>Veuillez vous installer en salle d'attente. Votre numéro sera annoncé à l'écran.</p>
@@ -95,7 +93,7 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         </section>
       )}
 
-      {/* ── 2 COLUMNS GRID ── */}
+      {/* ── 2 COLUMNS GRID (TAKES EXACT REMAINING HEIGHT) ── */}
       <main className="disp-grid">
 
         {/* LEFT: 6 POSTES EN DIRECT (3 Caisses, 2 Opérateurs, 1 Accueil) */}
@@ -125,7 +123,7 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
                     {cur ? (
                       <span className="caisse-status-dot">En traitement</span>
                     ) : (
-                      <span className="caisse-pole-tag" style={{ fontSize: '0.7rem', color: '#94A3B8', fontWeight: 700 }}>{poste.pole}</span>
+                      <span className="caisse-pole-tag">{poste.pole}</span>
                     )}
                   </div>
 
@@ -145,46 +143,59 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
           </div>
         </section>
 
-        {/* RIGHT: FILE D'ATTENTE */}
+        {/* RIGHT: FILE D'ATTENTE AVEC BADGES TICKET HORIZONTAUX ÉLÉGANTS */}
         <aside className="disp-col-side">
           <div className="disp-sec-bar">
             <div className="disp-sec-title">
               <h2>FILE D'ATTENTE</h2>
             </div>
             <span className="disp-count-chip">
-              <Users size={14} /> {waitingTickets.length} en attente
+              <Users size={13} /> {waitingTickets.length} en attente
             </span>
           </div>
 
           <div className="disp-services-list">
-            {waitingTickets.slice(0, 5).map(ticket => {
-              const svcConfig = COFINA_SERVICES.find(s => s.code === ticket.serviceCode) || { color: '#64748B' };
+            {waitingTickets.slice(0, 5).map((ticket, idx) => {
+              const svcConfig = COFINA_SERVICES.find(s => s.code === ticket.serviceCode) || { color: '#0284C7' };
               return (
-                <div key={ticket.id} className="disp-svc-row" style={{ padding: '1rem 1.2rem', marginBottom: '0.3rem' }}>
+                <div key={ticket.id} className="disp-svc-row">
                   <div className="disp-svc-info">
-                    <span className="disp-svc-badge" style={{ background: svcConfig.color, fontSize: '1.25rem', width: '60px', height: '60px' }}>
+                    {/* BADGE TICKET HORIZONTAL (SANS AUCUN RETOUR À LA LIGNE) */}
+                    <div 
+                      className="disp-svc-badge" 
+                      style={{ 
+                        backgroundColor: svcConfig.color,
+                        boxShadow: `0 3px 10px ${svcConfig.color}40`
+                      }}
+                    >
                       {ticket.ticketNumber}
-                    </span>
+                    </div>
+
                     <div className="disp-svc-names">
-                      <span className="disp-svc-name" style={{ fontSize: '1.15rem' }}>{ticket.serviceName}</span>
-                      <span className="disp-svc-time" style={{ fontSize: '0.95rem' }}><Clock size={15} /> Reçu à {new Date(ticket.createdAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className="disp-svc-name">{ticket.serviceName}</span>
+                      <span className="disp-svc-time">
+                        <Clock size={12} /> Reçu à {new Date(ticket.createdAt).toLocaleTimeString(lang === 'en' ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
                   </div>
-                  <div className="disp-svc-cnt cnt-empty" style={{ width: 'auto', padding: '0.5rem 0.8rem', fontSize: '0.9rem', background: 'transparent' }}>
-                    En attente
-                  </div>
+
+                  <span className="disp-svc-status-pill">
+                    {idx === 0 ? 'Prochain' : `${idx + 1}ᵉ`}
+                  </span>
                 </div>
               );
             })}
+
             {waitingTickets.length === 0 && (
-               <div className="disp-svc-row" style={{ justifyContent: 'center', color: '#94A3B8', padding: '2rem 1rem', fontSize: '1.1rem' }}>
-                 Aucun ticket en attente
-               </div>
+              <div className="disp-svc-empty">
+                Aucun ticket en attente
+              </div>
             )}
+
             {waitingTickets.length > 5 && (
-               <div className="disp-svc-row" style={{ justifyContent: 'center', color: '#94A3B8', fontSize: '1rem', padding: '0.75rem', background: 'transparent', border: 'none' }}>
-                 + {waitingTickets.length - 5} autres ticket(s)
-               </div>
+              <div className="disp-svc-more">
+                + {waitingTickets.length - 5} autres ticket(s)
+              </div>
             )}
           </div>
 
@@ -194,11 +205,11 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
             <div className="disp-comp-chips">
               {tickets.filter(t => t.status === 'COMPLETED').slice(0, 4).map(t => (
                 <span key={t.id} className="disp-chip-done">
-                  <CheckCircle2 size={13} /> {t.ticketNumber}
+                  <CheckCircle2 size={12} /> {t.ticketNumber}
                 </span>
               ))}
               {tickets.filter(t => t.status === 'COMPLETED').length === 0 && (
-                <span className="disp-chip-none">Aucun ticket encore clôturé aujourd'hui</span>
+                <span className="disp-chip-none">Aucun ticket encore clôturé</span>
               )}
             </div>
           </div>
@@ -206,7 +217,7 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
 
       </main>
 
-      {/* ── FOOTER TICKER ── */}
+      {/* ── FOOTER TICKER (TOUJOURS VISIBLE SANS SCROLLER) ── */}
       <footer className="disp-footer">
         <div className="disp-foot-tag">INFORMATION AGENT</div>
         <div className="disp-foot-marquee">
@@ -216,47 +227,53 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         </div>
       </footer>
 
-      {/* ── STYLES LUMINEUX HAUTE VISIBILITÉ (LIGHT MODE) ── */}
+      {/* ── STYLES TV ZERO-SCROLL CALIBRÉS 100vh ── */}
       <style>{`
         .disp-root {
-          min-height: 100vh;
+          height: 100vh;
+          max-height: 100vh;
+          overflow: hidden;
           background: #F8FAFC;
           color: #0F172A;
-          padding: 1.5rem 2.5rem;
+          padding: 0.75rem 1.25rem;
           display: flex;
           flex-direction: column;
-          gap: 1.5rem;
+          gap: 0.65rem;
           font-family: var(--font-body, 'Inter', system-ui, sans-serif);
           box-sizing: border-box;
         }
 
-        /* HEADER */
+        /* HEADER COMPACT */
         .disp-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
           background: #FFFFFF;
-          padding: 1.1rem 2rem;
-          border-radius: 20px;
+          padding: 0.45rem 1.25rem;
+          border-radius: 14px;
           border: 1px solid #E2E8F0;
-          box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.04);
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+          flex-shrink: 0;
         }
 
         .disp-hdr-left {
           display: flex;
           align-items: center;
-          gap: 1.25rem;
+          gap: 1rem;
         }
 
         .disp-logo-box {
           background: #FFF5F5;
-          padding: 0.4rem 0.8rem;
-          border-radius: 12px;
+          padding: 0.25rem 0.65rem;
+          border-radius: 10px;
           border: 1px solid #FEE2E2;
+          display: flex;
+          align-items: center;
         }
 
         .disp-logo-img {
-          height: 42px;
+          height: 32px;
+          width: auto;
           object-fit: contain;
         }
 
@@ -266,7 +283,7 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         }
 
         .disp-agency {
-          font-size: 1.35rem;
+          font-size: 1.15rem;
           font-weight: 900;
           color: #0F172A;
           margin: 0;
@@ -274,29 +291,29 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         }
 
         .disp-sub {
-          font-size: 0.78rem;
+          font-size: 0.72rem;
           font-weight: 800;
           color: #D3122A;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.05em;
           text-transform: uppercase;
         }
 
         .disp-hdr-right {
           display: flex;
           align-items: center;
-          gap: 1.5rem;
+          gap: 1.25rem;
         }
 
         .disp-badge-audio {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.4rem;
           background: #FFF5F5;
           border: 1px solid #FECACA;
           color: #D3122A;
-          font-size: 0.78rem;
+          font-size: 0.75rem;
           font-weight: 800;
-          padding: 0.45rem 1rem;
+          padding: 0.35rem 0.85rem;
           border-radius: 99px;
         }
 
@@ -311,53 +328,54 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
 
         .disp-clock {
           font-family: monospace;
-          font-size: 2rem;
+          font-size: 1.55rem;
           font-weight: 900;
           color: #0F172A;
-          letter-spacing: -0.03em;
+          letter-spacing: -0.02em;
         }
 
-        /* HERO SPOTLIGHT BANNER */
+        /* HERO SPOTLIGHT BANNER COMPACT & IMPACTANT */
         .disp-hero-call {
           background: linear-gradient(135deg, #D3122A 0%, #B90E23 100%);
-          border-radius: 24px;
-          padding: 2rem 3.5rem;
+          border-radius: 16px;
+          padding: 0.65rem 1.85rem;
           display: flex;
           align-items: center;
           justify-content: space-between;
           color: #FFFFFF;
-          box-shadow: 0 16px 36px rgba(211, 18, 42, 0.35);
+          box-shadow: 0 10px 24px rgba(211, 18, 42, 0.3);
           border: 1px solid rgba(255, 255, 255, 0.2);
+          flex-shrink: 0;
         }
 
         .disp-call-badge {
           display: inline-flex;
           align-items: center;
-          gap: 0.45rem;
+          gap: 0.4rem;
           background: rgba(0, 0, 0, 0.25);
           backdrop-filter: blur(8px);
-          font-size: 0.82rem;
+          font-size: 0.75rem;
           font-weight: 800;
-          padding: 0.4rem 1rem;
+          padding: 0.25rem 0.75rem;
           border-radius: 99px;
-          margin-bottom: 0.5rem;
-          letter-spacing: 0.08em;
+          margin-bottom: 0.15rem;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
         }
 
         .disp-call-ticket {
-          font-size: 5.5rem;
+          font-size: 3.4rem;
           font-weight: 900;
           line-height: 1;
-          letter-spacing: -0.04em;
-          text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+          letter-spacing: -0.03em;
+          text-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
         }
 
         .disp-call-service {
-          font-size: 1.3rem;
+          font-size: 1.05rem;
           font-weight: 700;
           opacity: 0.95;
-          margin-top: 0.2rem;
+          margin-top: 0.15rem;
         }
 
         .disp-call-arrow {
@@ -366,8 +384,8 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         }
 
         @keyframes slideArrow {
-          from { transform: translateX(-10px); }
-          to { transform: translateX(10px); }
+          from { transform: translateX(-8px); }
+          to { transform: translateX(8px); }
         }
 
         .disp-call-right {
@@ -375,43 +393,44 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         }
 
         .disp-call-dest-lbl {
-          font-size: 0.85rem;
+          font-size: 0.75rem;
           font-weight: 800;
           opacity: 0.9;
-          letter-spacing: 0.08em;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
         }
 
         .disp-call-counter {
-          font-size: 4.2rem;
+          font-size: 2.8rem;
           font-weight: 900;
           line-height: 1;
           margin-top: 0.1rem;
-          text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+          text-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
         }
 
         .disp-call-agent {
-          font-size: 1rem;
-          opacity: 0.9;
-          margin-top: 0.4rem;
+          font-size: 0.88rem;
+          opacity: 0.92;
+          margin-top: 0.2rem;
           font-weight: 600;
         }
 
         .disp-hero-empty {
           background: #FFFFFF;
           border: 1.5px dashed #CBD5E1;
-          border-radius: 24px;
-          padding: 2.2rem;
+          border-radius: 16px;
+          padding: 0.85rem 1.5rem;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 1.5rem;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.02);
+          gap: 1.25rem;
+          flex-shrink: 0;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
         }
 
         .disp-empty-icon {
-          width: 64px;
-          height: 64px;
+          width: 44px;
+          height: 44px;
           border-radius: 50%;
           background: #FFF5F5;
           color: #D3122A;
@@ -422,297 +441,364 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         }
 
         .disp-empty-txt h2 {
-          font-size: 1.3rem;
+          font-size: 1.05rem;
           font-weight: 800;
           color: #0F172A;
-          margin: 0 0 0.25rem;
+          margin: 0 0 0.15rem;
         }
 
         .disp-empty-txt p {
-          font-size: 0.9rem;
+          font-size: 0.82rem;
           color: #64748B;
           margin: 0;
         }
 
-        /* GRID LAYOUT */
+        /* GRID LAYOUT ZERO OVERFLOW (FLEX 1) */
         .disp-grid {
           display: grid;
-          grid-template-columns: 2.2fr 1fr;
-          gap: 1.75rem;
+          grid-template-columns: 2.15fr 1fr;
+          gap: 1rem;
           flex: 1;
+          min-height: 0;
+          overflow: hidden;
         }
 
         .disp-sec-bar {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 1.25rem;
-          padding-bottom: 0.6rem;
+          margin-bottom: 0.45rem;
+          padding-bottom: 0.35rem;
           border-bottom: 2px solid #E2E8F0;
+          flex-shrink: 0;
         }
 
         .disp-sec-title {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
+          gap: 0.5rem;
         }
 
         .disp-sec-title h2 {
-          font-size: 1.05rem;
+          font-size: 0.95rem;
           font-weight: 800;
           color: #0F172A;
           margin: 0;
           text-transform: uppercase;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.05em;
         }
 
         .disp-pulse-green {
-          font-size: 0.75rem;
+          font-size: 0.72rem;
           font-weight: 800;
           color: #10B981;
         }
 
         .disp-sec-sub {
-          font-size: 0.82rem;
+          font-size: 0.75rem;
           color: #94A3B8;
           font-weight: 600;
         }
 
         /* CAISSES & POSTES GRID */
+        .disp-col-main {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          min-height: 0;
+          overflow: hidden;
+        }
+
         .disp-counters-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
-          gap: 1rem;
+          grid-template-rows: repeat(2, 1fr);
+          gap: 0.65rem;
+          flex: 1;
+          min-height: 0;
         }
 
         .disp-caisse-card {
           background: #FFFFFF;
-          border-radius: 16px;
-          padding: 1.25rem;
+          border-radius: 14px;
+          padding: 0.65rem 0.9rem;
           border: 1.5px solid #E2E8F0;
-          box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.03);
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          min-height: 150px;
-          transition: all 0.2s ease;
+          min-height: 0;
+          overflow: hidden;
         }
 
         .disp-caisse-card.active-caisse {
           border-color: #D3122A;
           background: #FFFFFF;
-          box-shadow: 0 12px 30px rgba(211, 18, 42, 0.12);
+          box-shadow: 0 6px 18px rgba(211, 18, 42, 0.12);
         }
 
         .caisse-top {
           display: flex;
           align-items: center;
           justify-content: space-between;
+          flex-shrink: 0;
         }
 
         .caisse-num-badge {
-          font-size: 0.88rem;
+          font-size: 0.78rem;
           font-weight: 900;
           color: #D3122A;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.04em;
         }
 
         .caisse-status-dot {
-          font-size: 0.75rem;
+          font-size: 0.68rem;
           font-weight: 800;
           background: #DEF7EC;
           color: #03543F;
           border: 1px solid #A7F3D0;
-          padding: 0.25rem 0.75rem;
+          padding: 0.15rem 0.55rem;
           border-radius: 99px;
         }
 
+        .caisse-pole-tag {
+          font-size: 0.68rem;
+          color: #94A3B8;
+          font-weight: 700;
+        }
+
+        .caisse-body {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          flex: 1;
+          min-height: 0;
+        }
+
         .caisse-ticket {
-          font-size: 3.5rem;
+          font-size: 2.3rem;
           font-weight: 900;
           color: #0F172A;
-          line-height: 1;
-          margin: 0.5rem 0 0.2rem;
-          letter-spacing: -0.03em;
+          line-height: 1.1;
+          margin: 0.2rem 0 0.1rem;
+          letter-spacing: -0.02em;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .caisse-service {
-          font-size: 0.9rem;
+          font-size: 0.78rem;
           color: #64748B;
           font-weight: 600;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .caisse-idle-body {
-          margin-top: 1.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex: 1;
           color: #94A3B8;
-          font-size: 1rem;
+          font-size: 0.88rem;
           font-weight: 700;
-          text-align: center;
-          padding: 1.1rem 0;
           background: #F8FAFC;
-          border-radius: 14px;
+          border-radius: 10px;
           border: 1px dashed #CBD5E1;
+          margin-top: 0.3rem;
         }
 
-        /* SIDEBAR FILE D'ATTENTE */
+        /* SIDEBAR FILE D'ATTENTE AVEC BOUTONS/BADGES HORIZONTAUX ÉLÉGANTS */
         .disp-col-side {
           background: #FFFFFF;
-          border-radius: 22px;
-          padding: 1.75rem;
+          border-radius: 16px;
+          padding: 0.75rem 1rem;
           border: 1px solid #E2E8F0;
-          box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.03);
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
           display: flex;
           flex-direction: column;
-          gap: 1.4rem;
+          justify-content: space-between;
+          height: 100%;
+          min-height: 0;
+          overflow: hidden;
         }
 
         .disp-count-chip {
           display: inline-flex;
           align-items: center;
-          gap: 0.4rem;
+          gap: 0.35rem;
           background: #EFF6FF;
           color: #1D4ED8;
           border: 1px solid #BFDBFE;
-          font-size: 0.8rem;
+          font-size: 0.75rem;
           font-weight: 800;
-          padding: 0.35rem 0.85rem;
+          padding: 0.25rem 0.75rem;
           border-radius: 99px;
         }
 
         .disp-services-list {
           display: flex;
           flex-direction: column;
-          gap: 0.85rem;
+          gap: 0.45rem;
+          flex: 1;
+          min-height: 0;
+          overflow: hidden;
         }
 
         .disp-svc-row {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0.85rem 1.1rem;
+          padding: 0.45rem 0.75rem;
           background: #F8FAFC;
-          border-radius: 14px;
-          border: 1px solid #F1F5F9;
+          border-radius: 12px;
+          border: 1px solid #E2E8F0;
         }
 
         .disp-svc-info {
           display: flex;
           align-items: center;
-          gap: 0.85rem;
+          gap: 0.75rem;
+          min-width: 0;
         }
 
+        /* BADGE TICKET HORIZONTAL (TI-004 EN UNE SEULE LIGNE) */
         .disp-svc-badge {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          color: #FFFFFF;
-          font-weight: 900;
-          font-size: 1.05rem;
-          display: flex;
+          display: inline-flex;
           align-items: center;
           justify-content: center;
+          min-width: 86px;
+          height: 38px;
+          padding: 0 0.65rem;
+          border-radius: 9px;
+          color: #FFFFFF;
+          font-weight: 900;
+          font-size: 1.22rem;
+          letter-spacing: 0.04em;
+          white-space: nowrap;
           flex-shrink: 0;
-          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+          font-family: monospace, var(--font-body, 'Inter', sans-serif);
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
         }
 
         .disp-svc-names {
           display: flex;
           flex-direction: column;
+          min-width: 0;
         }
 
         .disp-svc-name {
           font-size: 0.88rem;
           font-weight: 800;
           color: #0F172A;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .disp-svc-time {
-          font-size: 0.75rem;
-          color: #94A3B8;
+          font-size: 0.72rem;
+          color: #64748B;
           display: flex;
           align-items: center;
           gap: 0.3rem;
           font-weight: 600;
         }
 
-        .disp-svc-cnt {
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          font-weight: 900;
-          font-size: 0.92rem;
+        .disp-svc-status-pill {
+          font-size: 0.72rem;
+          font-weight: 800;
+          color: #1E293B;
+          background: #E2E8F0;
+          padding: 0.2rem 0.55rem;
+          border-radius: 99px;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+
+        .disp-svc-empty {
           display: flex;
           align-items: center;
           justify-content: center;
+          color: #94A3B8;
+          padding: 1.5rem 0.5rem;
+          font-size: 0.95rem;
+          font-weight: 600;
         }
 
-        .cnt-has {
-          background: #D3122A;
-          color: #FFFFFF;
-          box-shadow: 0 4px 12px rgba(211, 18, 42, 0.3);
-        }
-
-        .cnt-empty {
-          background: #E2E8F0;
-          color: #64748B;
+        .disp-svc-more {
+          text-align: center;
+          color: #94A3B8;
+          font-size: 0.78rem;
+          font-weight: 700;
+          padding: 0.2rem 0;
         }
 
         /* RECENTLY COMPLETED */
         .disp-completed-box {
           margin-top: auto;
-          padding-top: 1.1rem;
-          border-top: 1px solid #F1F5F9;
+          padding-top: 0.45rem;
+          border-top: 1px solid #E2E8F0;
+          flex-shrink: 0;
         }
 
         .disp-comp-hdr {
-          font-size: 0.78rem;
+          font-size: 0.7rem;
           font-weight: 800;
           color: #94A3B8;
           text-transform: uppercase;
-          margin-bottom: 0.75rem;
+          margin-bottom: 0.35rem;
           letter-spacing: 0.05em;
         }
 
         .disp-comp-chips {
           display: flex;
           flex-wrap: wrap;
-          gap: 0.45rem;
+          gap: 0.35rem;
         }
 
         .disp-chip-done {
           display: inline-flex;
           align-items: center;
-          gap: 0.35rem;
+          gap: 0.3rem;
           background: #DEF7EC;
           color: #03543F;
           border: 1px solid #A7F3D0;
-          font-size: 0.8rem;
+          font-size: 0.75rem;
           font-weight: 800;
-          padding: 0.35rem 0.75rem;
-          border-radius: 10px;
+          padding: 0.18rem 0.55rem;
+          border-radius: 6px;
         }
 
         .disp-chip-none {
-          font-size: 0.8rem;
+          font-size: 0.75rem;
           color: #CBD5E1;
         }
 
-        /* FOOTER TICKER */
+        /* FOOTER TICKER (TOUJOURS VISIBLE SANS SCROLL) */
         .disp-footer {
           display: flex;
           align-items: center;
           background: #0F172A;
-          border-radius: 16px;
+          border-radius: 12px;
           overflow: hidden;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+          height: 36px;
+          min-height: 36px;
+          flex-shrink: 0;
         }
 
         .disp-foot-tag {
           background: #D3122A;
           color: #FFFFFF;
           font-weight: 900;
-          font-size: 0.82rem;
-          padding: 0.85rem 1.4rem;
+          font-size: 0.75rem;
+          padding: 0 1rem;
+          height: 100%;
+          display: flex;
+          align-items: center;
           white-space: nowrap;
           letter-spacing: 0.05em;
         }
@@ -720,15 +806,17 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
         .disp-foot-marquee {
           flex: 1;
           color: #F8FAFC;
-          font-size: 0.92rem;
+          font-size: 0.85rem;
           font-weight: 600;
           padding-right: 1rem;
+          display: flex;
+          align-items: center;
         }
 
         @media (max-width: 900px) {
           .disp-grid { grid-template-columns: 1fr; }
           .disp-counters-grid { grid-template-columns: 1fr; }
-          .disp-root { padding: 1rem; }
+          .disp-root { padding: 0.5rem; height: auto; max-height: none; overflow: auto; }
         }
       `}</style>
     </div>

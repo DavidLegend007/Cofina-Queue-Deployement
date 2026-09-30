@@ -210,7 +210,7 @@ export default function App() {
   };
 
   return (
-    <div className="cofina-app-root">
+    <div className={`cofina-app-root ${activeModule === 'display' || isDisplayOnly ? 'is-display-module' : ''}`}>
       {showNavbar && (
         <Navbar 
           activeModule={activeModule}
@@ -299,6 +299,19 @@ export default function App() {
           min-height: 100vh;
           display: flex;
           flex-direction: column;
+        }
+
+        .cofina-app-root.is-display-module {
+          height: 100vh !important;
+          max-height: 100vh !important;
+          overflow: hidden !important;
+        }
+
+        .cofina-app-root.is-display-module .main-content-area {
+          height: 100% !important;
+          max-height: 100% !important;
+          overflow: hidden !important;
+          padding: 0 !important;
         }
 
         .main-content-area {
