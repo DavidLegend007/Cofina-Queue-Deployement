@@ -510,6 +510,8 @@ const buildCSS = () => `
       margin: 0 !important;
       padding: 0 !important;
       width: 58mm !important;
+      height: auto !important;
+      min-height: 0 !important;
       overflow: hidden !important;
     }
     
@@ -524,7 +526,7 @@ const buildCSS = () => `
 
     #cofina-thermal-ticket {
       display: flex !important;
-      position: fixed !important;
+      position: absolute !important;
       top: 0 !important;
       left: 0 !important;
       width: 54mm !important;
