@@ -11,7 +11,7 @@ echo.
 echo Lancement de la console d'administration dans le navigateur...
 echo.
 
-set SERVER_HOST=localhost
+set SERVER_HOST=192.168.1.182
 if not "%1"=="" set SERVER_HOST=%1
 
 set ADMIN_URL=http://%SERVER_HOST%:4000/?admin

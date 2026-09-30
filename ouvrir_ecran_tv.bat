@@ -3,6 +3,9 @@ REM ============================================================================
 REM COFINA QUEUE — RACCOURCI ÉCRAN D'AFFICHAGE TV PLEIN ÉCRAN
 REM ==============================================================================
 
-echo 🚀 Lancement de l'Écran d'Affichage TV...
-start msedge --kiosk "http://localhost:4000/?display" --edge-kiosk-type=fullscreen || start chrome --kiosk "http://localhost:4000/?display" || start http://localhost:4000/?display
+set SERVER_HOST=192.168.1.182
+if not "%1"=="" set SERVER_HOST=%1
+
+echo 🚀 Lancement de l'Écran d'Affichage TV vers %SERVER_HOST%...
+start msedge --kiosk "http://%SERVER_HOST%:4000/?display" --edge-kiosk-type=fullscreen || start chrome --kiosk "http://%SERVER_HOST%:4000/?display" || start http://%SERVER_HOST%:4000/?display
 exit
