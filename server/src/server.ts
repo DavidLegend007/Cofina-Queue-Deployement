@@ -27,6 +27,7 @@ import { createAuthRouter } from './routes/auth.routes.js';
 import { createTicketRouter } from './routes/ticket.routes.js';
 import { createBackupRouter } from './routes/backup.routes.js';
 import { createSyncRouter } from './routes/sync.routes.js';
+import { createTTSRouter } from './routes/tts.routes.js';
 
 // --- Sockets ---
 import { setupSocketHandlers } from './sockets/queueSocket.handler.js';
@@ -89,6 +90,7 @@ app.use('/api/auth', createAuthRouter(prisma));
 app.use('/api/tickets', createTicketRouter(prisma, io));
 app.use('/api/backup', createBackupRouter());
 app.use('/api/sync', createSyncRouter(prisma));
+app.use('/api/tts', createTTSRouter());
 
 app.get('/api/reload-clients', authenticateToken, requireRole(['ADMIN']), (req, res) => {
   io.emit('reload_page');

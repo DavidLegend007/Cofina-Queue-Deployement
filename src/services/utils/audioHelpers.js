@@ -1,45 +1,23 @@
 // ============================================================
 // audioHelpers.js — Logique concrète de diffusion sonore
-// Carillon Web Audio + Synthèse vocale fluide et fiable
+// Carillon Web Audio + TTS Serveur Windows (100% fiable, hors-ligne)
 // ============================================================
 
-// Références persistantes globales pour éviter le bug de garbage-collection de Chromium
-let currentUtterance = null;
-let cachedVoices = [];
-
-const loadCachedVoices = () => {
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    try {
-      const v = window.speechSynthesis.getVoices();
-      if (v && v.length > 0) {
-        cachedVoices = v;
-      }
-    } catch (_) {}
+// ── URL de base du serveur (déterminé dynamiquement) ─────────
+const getServerBase = () => {
+  if (typeof window !== 'undefined') {
+    return `${window.location.protocol}//${window.location.hostname}:4000`;
   }
+  return 'http://localhost:4000';
 };
 
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  loadCachedVoices();
-  window.speechSynthesis.onvoiceschanged = loadCachedVoices;
-}
+// ── Référence audio globale pour éviter la GC ────────────────
+let currentAudio = null;
 
-// ── 0. Déblocage universel de l'audio et de la parole ─────────
+// ── 0. Déblocage universel de l'AudioContext ──────────────────
 export const unlockAudio = () => {
   try {
     if (typeof window === 'undefined') return;
-
-    // Déblocage SpeechSynthesis
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.resume();
-      loadCachedVoices();
-      // Envoi d'une énonciation vide pour forcer Chrome à accorder les droits
-      const silent = new SpeechSynthesisUtterance(' ');
-      silent.volume = 0.01;
-      silent.rate = 10;
-      window.speechSynthesis.speak(silent);
-    }
-
-    // Déblocage Web Audio
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (AudioCtx) {
       const ctx = new AudioCtx();
@@ -59,7 +37,7 @@ export const unlockAudio = () => {
   }
 };
 
-// ── 1. Carillon d'annonce (Bip 2 tons) ──────────────────────
+// ── 1. Carillon d'annonce (Bip 2 tons, Web Audio natif) ─────────────────────
 export const playCallChime = () => {
   try {
     if (typeof window === 'undefined') return;
@@ -67,14 +45,11 @@ export const playCallChime = () => {
     if (!AudioContext) return;
 
     const ctx = new AudioContext();
-
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
     const t0 = ctx.currentTime;
 
-    // Ton 1 : Carillon haut (880 Hz)
+    // Ton 1 : 880 Hz
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
     osc1.type = 'sine';
@@ -86,7 +61,7 @@ export const playCallChime = () => {
     osc1.start(t0);
     osc1.stop(t0 + 0.55);
 
-    // Ton 2 : Carillon de résolution (1108.73 Hz)
+    // Ton 2 : 1108.73 Hz
     const osc2 = ctx.createOscillator();
     const gain2 = ctx.createGain();
     osc2.type = 'sine';
@@ -98,180 +73,113 @@ export const playCallChime = () => {
     osc2.start(t0 + 0.25);
     osc2.stop(t0 + 1.1);
 
-    setTimeout(() => {
-      try { ctx.close(); } catch (_) {}
-    }, 1400);
-
+    setTimeout(() => { try { ctx.close(); } catch (_) {} }, 1400);
   } catch (e) {
-    console.warn('Audio chime playback omitted:', e);
+    console.warn('playCallChime error:', e);
   }
 };
 
-// ── 2. Sélection de la meilleure voix disponible (100% Hors-Ligne) ────────────
-export const getAfricanOrBestVoice = (targetLang = 'fr') => {
-  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
-  let voices = cachedVoices.length > 0 ? cachedVoices : window.speechSynthesis.getVoices();
-  if (!voices || voices.length === 0) return null;
-
-  const isFr = targetLang.startsWith('fr');
-
-  if (isFr) {
-    // 1. Voix locales hors-ligne françaises en priorité absolue (Hortense, Julie, Paul, Desktop)
-    // EXCLURE absolument les voix 'online' ou 'google' qui nécessitent internet et échouent en agence !
-    const localFrVoice = voices.find(v => {
-      const l = (v.lang || '').toLowerCase();
-      const n = (v.name || '').toLowerCase();
-      const isLocal = v.localService === true || n.includes('desktop') || n.includes('local');
-      return l.startsWith('fr') && !n.includes('online') && !n.includes('google') && (
-        isLocal || n.includes('hortense') || n.includes('julie') || n.includes('paul') || n.includes('microsoft')
-      );
-    });
-    if (localFrVoice) return localFrVoice;
-
-    // 2. Recherche d'une voix africaine francophone (si installée localement)
-    const africanVoice = voices.find(v => {
-      const l = (v.lang || '').toLowerCase();
-      const n = (v.name || '').toLowerCase();
-      return (
-        l.includes('fr-tg') || l.includes('fr-bj') || l.includes('fr-ci') || 
-        l.includes('fr-sn') || l.includes('fr-cm') || l.includes('fr-bf') ||
-        n.includes('togo') || n.includes('africa') || n.includes('ivoire') || n.includes('senegal')
-      );
-    });
-    if (africanVoice) return africanVoice;
-
-    // 3. Toute voix française locale (localService)
-    const anyLocalFr = voices.find(v => (v.lang || '').toLowerCase().startsWith('fr') && v.localService === true);
-    if (anyLocalFr) return anyLocalFr;
-
-    // 4. Toute voix française disponible (même si Google en dernier recours)
-    const anyFrVoice = voices.find(v => (v.lang || '').toLowerCase().startsWith('fr'));
-    if (anyFrVoice) return anyFrVoice;
-  } else {
-    const anyEnVoice = voices.find(v => (v.lang || '').toLowerCase().startsWith('en') && v.localService === true) 
-      || voices.find(v => (v.lang || '').toLowerCase().startsWith('en'));
-    if (anyEnVoice) return anyEnVoice;
-  }
-
-  // 5. Repli de secours : voix par défaut du système pour ne jamais être silencieux
-  return voices.find(v => v.default) || voices[0] || null;
-};
-
-// ── 3. Annonce de création de ticket (Borne) ────────────────
-export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
+// ── 2. Annonce vocale via TTS serveur Windows (100% hors-ligne) ──────────────
+// Utilise /api/tts qui génère un WAV via Microsoft Hortense Desktop sur le serveur
+const speakViaTTSServer = (text) => {
+  if (typeof window === 'undefined') return;
   try {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const url = `${getServerBase()}/api/tts?text=${encodeURIComponent(text)}`;
 
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
+    // Arrêter l'audio précédent si encore en cours
+    if (currentAudio) {
+      try { currentAudio.pause(); currentAudio.src = ''; } catch (_) {}
+      currentAudio = null;
     }
 
+    const audio = new Audio(url);
+    audio.volume = 1.0;
+    currentAudio = audio;
+
+    // Conserver la référence globale pour éviter le GC
+    window.__cofina_audio = audio;
+
+    audio.onended = () => {
+      currentAudio = null;
+      window.__cofina_audio = null;
+    };
+    audio.onerror = (err) => {
+      console.warn('[TTS] Erreur lecture audio:', err);
+      currentAudio = null;
+      window.__cofina_audio = null;
+    };
+
+    audio.play().catch((err) => {
+      console.warn('[TTS] play() bloqué, tentative de fallback speechSynthesis:', err);
+      // Fallback sur speechSynthesis si l'audio est bloqué
+      speakFallback(text);
+    });
+  } catch (e) {
+    console.warn('[TTS] speakViaTTSServer error:', e);
+    speakFallback(text);
+  }
+};
+
+// ── 3. Fallback : Synthèse vocale navigateur si serveur indisponible ──────────
+const speakFallback = (text) => {
+  try {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'fr-FR';
+    utterance.rate = 0.88;
+    utterance.pitch = 1.0;
+    const voices = window.speechSynthesis.getVoices();
+    const frVoice = voices.find(v =>
+      v.localService === true && (v.lang || '').toLowerCase().startsWith('fr')
+    ) || voices.find(v => (v.lang || '').toLowerCase().startsWith('fr'));
+    if (frVoice) utterance.voice = frVoice;
+    window.__cofina_speech = utterance;
+    window.speechSynthesis.speak(utterance);
+    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+  } catch (e) {
+    console.warn('[TTS] Fallback speechSynthesis error:', e);
+  }
+};
+
+// ── 4. Annonce de création de ticket (Borne) ─────────────────────────────────
+export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
+  try {
     const rawTicket = String(ticketNumber || '').trim();
     const formattedTicket = rawTicket
       .replace(/-/g, ' ')
       .replace(/([A-Za-z]+)(\d+)/g, '$1 $2');
     const isEn = lang === 'en';
-    const text = isEn 
+    const text = isEn
       ? `Welcome to Cofina Togo. Your ticket ${formattedTicket} has been created. Please take a seat in the waiting room.`
       : `Bienvenue à l'agence Cofina Togo ! Votre ticket numéro ${formattedTicket} est bien créé. Merci de prendre place en salle d'attente.`;
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = isEn ? 'en-US' : 'fr-FR';
-    utterance.rate = 0.90;
-    utterance.pitch = 1.0;
-
-    const matchedVoice = getAfricanOrBestVoice(isEn ? 'en' : 'fr');
-    if (matchedVoice) utterance.voice = matchedVoice;
-
-    currentUtterance = utterance;
-    window.__cofina_speech = utterance;
-
-    utterance.onend = () => {
-      currentUtterance = null;
-      window.__cofina_speech = null;
-    };
-    utterance.onerror = () => {
-      currentUtterance = null;
-      window.__cofina_speech = null;
-    };
-
-    setTimeout(() => {
-      try {
-        window.speechSynthesis.speak(utterance);
-        if (window.speechSynthesis.paused) {
-          window.speechSynthesis.resume();
-        }
-      } catch (_) {}
-    }, 200);
+    setTimeout(() => speakViaTTSServer(text), 200);
   } catch (e) {
-    console.warn('Speech synthesis TEMPS 1 error:', e);
+    console.warn('speakTicketGenerated error:', e);
   }
 };
 
-// ── 4. Annonce vocale d'appel (Écran TV) ────────────────────
+// ── 5. Annonce d'appel ticket sur l'Écran TV ─────────────────────────────────
 export const speakTicketCall = (ticketNumber, counterNumber, lang = 'fr') => {
   try {
-    if (typeof window === 'undefined') return;
-
     const rawTicket = String(ticketNumber || '').trim();
-    // Séparer les lettres et chiffres pour une prononciation claire et distincte
-    // Ex: "D-001" ou "D001" -> "D 0 0 1"
-    const cleanNum = rawTicket.replace('-', '');
+    // Séparer lettres et chiffres : "D001" → "D 0 0 1"
+    const cleanNum = rawTicket.replace(/-/g, '');
     const letterPart = cleanNum.replace(/[0-9]/g, '');
     const digitPart = cleanNum.replace(/[^0-9]/g, '');
     const formattedTicket = `${letterPart} ${digitPart.split('').join(' ')}`.trim();
 
     const isEn = lang === 'en';
-
-    // Phrase concrète et directe
-    const text = isEn 
+    const text = isEn
       ? `Ticket ${formattedTicket}, please proceed to Counter ${counterNumber}.`
       : `Ticket ${formattedTicket}, veuillez passer à la caisse ${counterNumber}.`;
 
-    if ('speechSynthesis' in window) {
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = isEn ? 'en-US' : 'fr-FR';
-      utterance.rate = 0.88;
-      utterance.pitch = 1.0;
-
-      const matchedVoice = getAfricanOrBestVoice(isEn ? 'en' : 'fr');
-      if (matchedVoice) {
-        utterance.voice = matchedVoice;
-      }
-
-      // Fix bug garbage collection Chrome : conserver la référence en mémoire vive
-      currentUtterance = utterance;
-      window.__cofina_speech = utterance;
-
-      utterance.onend = () => {
-        currentUtterance = null;
-        window.__cofina_speech = null;
-      };
-      utterance.onerror = (err) => {
-        console.warn('SpeechSynthesis error:', err);
-        currentUtterance = null;
-        window.__cofina_speech = null;
-      };
-
-      // Déclencher 450ms après le carillon pour un enchaînement naturel
-      // IMPORTANT : Ne PAS appeler cancel() dans ce timeout pour ne pas tuer l'utterance
-      setTimeout(() => {
-        try {
-          window.speechSynthesis.speak(utterance);
-          if (window.speechSynthesis.paused) {
-            window.speechSynthesis.resume();
-          }
-        } catch (err) {
-          console.warn('SpeechSynthesis speak error:', err);
-        }
-      }, 450);
-    }
-
+    // Laisser le carillon se terminer (450ms) avant de parler
+    setTimeout(() => speakViaTTSServer(text), 450);
   } catch (e) {
-    console.warn('Speech synthesis TEMPS 2 error:', e);
+    console.warn('speakTicketCall error:', e);
   }
 };
+
+// Conservé pour compatibilité avec Navbar.jsx (test voix)
+export const getAfricanOrBestVoice = (lang = 'fr') => null;
