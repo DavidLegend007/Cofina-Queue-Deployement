@@ -1,12 +1,23 @@
+// ============================================================
+// audioHelpers.js
+// 🔒 Tout son (bip + voix) est EXCLUSIVEMENT réservé à l'écran TV.
+//    Les autres pages (caisses, borne, admin) ne produisent aucun son.
+//    Vérification via window.COFINA_IS_DISPLAY_TV positionné par App.jsx.
+// ============================================================
+
+const isDisplayTV = () =>
+  typeof window !== 'undefined' && window.COFINA_IS_DISPLAY_TV === true;
+
+// ── Bip d'annonce (Web Audio API) ───────────────────────────
 export const playCallChime = () => {
+  if (!isDisplayTV()) return; // 🔒 TV uniquement
   try {
-    if (typeof window === 'undefined') return;
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
 
     const ctx = new AudioContext();
 
-    // Tone 1: High chime
+    // Tone 1 : High chime
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
     osc1.type = 'sine';
@@ -18,7 +29,7 @@ export const playCallChime = () => {
     osc1.start(ctx.currentTime);
     osc1.stop(ctx.currentTime + 0.6);
 
-    // Tone 2: Warm resolve chime
+    // Tone 2 : Warm resolve chime
     const osc2 = ctx.createOscillator();
     const gain2 = ctx.createGain();
     osc2.type = 'sine';
@@ -30,16 +41,13 @@ export const playCallChime = () => {
     osc2.start(ctx.currentTime + 0.25);
     osc2.stop(ctx.currentTime + 1.2);
 
-    // Clean up Web Audio Context after playback to prevent memory leaks
-    setTimeout(() => {
-      try { ctx.close(); } catch (_) {}
-    }, 1400);
-
+    setTimeout(() => { try { ctx.close(); } catch (_) {} }, 1400);
   } catch (e) {
     console.warn('Audio chime playback omitted:', e);
   }
 };
 
+// ── Sélection de la meilleure voix française ────────────────
 export const getAfricanOrBestVoice = (targetLang = 'fr') => {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
   const voices = window.speechSynthesis.getVoices();
@@ -48,11 +56,12 @@ export const getAfricanOrBestVoice = (targetLang = 'fr') => {
   const isFr = targetLang.startsWith('fr');
 
   if (isFr) {
+    // Priorité : voix africaine francophone
     const africanVoice = voices.find(v => {
       const l = v.lang.toLowerCase();
       const n = v.name.toLowerCase();
       return (
-        l.includes('fr-tg') || l.includes('fr-bj') || l.includes('fr-ci') || 
+        l.includes('fr-tg') || l.includes('fr-bj') || l.includes('fr-ci') ||
         l.includes('fr-sn') || l.includes('fr-cm') || l.includes('fr-bf') ||
         l.includes('fr-mg') || l.includes('fr-ma') || l.includes('fr-tn') ||
         n.includes('togo') || n.includes('africa') || n.includes('ivoire') || n.includes('senegal')
@@ -60,16 +69,18 @@ export const getAfricanOrBestVoice = (targetLang = 'fr') => {
     });
     if (africanVoice) return africanVoice;
 
-    const preferredWarmVoice = voices.find(v => {
+    // Secondaire : voix française Google/naturelle
+    const preferredVoice = voices.find(v => {
       const l = v.lang.toLowerCase();
       const n = v.name.toLowerCase();
       return l.startsWith('fr') && (
-        n.includes('google') || n.includes('natural') || n.includes('hortense') || 
+        n.includes('google') || n.includes('natural') || n.includes('hortense') ||
         n.includes('julie') || n.includes('celine') || n.includes('online')
       );
     });
-    if (preferredWarmVoice) return preferredWarmVoice;
+    if (preferredVoice) return preferredVoice;
 
+    // Fallback : n'importe quelle voix fr
     const anyFrVoice = voices.find(v => v.lang.toLowerCase().startsWith('fr'));
     if (anyFrVoice) return anyFrVoice;
   }
@@ -77,117 +88,103 @@ export const getAfricanOrBestVoice = (targetLang = 'fr') => {
   return voices.find(v => v.lang.toLowerCase().startsWith(targetLang)) || null;
 };
 
-export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
+// ── Annonce de création de ticket (borne) ───────────────────
+export const speakTicketGenerated = (ticketNumber, _lang = 'fr') => {
+  if (!isDisplayTV()) return; // 🔒 TV uniquement
   try {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    if (!('speechSynthesis' in window)) return;
 
     window.speechSynthesis.cancel();
-    const formattedTicket = ticketNumber.split('-').map((part, i) => i === 1 ? part.split('').join(' ') : part).join(' ');
-    const isEn = lang === 'en';
-    const text = isEn 
-      ? `Welcome to Cofina Togo. Your ticket ${formattedTicket} has been created. Please take a seat in the waiting room.`
-      : `Bienvenue à l'agence Cofina Togo ! Votre ticket numéro ${formattedTicket} est bien créé. Merci de prendre place en salle d'attente.`;
+    const formattedTicket = ticketNumber
+      .split('-')
+      .map((part, i) => i === 1 ? part.split('').join(' ') : part)
+      .join(' ');
+
+    // Toujours en français
+    const text = `Bienvenue à l'agence Cofina Togo ! Votre ticket numéro ${formattedTicket} est bien créé. Merci de prendre place en salle d'attente.`;
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = isEn ? 'en-US' : 'fr-FR';
+    utterance.lang = 'fr-FR';
     utterance.rate = 0.88;
     utterance.pitch = 1.05;
 
-    const matchedVoice = getAfricanOrBestVoice(isEn ? 'en' : 'fr');
+    const matchedVoice = getAfricanOrBestVoice('fr');
     if (matchedVoice) utterance.voice = matchedVoice;
 
-    setTimeout(() => {
-      window.speechSynthesis.speak(utterance);
-    }, 200);
+    setTimeout(() => { window.speechSynthesis.speak(utterance); }, 200);
   } catch (e) {
-    console.warn('Speech synthesis TEMPS 1 error:', e);
+    console.warn('Speech synthesis speakTicketGenerated error:', e);
   }
 };
 
+// ── Appel de ticket au guichet (TV uniquement) ──────────────
 let pendingSpeakTimeout = null;
 let currentSafetyTimer = null;
 
-export const speakTicketCall = (ticketNumber, counterNumber, lang = 'fr', onEndCallback = null) => {
+export const speakTicketCall = (ticketNumber, counterNumber, _lang = 'fr', onEndCallback = null) => {
+  // 🔒 TV uniquement : sur les pages caisse/borne/admin → déclencher seulement le callback
+  if (!isDisplayTV()) {
+    if (typeof onEndCallback === 'function') {
+      try { onEndCallback(); } catch (_) {}
+    }
+    return;
+  }
+
   let finished = false;
 
-  if (pendingSpeakTimeout) {
-    clearTimeout(pendingSpeakTimeout);
-    pendingSpeakTimeout = null;
-  }
-  if (currentSafetyTimer) {
-    clearTimeout(currentSafetyTimer);
-    currentSafetyTimer = null;
-  }
+  if (pendingSpeakTimeout) { clearTimeout(pendingSpeakTimeout); pendingSpeakTimeout = null; }
+  if (currentSafetyTimer)  { clearTimeout(currentSafetyTimer);  currentSafetyTimer  = null; }
 
   const triggerEnd = () => {
     if (finished) return;
     finished = true;
-    if (currentSafetyTimer) {
-      clearTimeout(currentSafetyTimer);
-      currentSafetyTimer = null;
-    }
+    if (currentSafetyTimer) { clearTimeout(currentSafetyTimer); currentSafetyTimer = null; }
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('ticket_voice_ended', { 
-        detail: { ticketNumber, counterNumber } 
+      window.dispatchEvent(new CustomEvent('ticket_voice_ended', {
+        detail: { ticketNumber, counterNumber }
       }));
     }
     if (typeof onEndCallback === 'function') {
-      try {
-        onEndCallback();
-      } catch (err) {
+      try { onEndCallback(); } catch (err) {
         console.error('Error in speakTicketCall callback:', err);
       }
     }
   };
 
   try {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      triggerEnd();
-      return;
-    }
+    if (!('speechSynthesis' in window)) { triggerEnd(); return; }
 
     window.speechSynthesis.cancel();
-    const formattedTicket = ticketNumber ? ticketNumber.split('-').map((part, i) => i === 1 ? part.split('').join(' ') : part).join(' ') : '';
-    const isEn = lang === 'en';
-    const text = isEn 
-      ? `Ticket ${formattedTicket}, please proceed to Counter ${counterNumber}.`
-      : `Ticket ${formattedTicket}... Veuillez vous présenter au Guichet ${counterNumber}.`;
+
+    const formattedTicket = ticketNumber
+      ? ticketNumber.split('-').map((part, i) => i === 1 ? part.split('').join(' ') : part).join(' ')
+      : '';
+
+    // Toujours en français, quelle que soit la langue de l'interface
+    const text = `Ticket ${formattedTicket}... Veuillez vous présenter au Guichet ${counterNumber}.`;
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = isEn ? 'en-US' : 'fr-FR';
+    utterance.lang = 'fr-FR';
     utterance.rate = 0.88;
     utterance.pitch = 1.05;
 
-    utterance.onend = () => {
-      triggerEnd();
-    };
-
+    utterance.onend  = () => triggerEnd();
     utterance.onerror = (e) => {
-      // Les événements 'interrupted' ou 'canceled' surviennent normalement quand un appel est remplacé
-      if (e && (e.error === 'interrupted' || e.error === 'canceled')) {
-        return;
-      }
+      if (e && (e.error === 'interrupted' || e.error === 'canceled')) return;
       triggerEnd();
     };
 
-    const matchedVoice = getAfricanOrBestVoice(isEn ? 'en' : 'fr');
+    const matchedVoice = getAfricanOrBestVoice('fr');
     if (matchedVoice) utterance.voice = matchedVoice;
 
-    // Délai de sécurité : si la voix est muette ou bloquée, débloquer après 5.5s
-    currentSafetyTimer = setTimeout(() => {
-      triggerEnd();
-    }, 5500);
+    // Sécurité : débloquer après 5.5 s si la voix reste muette
+    currentSafetyTimer = setTimeout(() => triggerEnd(), 5500);
 
     pendingSpeakTimeout = setTimeout(() => {
-      try {
-        window.speechSynthesis.speak(utterance);
-      } catch (err) {
-        triggerEnd();
-      }
+      try { window.speechSynthesis.speak(utterance); } catch (err) { triggerEnd(); }
     }, 450);
+
   } catch (e) {
     triggerEnd();
   }
 };
-
-
