@@ -1,4 +1,4 @@
-import{c as L,g as ut,r as D,j as l,C as ft,a as ot,S as pt}from"./index-CyFF8Qrf.js";import{c as gt}from"./ticketApi-DegzxPqm.js";import{C as ht}from"./circle-check-BuFZ4OM-.js";import{A as mt}from"./arrow-right-B3JM9h6K.js";import{X as bt}from"./x-Kdvu819c.js";/**
+import{c as L,g as ut,r as D,j as l,C as ft,a as ot,S as pt}from"./index-BOeKhMN5.js";import{c as gt}from"./ticketApi-6eyJo5yF.js";import{C as ht}from"./circle-check-D0vL2SPr.js";import{A as mt}from"./arrow-right-D9xM-LEb.js";import{X as bt}from"./x-C2p3O9j7.js";/**
  * @license lucide-react v0.469.0 - ISC
  *
  * This source code is licensed under the ISC license.
@@ -434,62 +434,78 @@ Please select your operation`,helpBtn:"Need help?",ticketLabel:"YOUR TICKET NUMB
   }
 
   @page {
-    size: 58mm 50mm;
+    size: 58mm auto;
     margin: 0mm !important;
   }
 
   @media print {
-    /* Supprimer marges globales et brider strictement la hauteur à 50mm (format ticket thermique) */
+    /* 1. Éliminer tout fond gris, filtre, ombre ou superposition */
+    *, *::before, *::after {
+      background: transparent !important;
+      background-color: transparent !important;
+      box-shadow: none !important;
+      filter: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      text-shadow: none !important;
+    }
+
     html, body {
       background: #ffffff !important;
+      background-color: #ffffff !important;
+      color: #000000 !important;
       margin: 0 !important;
       padding: 0 !important;
       width: 58mm !important;
       max-width: 58mm !important;
-      height: 50mm !important;
-      max-height: 50mm !important;
+      height: auto !important;
       min-height: 0 !important;
-      overflow: hidden !important;
-    }
-    
-    body * {
-      visibility: hidden !important;
-    }
-
-    /* Écraser la hauteur de tous les conteneurs d'écran plein format (100vh / 1080px) */
-    #root,
-    .cofina-app-root,
-    .bn-root,
-    .bn-ticket-card,
-    .bn-card-wrap,
-    .bn-overlay,
-    main,
-    header,
-    footer {
-      height: 0 !important;
-      min-height: 0 !important;
-      max-height: 0 !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      border: none !important;
       overflow: visible !important;
     }
 
-    /* Rendre UNIQUEMENT visible le ticket thermique 58mm */
-    #cofina-thermal-ticket, #cofina-thermal-ticket * {
-      visibility: visible !important;
+    /* 2. Masquer TOUS les éléments écran (notamment l'overlay gris .bn-overlay) */
+    .bn-header,
+    .bn-overlay,
+    .bn-ticket-card,
+    .bn-help-overlay,
+    .bn-help-modal,
+    .bn-idle-root,
+    .bn-hero,
+    .bn-cat-grid,
+    .bn-services-view,
+    .cofina-global-footer,
+    nav,
+    footer,
+    header {
+      display: none !important;
+      visibility: hidden !important;
+      height: 0 !important;
+      max-height: 0 !important;
+      opacity: 0 !important;
     }
 
+    /* 3. Réinitialiser la racine pour qu'elle s'ajuste au ticket */
+    #root,
+    .cofina-app-root,
+    .bn-root {
+      background: #ffffff !important;
+      background-color: #ffffff !important;
+      min-height: 0 !important;
+      height: auto !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      display: block !important;
+      overflow: visible !important;
+    }
+
+    /* 4. Afficher le ticket thermique 58mm sur fond blanc pur */
     #cofina-thermal-ticket {
       display: flex !important;
-      position: absolute !important;
-      top: 0 !important;
-      left: 0 !important;
+      visibility: visible !important;
+      position: static !important;
       width: 52mm !important;
       max-width: 52mm !important;
-      height: 48mm !important;
-      max-height: 48mm !important;
-      margin: 0 !important;
+      margin: 0 auto !important;
       padding: 1.5mm 1mm !important;
       box-sizing: border-box !important;
       flex-direction: column !important;
@@ -497,12 +513,18 @@ Please select your operation`,helpBtn:"Need help?",ticketLabel:"YOUR TICKET NUMB
       align-items: center !important;
       text-align: center !important;
       background: #ffffff !important;
+      background-color: #ffffff !important;
       color: #000000 !important;
       overflow: hidden !important;
       page-break-after: avoid !important;
       page-break-inside: avoid !important;
       break-after: avoid !important;
       break-inside: avoid !important;
+    }
+
+    #cofina-thermal-ticket * {
+      visibility: visible !important;
+      color: #000000 !important;
     }
 
     .th-header {
