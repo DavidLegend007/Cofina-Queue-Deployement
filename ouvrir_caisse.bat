@@ -8,21 +8,23 @@ echo ===========================================================================
 echo    GROUPE COFINA TOGO - ESPACE CAISSIER ET GUICHETIER SECURISE
 echo ==============================================================================
 echo.
-echo Lancement de la session caissier dans le navigateur...
-echo.
 
 set SERVER_HOST=192.168.1.182
 if not "%1"=="" set SERVER_HOST=%1
 
-set CAISSE_URL=http://%SERVER_HOST%:4000/?agent^&v=%RANDOM%
+set CAISSE_URL=http://%SERVER_HOST%:4000/?caisse^&v=%RANDOM%
+echo Connexion au serveur : http://%SERVER_HOST%:4000/?caisse...
+echo.
 
 where msedge >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
-    start msedge.exe "%CAISSE_URL%" --no-first-run
+    echo [OK] Lancement en mode fenetre d'application avec Microsoft Edge...
+    start msedge.exe --app="%CAISSE_URL%" --no-first-run
 ) else (
     where chrome >nul 2>&1
     if %ERRORLEVEL% EQU 0 (
-        start chrome.exe "%CAISSE_URL%" --no-first-run
+        echo [OK] Lancement en mode fenetre d'application avec Google Chrome...
+        start chrome.exe --app="%CAISSE_URL%" --no-first-run
     ) else (
         start %CAISSE_URL%
     )
