@@ -135,7 +135,7 @@ graph TB
 | Type d'écran | URL de démarrage | Navbar | Footer | Résultat |
 | :--- | :--- | :---: | :---: | :--- |
 | **Borne tactile** | `/?kiosk` ou `/?kioskOnly` | ❌ Masquée | ❌ Masqué | Interface plein écran client |
-| **Caisse / Agent** | `/?agent` ou `/?caisse` | ❌ Masquée | ✅ Présent | Interface guichet épurée |
+| **Caisse / Agent** | `/?agent` | ❌ Masquée | ✅ Présent | Interface guichet épurée |
 | **Écran TV** | `/?display` ou `/?displayOnly` | ❌ Masquée | ❌ Masqué | Affichage public plein écran total |
 | **Administration** | `/?admin` ou `/?supervision` | ❌ Masquée | ✅ Présent | Console supervision épurée |
 | **Mode démo / dev** | `/?demo=true` ou `/?nav=true` | ✅ Visible | ✅ Présent | Navigation complète pour tests |

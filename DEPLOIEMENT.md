@@ -66,10 +66,10 @@ L'exploitation est automatisée via des scripts `.bat` prêts à l'emploi :
 │       • Ouvre le tunnel Cloudflare chiffré en HTTPS                         │
 │       • Les téléphones clients scannent sans avoir besoin du Wi-Fi agence   │
 │                                                                             │
-│ 3. Sur les PC Caissiers (Caisses 1 à 3 & Opérateurs 4 à 6) :               │
-│    👉 Double-cliquer sur "ouvrir_caisse.bat"                                │
-│       • Ouvre l'espace de travail caissier dédié sans navbar                │
-│       • Supporte le paramètre d'IP : ouvrir_caisse.bat 192.168.1.50         │
+│ 3. Sur les PC Caissiers & Conseillers (Guichets 1 à 6) :                    │
+│    👉 Double-cliquer sur "ouvrir_agent.bat" (ou "ouvrir_caisse.bat")         │
+│       • Ouvre l'espace de travail agent (?agent) en mode application        │
+│       • Supporte le paramètre d'IP : ouvrir_agent.bat 192.168.1.182         │
 │                                                                             │
 │ 4. Sur l'Écran TV de la salle d'attente (connecté en HDMI ou boîtier) :     │
 │    👉 Double-cliquer sur "ouvrir_ecran_tv.bat"                              │

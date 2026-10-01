@@ -132,7 +132,8 @@ Cofina-Queue-Deployement/
 ├── 📄 lancer_tunnel_4g.sh         # 🐧 Passerelle 4G Cloudflare Linux/Ubuntu (sans sudo, résilience 24/7)
 ├── 📄 install_ubuntu.sh           # 🐧 Script d'installation automatique pour serveur Ubuntu
 ├── 📄 ecosystem.config.cjs        # ⚙️ Configuration PM2 de production (Edge Server + Tunnel 4G)
-├── 📄 ouvrir_caisse.bat           # 🏧 Lance le poste Caissier sur le réseau local
+├── 📄 ouvrir_agent.bat            # 💼 Lance le poste Agent / Guichet sur le réseau local (/?agent)
+├── 📄 ouvrir_caisse.bat           # 🏧 Alias pour ouvrir le poste Caissier / Guichet (/?agent)
 ├── 📄 ouvrir_ecran_tv.bat         # 📺 Lance l'affichage TV salle d'attente
 ├── 📄 ouvrir_borne.bat            # 🖥️ Raccourci vers la borne tactile seule
 ├── 📄 ouvrir_admin.bat            # 🔐 Lance la console d'administration et supervision
@@ -169,7 +170,8 @@ Pour une utilisation simple au quotidien par les équipes de l'agence, des racco
 | :--- | :--- | :--- |
 | ⭐ **`Lancer_Borne_Cofina.bat`** | **Script MAÎTRE tout-en-un** : Détecte et lance automatiquement le serveur backend (Port 4000) puis ouvre la borne tactile en plein écran Kiosk sans barre d'adresse. | Mini-PC Serveur Edge de l'agence |
 | 🌐 **`Lancer_Tunnel_4G.bat`** | **Passerelle 4G** : Active le tunnel Cloudflare pour rendre le QR code scannable par les clients en 4G. | Mini-PC Serveur Edge (optionnel) |
-| 🏧 **`ouvrir_caisse.bat`** | Ouvre l'espace de travail caissier sur le poste de travail. | PC Caisses 1 à 3 & Opérateurs 4 à 6 |
+| 💼 **`ouvrir_agent.bat`** | Ouvre l'espace de travail agent (Caisse, Conseil, Accueil) sur le poste. | Postes Guichets 1 à 6 (Caisses, Conseillers, Accueil) |
+| 🏧 **`ouvrir_caisse.bat`** | Alias vers `ouvrir_agent.bat` (ouvre le poste en mode application). | Postes Guichets 1 à 6 (Caisses, Conseillers, Accueil) |
 | 📺 **`ouvrir_ecran_tv.bat`** | Lance l'affichage public de la salle d'attente avec audio. | Écran TV Salle d'attente (HDMI) |
 | 🖥️ **`ouvrir_borne.bat`** | Ouvre uniquement l'interface de la borne tactile. | Borne tactile d'accueil |
 | 🔐 **`ouvrir_admin.bat`** | Ouvre la console d'administration et de supervision. | PC Superviseur / Responsable d'agence |
