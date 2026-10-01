@@ -9,6 +9,8 @@ const __dirname = path.dirname(__filename);
 
 let tunnelProcess: ChildProcess | null = null;
 let activePublicUrl: string | null = null;
+let shouldAutoRestart = true;
+let restartTimeout: NodeJS.Timeout | null = null;
 
 /**
  * Retourne l'URL publique active du tunnel 4G/5G si disponible,
@@ -146,6 +148,15 @@ export function startTunnelService(port: number | string, io?: Server) {
         const tPath = path.resolve(process.cwd(), 'tunnel_url.txt');
         if (fs.existsSync(tPath)) fs.unlinkSync(tPath);
       } catch (_) {}
+
+      // Reconnexion automatique permanente (gère les micro-coupures internet et redémarrages réseau)
+      if (shouldAutoRestart) {
+        if (restartTimeout) clearTimeout(restartTimeout);
+        console.log('[Tunnel 4G/5G] Reconnexion automatique dans 5 secondes...');
+        restartTimeout = setTimeout(() => {
+          startTunnelService(port, io);
+        }, 5000);
+      }
     });
 
   } catch (err: any) {
@@ -157,6 +168,8 @@ export function startTunnelService(port: number | string, io?: Server) {
  * Arrête proprement le tunnel Cloudflare
  */
 export function stopTunnelService() {
+  shouldAutoRestart = false;
+  if (restartTimeout) clearTimeout(restartTimeout);
   if (tunnelProcess) {
     try {
       tunnelProcess.kill('SIGTERM');

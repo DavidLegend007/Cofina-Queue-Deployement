@@ -6,6 +6,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 let tunnelProcess = null;
 let activePublicUrl = null;
+let shouldAutoRestart = true;
+let restartTimeout = null;
 /**
  * Retourne l'URL publique active du tunnel 4G/5G si disponible,
  * ou l'URL configurée dans l'environnement.
@@ -134,6 +136,15 @@ export function startTunnelService(port, io) {
                     fs.unlinkSync(tPath);
             }
             catch (_) { }
+            // Reconnexion automatique permanente (gère les micro-coupures internet et redémarrages réseau)
+            if (shouldAutoRestart) {
+                if (restartTimeout)
+                    clearTimeout(restartTimeout);
+                console.log('[Tunnel 4G/5G] Reconnexion automatique dans 5 secondes...');
+                restartTimeout = setTimeout(() => {
+                    startTunnelService(port, io);
+                }, 5000);
+            }
         });
     }
     catch (err) {
@@ -144,6 +155,9 @@ export function startTunnelService(port, io) {
  * Arrête proprement le tunnel Cloudflare
  */
 export function stopTunnelService() {
+    shouldAutoRestart = false;
+    if (restartTimeout)
+        clearTimeout(restartTimeout);
     if (tunnelProcess) {
         try {
             tunnelProcess.kill('SIGTERM');
