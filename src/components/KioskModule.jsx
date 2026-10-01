@@ -130,15 +130,43 @@ function ServiceLucideIcon({ name, size = 44, color }) {
   return <IconComp size={size} color={color} />;
 }
 
-/* ─── Real QR Code ─────────────────────────────────────────────────── */
-function RealQRCode({ value = '', size = 150 }) {
+/* ─── Real QR Code Haute Lisibilité ─────────────────────────────────── */
+function RealQRCode({ value = '', size = 170, onClick = null }) {
   const [src, setSrc] = useState('');
   useEffect(() => {
-    QRCode.toDataURL(value, { width: size, margin: 1, color: { dark: '#1e40af', light: '#ffffff' } })
+    if (!value) return;
+    // Noir pur sur blanc avec marge de 2 modules pour une détection smartphone instantanée
+    QRCode.toDataURL(value, { 
+      width: size, 
+      margin: 2, 
+      errorCorrectionLevel: 'M',
+      color: { dark: '#000000', light: '#ffffff' } 
+    })
       .then(setSrc)
       .catch(console.error);
   }, [value, size]);
-  return src ? <img src={src} alt="QR Code" width={size} height={size} style={{ borderRadius: '8px' }} /> : <div style={{ width: size, height: size }} />;
+
+  return src ? (
+    <img 
+      src={src} 
+      alt="QR Code Ticket" 
+      width={size} 
+      height={size} 
+      style={{ 
+        borderRadius: '8px', 
+        display: 'block', 
+        margin: '0 auto',
+        cursor: onClick ? 'pointer' : 'default',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+      }} 
+      onClick={onClick}
+      title={onClick ? "Cliquer pour tester sur cet écran" : undefined}
+    />
+  ) : (
+    <div style={{ width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', borderRadius: '8px', margin: '0 auto' }}>
+      <span style={{ fontSize: '11px', color: '#94a3b8' }}>Génération QR...</span>
+    </div>
+  );
 }
 
 /* ─── CSS ─────────────────────────────────────────────────────────────────── */
@@ -708,7 +736,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
         return origin;
       }
     }
-    return 'http://192.168.1.100:4000';
+    return 'http://192.168.1.182:4000'; // IP statique locale du serveur Agence Siège Kodjoviakopé
   });
 
   useEffect(() => {
@@ -720,9 +748,8 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
             setLanBaseUrl(data.publicUrl);
             setIsPublicUrl(true);
           } else if (data.lanUrl) {
-            if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-              setLanBaseUrl(data.lanUrl);
-            }
+            // Toujours privilégier l'adresse IP réseau pour que les smartphones Wi-Fi puissent s'y connecter
+            setLanBaseUrl(data.lanUrl);
           }
         }
       })
@@ -1260,28 +1287,57 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                 <div className="bn-perf-circle-v" />
               </div>
 
-              {/* ── SECTION DROITE (QR CODE) ── */}
+              {/* ── SECTION DROITE (QR CODE HAUTE LISIBILITÉ) ── */}
               <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', padding: '32px 24px', background: '#f8faff', justifyContent: 'center' }}>
                 <div className="bn-qr-section" style={{ border: 'none', background: 'transparent', padding: 0 }}>
                   <div className="bn-qr-title" style={{ fontSize: '13px', marginBottom: '12px' }}>
                     <span>📱</span>
                     <span>TICKET NUMÉRIQUE</span>
                   </div>
-                  <div className="bn-qr-box" style={{ padding: '16px' }}>
-                    <RealQRCode value={`${lanBaseUrl}/?ticket=${issuedTicket.ticketNumber}`} size={160} />
-                  </div>
-                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#1e40af', textAlign: 'center', margin: '14px 0 6px 0', lineHeight: '1.4' }}>
-                    {txt.qrSub}
-                  </p>
-                  <p style={{ fontSize: '11px', color: '#64748b', textAlign: 'center', margin: '0 0 14px 0', lineHeight: '1.3' }}>
-                    {isPublicUrl
-                      ? (currentLang === 'en' 
-                          ? '🌐 Compatible with 4G Mobile Data & Wi-Fi' 
-                          : '🌐 Compatible 4G Mobile & Wi-Fi')
-                      : (currentLang === 'en' 
-                          ? '📶 Connect to agency Wi-Fi to track your turn on your mobile' 
-                          : '📶 Connectez-vous au Wi-Fi de l\'agence pour le suivi en direct')}
-                  </p>
+                  {(() => {
+                    const cleanNum = encodeURIComponent(String(issuedTicket.ticketNumber || '').trim());
+                    const qrTargetUrl = `${lanBaseUrl}/?ticket=${cleanNum}`;
+                    return (
+                      <>
+                        <div className="bn-qr-box" style={{ padding: '14px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
+                          <RealQRCode 
+                            value={qrTargetUrl} 
+                            size={165} 
+                            onClick={() => window.open(qrTargetUrl, '_blank')}
+                          />
+                        </div>
+                        <p style={{ fontSize: '13px', fontWeight: '600', color: '#1e40af', textAlign: 'center', margin: '14px 0 6px 0', lineHeight: '1.4' }}>
+                          {txt.qrSub}
+                        </p>
+                        <p style={{ fontSize: '11px', color: '#64748b', textAlign: 'center', margin: '0 0 8px 0', lineHeight: '1.3' }}>
+                          {isPublicUrl
+                            ? (currentLang === 'en' 
+                                ? '🌐 Compatible with 4G Mobile Data & Wi-Fi' 
+                                : '🌐 Compatible 4G Mobile & Wi-Fi')
+                            : (currentLang === 'en' 
+                                ? '📶 Connect to agency Wi-Fi to track on mobile' 
+                                : '📶 Connectez votre téléphone au Wi-Fi de l\'agence')}
+                        </p>
+                        <a 
+                          href={qrTargetUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            display: 'inline-block',
+                            fontSize: '11px',
+                            color: '#2563eb',
+                            textDecoration: 'underline',
+                            textAlign: 'center',
+                            marginBottom: '12px',
+                            wordBreak: 'break-all'
+                          }}
+                          title="Ouvrir le ticket mobile"
+                        >
+                          {qrTargetUrl}
+                        </a>
+                      </>
+                    );
+                  })()}
                   <div className="bn-qr-pulse">
                     <div className="bn-pulse-dot" />
                     <span>SUIVI EN DIRECT SUR MOBILE</span>

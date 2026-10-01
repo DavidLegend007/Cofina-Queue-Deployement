@@ -6,6 +6,7 @@ import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import helmet from 'helmet';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 // --- Services & Configs ---
@@ -105,13 +106,20 @@ setupSocketHandlers(io, prisma);
 startSyncWorker(prisma);
 startBackupScheduler();
 
-// Serve Frontend statically in production
-if (process.env.NODE_ENV === 'production') {
-  const clientDist = path.resolve(__dirname, '../../dist');
+// Servir systématiquement le Frontend statique dès que le build (dist) existe
+const clientDist = path.resolve(__dirname, '../../dist');
+if (fs.existsSync(clientDist)) {
+  console.log(`📦 Fichiers frontend détectés dans ${clientDist} — Service statique activé sur le port ${PORT}`);
   app.use(express.static(clientDist));
-  app.get('*', (_req, res) => {
+  app.get('*', (req, res, next) => {
+    // Ne pas intercepter les requêtes API ou Socket.io
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+      return next();
+    }
     res.sendFile(path.join(clientDist, 'index.html'));
   });
+} else {
+  console.warn(`⚠️ Dossier dist non trouvé (${clientDist}). En mode dev, utilisez le serveur Vite.`);
 }
 
 // ----------------------------------------------------------------------------

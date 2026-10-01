@@ -28,6 +28,8 @@ export default function MobileTicketView({
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [satisfaction, setSatisfaction] = useState(0);
   const [feedbackSent, setFeedbackSent] = useState(false);
+  const [directTicket, setDirectTicket] = useState(null);
+  const [serverPositionAhead, setServerPositionAhead] = useState(null);
   const prevStatusRef = useRef(null);
 
   // Sync tickets prop
@@ -41,11 +43,32 @@ export default function MobileTicketView({
   useEffect(() => {
     const fetchLatest = async () => {
       try {
-        const res = await fetch('/api/tickets');
+        const cleanParam = String(ticketNumber || '').trim();
+        if (!cleanParam) return;
+
+        // 1. Tenter le suivi direct et précis via l'endpoint dédié
+        const trackRes = await fetch(`/api/tickets/track/${encodeURIComponent(cleanParam)}`);
+        if (trackRes.ok) {
+          const trackData = await trackRes.json();
+          if (trackData && trackData.ticket) {
+            setDirectTicket(trackData.ticket);
+            if (typeof trackData.positionAhead === 'number') {
+              setServerPositionAhead(trackData.positionAhead);
+            }
+            if (Array.isArray(trackData.allTodayTickets) && trackData.allTodayTickets.length > 0) {
+              setLocalTickets(trackData.allTodayTickets);
+            }
+            return;
+          }
+        }
+
+        // 2. Fallback sur l'état général du jour
+        const res = await fetch('/api/tickets/today-state');
         if (res.ok) {
           const data = await res.json();
-          if (data && Array.isArray(data.tickets)) {
-            setLocalTickets(data.tickets);
+          const list = data?.tickets || data?.data || (Array.isArray(data) ? data : []);
+          if (Array.isArray(list) && list.length > 0) {
+            setLocalTickets(list);
           }
         }
       } catch (e) {}
@@ -54,10 +77,13 @@ export default function MobileTicketView({
     fetchLatest();
     const interval = setInterval(fetchLatest, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [ticketNumber]);
 
-  // Find target ticket
-  const currentTicket = localTickets.find(t => t.ticketNumber === ticketNumber) || null;
+  // Find target ticket avec comparaison insensible à la casse et aux espaces/tirets
+  const normalize = (val) => String(val || '').replace(/[\s\-_]/g, '').toUpperCase();
+  const currentTicket = directTicket 
+    || localTickets.find(t => t.ticketNumber === ticketNumber || normalize(t.ticketNumber) === normalize(ticketNumber)) 
+    || null;
 
   // Find service config
   const serviceInfo = currentTicket 
@@ -70,8 +96,8 @@ export default function MobileTicketView({
 
   // Calculate waiting count ahead in the queue
   const waitingTickets = localTickets.filter(t => t.status === 'WAITING');
-  let positionAhead = 0;
-  if (currentTicket && currentTicket.status === 'WAITING') {
+  let positionAhead = serverPositionAhead !== null ? serverPositionAhead : 0;
+  if (serverPositionAhead === null && currentTicket && currentTicket.status === 'WAITING') {
     const myCreatedAt = new Date(currentTicket.createdAt).getTime();
     positionAhead = waitingTickets.filter(t => {
       if (t.id === currentTicket.id) return false;

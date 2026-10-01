@@ -25,6 +25,54 @@ export function createTicketRouter(prisma: PrismaClient, io: Server) {
     }
   });
 
+  // ── GET /api/tickets/track/:ticketNumber — Suivi Mobile E-Ticket (QR Code) ──
+  router.get('/track/:ticketNumber', async (req, res) => {
+    try {
+      const rawNumber = decodeURIComponent(req.params.ticketNumber).trim();
+      const startOfDay = getTodayStartDate();
+
+      // Normalisation pour tolérer "PMR 001", "PMR-001", "pmr-001", "pmr 001"
+      const normalizedSearch = rawNumber.replace(/[\s\-_]/g, '').toUpperCase();
+
+      const allToday = await prisma.ticket.findMany({
+        where: { createdAt: { gte: startOfDay } },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      const ticket = allToday.find(t => 
+        t.ticketNumber === rawNumber || 
+        t.ticketNumber.replace(/[\s\-_]/g, '').toUpperCase() === normalizedSearch
+      );
+
+      if (!ticket) {
+        return res.status(404).json({ error: 'Ticket introuvable pour aujourd\'hui' });
+      }
+
+      // Calcul dynamique de la position en file d'attente
+      const waitingList = allToday.filter(t => t.status === 'WAITING');
+      let ahead = 0;
+      if (ticket.status === 'WAITING') {
+        ahead = waitingList.filter(w => {
+          if (w.id === ticket.id) return false;
+          if (w.priority && !ticket.priority) return true;
+          if (!w.priority && ticket.priority) return false;
+          return new Date(w.createdAt).getTime() < new Date(ticket.createdAt).getTime();
+        }).length;
+      }
+
+      res.setHeader('Cache-Control', 'no-store, no-cache');
+      res.json({
+        ticket,
+        positionAhead: ahead,
+        totalWaiting: waitingList.length,
+        estimatedWaitMinutes: Math.max(2, ahead * 4),
+        allTodayTickets: allToday
+      });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   router.get('/', async (req, res) => {
     try {
       const page = Math.max(1, parseInt(req.query.page as string) || 1);
