@@ -129,9 +129,26 @@ export default function DisplayModule({ agencyName, tickets: ticketsFromProps, l
     };
   }, [handleUnlock]);
 
-  // Données finales : priorité aux données locales (polling + WS fusionnés)
-  const tickets = localTickets;
-  const lastCalledTicket = localLastCalled;
+  // ── Filtrage strict de la journée : ne jamais afficher les tickets d'hier ──
+  const isTodayTicket = React.useCallback((t) => {
+    if (!t) return false;
+    if (!t.createdAt) return true;
+    const d = new Date(t.createdAt);
+    if (isNaN(d.getTime())) return true;
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear() &&
+           d.getMonth() === now.getMonth() &&
+           d.getDate() === now.getDate();
+  }, []);
+
+  // Données finales : filtrées pour ne garder que la journée en cours
+  const tickets = React.useMemo(() => {
+    return (localTickets || []).filter(isTodayTicket);
+  }, [localTickets, isTodayTicket]);
+
+  const lastCalledTicket = React.useMemo(() => {
+    return (localLastCalled && isTodayTicket(localLastCalled)) ? localLastCalled : null;
+  }, [localLastCalled, isTodayTicket]);
 
   const t = translations[lang] || translations.fr;
   const activeTickets = tickets.filter(t => t.status === 'CALLED' || t.status === 'IN_PROGRESS');

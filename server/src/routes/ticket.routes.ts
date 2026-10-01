@@ -6,7 +6,7 @@ import { authenticateToken, requireRole } from '../auth.js';
 import { validate } from '../middlewares/validate.js';
 import { ticketCreationLimiter } from '../middlewares/rateLimiter.js';
 import { createTicketSchema, callNextSchema, updateStatusSchema } from '../schemas/ticket.schema.js';
-import { getWeekStartDate, getTodayState } from '../services/queueState.service.js';
+import { getTodayStartDate, getWeekStartDate, getTodayState, getCurrentWeekState } from '../services/queueState.service.js';
 import { enqueueSyncEvent } from '../syncWorker.js';
 
 export function createTicketRouter(prisma: PrismaClient, io: Server) {
@@ -78,12 +78,12 @@ export function createTicketRouter(prisma: PrismaClient, io: Server) {
 
         let ticketNumber = inputTicketNumber;
         if (!ticketNumber) {
-          const startOfWeek = getWeekStartDate();
+          const startOfDay = getTodayStartDate();
           
           const lastTicket = await tx.ticket.findFirst({
             where: {
               serviceCode,
-              createdAt: { gte: startOfWeek }
+              createdAt: { gte: startOfDay }
             },
             orderBy: { createdAt: 'desc' },
             select: { ticketNumber: true }
@@ -132,12 +132,12 @@ export function createTicketRouter(prisma: PrismaClient, io: Server) {
   router.post('/call-next', authenticateToken, validate(callNextSchema), async (req, res) => {
     try {
       const { agentId, agentName, counterNumber, serviceFilter } = req.body;
-      const startOfWeek = getWeekStartDate();
+      const startOfDay = getTodayStartDate();
 
       let waiting = await prisma.ticket.findMany({
         where: {
           status: 'WAITING',
-          createdAt: { gte: startOfWeek },
+          createdAt: { gte: startOfDay },
           ...(serviceFilter && serviceFilter !== 'ALL'
             ? (serviceFilter.includes(',')
                 ? { serviceCode: { in: serviceFilter.split(',').map((s: string) => s.trim()) } }
@@ -257,7 +257,7 @@ export function createTicketRouter(prisma: PrismaClient, io: Server) {
 
   router.post('/weekly-archive', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
     try {
-      const { tickets } = await getTodayState(prisma);
+      const { tickets } = await getCurrentWeekState(prisma);
       const totalTickets = tickets.length;
       const completedTickets = tickets.filter(t => t.status === 'COMPLETED').length;
       const noShowTickets = tickets.filter(t => t.status === 'NO_SHOW').length;
