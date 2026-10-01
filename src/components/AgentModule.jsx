@@ -182,15 +182,19 @@ export default function AgentModule({ agencyName, tickets, onlineCounters = [], 
   };
 
   const handleAgentLogout = () => {
-    clearAllAutoTimers();
-    // Fermeture automatique du guichet à la déconnexion
+    // 1. Fermeture automatique du guichet à la déconnexion
     if (onlineCounters.includes(counterNumber)) {
       toggleCounterStatus(counterNumber, false);
     }
+    // 2. Nettoyage de l'authentification et de la session locale
     logoutAgent();
     setIsAgentUnlocked(false);
     setPinInput('');
     setPinError('');
+    setCurrentTicket(null);
+    setServiceDurationSec(0);
+
+    // 3. Notification d'événement global
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new Event('cofina_auth_changed'));
     }

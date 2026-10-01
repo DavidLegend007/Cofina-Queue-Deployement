@@ -23,7 +23,8 @@ import {
   DollarSign,
   Briefcase,
   ExternalLink,
-  AlertTriangle
+  AlertTriangle,
+  LogOut
 } from 'lucide-react';
 import { 
   processNextTicket,
@@ -33,6 +34,7 @@ import {
   toggleCounterStatus,
   // playCallChime et speakTicketCall supprimés – le son est géré exclusivement par DisplayModule (TV)
 } from '../services/queueStore';
+import { logoutAgent } from '../services/api/authApi';
 import { translations } from '../services/translations';
 import { POSTES_CONFIG } from './AgentModule.jsx';
 
@@ -248,6 +250,24 @@ export default function FloatingTellerWidget({
               title={isMinimized ? "Agrandir" : "Réduire"}
             >
               {isMinimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
+            </button>
+
+            <button 
+              className="widget-control-btn"
+              onClick={() => {
+                if (onlineCounters.includes(counterNumber)) {
+                  toggleCounterStatus(counterNumber, false);
+                }
+                logoutAgent();
+                onStateChange();
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new Event('cofina_auth_changed'));
+                }
+              }}
+              title="Déconnexion session caisse"
+              style={{ color: '#FDA4AF' }}
+            >
+              <LogOut size={14} />
             </button>
 
             <button 
