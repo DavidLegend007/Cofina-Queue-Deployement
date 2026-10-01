@@ -22,9 +22,9 @@ export default function App() {
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
 
   const isWidgetOnly = urlParams.has('widgetOnly') || urlParams.get('mode') === 'widget';
-  const isKioskOnly = urlParams.has('kioskOnly') || urlParams.has('kiosk') || urlParams.get('mode') === 'kiosk' || urlParams.get('module') === 'kiosk';
-  const isDisplayOnly = urlParams.has('displayOnly') || urlParams.has('display') || urlParams.get('mode') === 'display' || urlParams.get('module') === 'display';
-  const isAgentOnly = urlParams.has('agentOnly') || urlParams.has('agent') || urlParams.get('mode') === 'agent' || urlParams.get('module') === 'agent' || urlParams.has('caisse');
+  const isKioskOnly = urlParams.has('kioskOnly') || urlParams.has('kiosk') || urlParams.get('mode') === 'kiosk' || urlParams.get('module') === 'kiosk' || urlParams.has('borne') || urlParams.has('accueil');
+  const isDisplayOnly = urlParams.has('displayOnly') || urlParams.has('display') || urlParams.get('mode') === 'display' || urlParams.get('module') === 'display' || urlParams.has('tv') || urlParams.has('ecran');
+  const isAgentOnly = urlParams.has('agentOnly') || urlParams.has('agent') || urlParams.get('mode') === 'agent' || urlParams.get('module') === 'agent' || urlParams.has('caisse') || urlParams.has('caissier') || urlParams.has('guichet');
   const isAdminOnly = urlParams.has('adminOnly') || urlParams.has('admin') || urlParams.get('mode') === 'admin' || urlParams.get('module') === 'admin' || urlParams.has('supervision');
 
   // Masquage de la bannière de navigation de démonstration sur tous les modules opérationnels (Borne, Caisses, Admin, Écran TV)
@@ -36,11 +36,11 @@ export default function App() {
     if (isAgentOnly) return 'agent';
     if (isAdminOnly) return 'admin';
     if (isKioskOnly) return 'kiosk';
-    const mod = urlParams.get('module');
-    if (mod === 'agent' || mod === 'caisse') return 'agent';
+    const mod = urlParams.get('module') || urlParams.get('mode');
+    if (mod === 'agent' || mod === 'caisse' || mod === 'caissier' || mod === 'guichet') return 'agent';
     if (mod === 'admin' || mod === 'supervision') return 'admin';
-    if (mod === 'display' || mod === 'tv') return 'display';
-    if (mod === 'kiosk' || mod === 'borne') return 'kiosk';
+    if (mod === 'display' || mod === 'tv' || mod === 'ecran') return 'display';
+    if (mod === 'kiosk' || mod === 'borne' || mod === 'accueil') return 'kiosk';
     return 'kiosk';
   });
 
