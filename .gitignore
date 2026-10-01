@@ -20,5 +20,6 @@ cloudflared.exe
 # Environment & Local Files
 .env
 .env.local
+tunnel_url.txt
 .DS_Store
 Thumbs.db

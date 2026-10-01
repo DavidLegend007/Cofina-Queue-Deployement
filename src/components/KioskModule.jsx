@@ -399,30 +399,73 @@ const buildCSS = () => `
     font-weight:500; line-height:1.4;
   }
 
-  /* Footer */
+  /* Footer Buttons - Print Primary, Finish Secondary */
   .bn-ticket-footer {
     padding:8px 22px 18px;
-    display:flex; flex-direction:column; gap:8px;
+    display:flex; flex-direction:column; gap:10px;
   }
   .bn-print-action-btn {
-    background:#f8fafc; color:#475569;
-    border:1.5px solid #e2e8f0; border-radius:11px;
-    padding:9px 16px; font-family:'Plus Jakarta Sans',sans-serif;
-    font-size:12px; font-weight:700; cursor:pointer;
-    display:flex; align-items:center; justify-content:center; gap:8px;
-    width:100%; transition:all 0.2s ease;
+    background: linear-gradient(135deg, #D3122A 0%, #B90E22 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    padding: 13px 20px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 14px rgba(211, 18, 42, 0.35);
   }
-  .bn-print-action-btn:hover { background:#f1f5f9; border-color:#cbd5e1; }
-  .bn-print-action-btn.printed { background:#ecfdf5; color:#065f46; border-color:#6ee7b7; }
+  .bn-print-action-btn:hover {
+    background: linear-gradient(135deg, #B90E22 0%, #990B1B 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(211, 18, 42, 0.45);
+  }
+  .bn-print-action-btn:active {
+    transform: scale(0.98);
+  }
+  .bn-print-action-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .bn-print-action-btn.printed {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
+  }
   .bn-finish-btn {
-    background:#1a1c1d; color:#ffffff;
-    font-family:'Plus Jakarta Sans',sans-serif; font-size:13px; font-weight:700;
-    border:none; border-radius:11px; padding:12px 20px; cursor:pointer;
-    transition:opacity .2s; width:100%;
-    display:flex; align-items:center; justify-content:center; gap:8px;
+    background: #f8fafc;
+    color: #64748b;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 11px;
+    padding: 9px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
   }
-  .bn-finish-btn:hover  { opacity:.82; }
-  .bn-finish-btn:active { transform:scale(.98); }
+  .bn-finish-btn:hover {
+    background: #f1f5f9;
+    color: #334155;
+    border-color: #cbd5e1;
+  }
+  .bn-finish-btn:active {
+    transform: scale(0.98);
+  }
 
   .bn-help-overlay {
     position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px);
@@ -722,7 +765,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   const [isPrinting,     setIsPrinting]     = useState(false);
   const [printed,        setIsPrinted]      = useState(false);
   const [scanned,        setIsScanned]      = useState(false);
-  const [resetCountdown, setResetCountdown] = useState(30);
+  const [resetCountdown, setResetCountdown] = useState(25);
   const [showHelp,       setShowHelp]       = useState(false);
   const [clockTime,      setClockTime]      = useState(new Date());
   const [waitingCount,   setWaitingCount]   = useState(0);
@@ -798,13 +841,13 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
 
   const txt = TEXTS[currentLang] || TEXTS.fr;
 
-  /* Countdown auto-reset */
+  /* Countdown auto-reset (25s) */
   useEffect(() => {
     if (!issuedTicket) return;
-    setResetCountdown(30);
+    setResetCountdown(25);
     const id = setInterval(() => {
       setResetCountdown(prev => {
-        if (prev <= 1) { handleReset(); return 30; }
+        if (prev <= 1) { handleReset(); return 25; }
         return prev - 1;
       });
     }, 1000);
@@ -1056,7 +1099,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
     setIsPrinting(false);
     setIsPrinted(false);
     setIsScanned(false);
-    setResetCountdown(30);
+    setResetCountdown(25);
   };
 
   return (
@@ -1297,14 +1340,14 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                     onClick={handlePrintTicket}
                     disabled={isPrinting}
                   >
-                    {printed ? <CheckCircle2 size={16} /> : <Printer size={16} />}
+                    {printed ? <CheckCircle2 size={18} /> : <Printer size={18} />}
                     <span>
-                      {isPrinting ? 'Impression en cours…' : printed ? '✓ Reçu papier imprimé !' : '🖨️ Imprimer un reçu papier (Optionnel)'}
+                      {isPrinting ? 'Impression en cours…' : printed ? '✓ Reçu papier imprimé !' : '🖨️ IMPRIMER MON TICKET PAPIER'}
                     </span>
                   </button>
                   <button className="bn-finish-btn" onClick={handleReset}>
-                    <span>TERMINER ({resetCountdown}s)</span>
-                    <ArrowRight size={16} />
+                    <span>Terminer sans imprimer ({resetCountdown}s)</span>
+                    <ArrowRight size={14} />
                   </button>
                 </div>
               </div>
