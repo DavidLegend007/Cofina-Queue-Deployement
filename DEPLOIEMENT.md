@@ -83,33 +83,34 @@ L'exploitation est automatisée via des scripts `.bat` prêts à l'emploi :
 
 ---
 
-## 🌐 CONFIGURATION DE LA PASSERELLE 4G (CLOUDFLARE TUNNEL)
+## 🌐 CONFIGURATION DE LA PASSERELLE 4G & 5G (CLOUDFLARE TUNNEL)
 
-Pour que les usagers puissent scanner le QR Code de leur ticket avec n'importe quelle connexion mobile (Togocel 4G, Moov 4G) sans être connectés au Wi-Fi de l'agence :
+Pour que les usagers puissent scanner le QR Code de leur ticket avec n'importe quelle connexion mobile (**Togocel 4G/5G, Moov 4G/5G**) sans être connectés au Wi-Fi de l'agence :
 
-### Étape 1 : Démarrer le tunnel
-Double-cliquez sur **`Lancer_Tunnel_4G.bat`**. La console s'ouvre et affiche une URL de type :
+### ✨ Fonctionnement 100% Automatique (Sans manipulation de fichier .env)
+Le serveur Express intègre désormais la détection dynamique du tunnel. Dès que le tunnel Cloudflare est actif, l'adresse publique HTTPS est transmise en temps réel à la borne tactile sans nécessiter d'édition manuelle de fichiers.
+
+### 🐧 Sur Ubuntu Server (Recommandé en production)
+Le tunnel peut être démarré en arrière-plan et persisté au boot :
+```bash
+# 1. Télécharger cloudflared dans le dossier projet (sans privilèges sudo requis)
+curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared && chmod +x cloudflared
+
+# 2. Démarrer et persister avec PM2
+pm2 start ./lancer_tunnel_4g.sh --name "cofina-tunnel-4g"
+pm2 save
 ```
-https://xxxx-xxxx-xxxx.trycloudflare.com
-```
+> **Fiabilité 24h/24** : Le tunnel gère automatiquement les micro-coupures réseau et se reconnecte en 5 secondes en cas de coupure internet.
 
-### Étape 2 : Configurer le fichier `.env`
-Ouvrez le fichier `.env` à la racine et collez l'URL obtenue :
-```ini
-VITE_SERVER_URL=http://localhost:4000
-VITE_SOCKET_URL=http://localhost:4000
-VITE_AGENCY_NAME=Agence Siège Kodjoviakopé (Lomé)
-PUBLIC_URL=https://xxxx-xxxx-xxxx.trycloudflare.com
-VITE_PUBLIC_URL=https://xxxx-xxxx-xxxx.trycloudflare.com
-```
+### 🪟 Sur Windows (Borne Kiosque ou PC de caisse)
+- Double-cliquez simplement sur **`Lancer_Tunnel_4G.bat`**.
+- La borne détecte instantanément l'ouverture du tunnel et bascule son QR code en mode 4G/5G.
 
-Faites de même dans `server/.env`.
-
-### Étape 3 : Résultat automatique sur la borne
-Dès que `PUBLIC_URL` est renseigné, le serveur bascule automatiquement l'URL du QR Code :
-- Le QR Code affiché sur la borne tactile pointera sur `https://xxxx-xxxx-xxxx.trycloudflare.com/ticket?q=XXX`.
-- Le message sous le QR Code affiche : **« Scannez avec votre téléphone (Wi-Fi ou 4G) »**.
-- Si le tunnel est fermé, le QR Code repasse automatiquement en mode LAN local `http://192.168.x.x:4000/ticket?q=XXX`.
+### 📱 Comportement intelligent du QR Code sur la borne
+- **Tunnel actif** : Le QR code encode l'URL sécurisée `https://xxxx.trycloudflare.com/?ticket=XXX`.  
+  Mention affichée : **« 🌐 Compatible 4G Mobile & Wi-Fi »**.
+- **Tunnel inactif** : Le QR code bascule automatiquement sur le Wi-Fi local `http://192.168.1.182:4000/?ticket=XXX`.  
+  Mention affichée : **« 📶 Connectez votre téléphone au Wi-Fi de l'agence »**.
 
 ---
 
@@ -117,7 +118,7 @@ Dès que `PUBLIC_URL` est renseigné, le serveur bascule automatiquement l'URL d
 
 Si l'agence dispose d'un serveur physique sous Ubuntu Server 22.04 ou 24.04 LTS :
 
-### 2.1 Installation automatique en 5 commandes
+### 2.1 Installation automatique
 ```bash
 # 1. Cloner le dépôt officiel
 git clone https://github.com/DavidLegend007/Cofina-Queue-Deployement.git
@@ -138,19 +139,19 @@ pm2 status
 Le script `install_ubuntu.sh` configure automatiquement :
 - Node.js 22 LTS, Yarn, PM2.
 - Le pare-feu UFW (ports 22 SSH et 4000 applicatif).
-- La compilation de production et la persistance au redémarrage via `systemd`.
+- La persistance au redémarrage via `systemd`.
 
 ---
 
 ## 🌐 TABLEAU DES URLS D'EXPLOITATION EN AGENCE
 
-Remplacer `192.168.1.XXX` par l'IP fixe du Mini-PC serveur d'agence :
+Remplacer `192.168.1.XXX` par l'IP fixe du Mini-PC serveur d'agence (`192.168.1.182`) :
 
 | Rôle | URL en Agence | Comportement UI |
 | :--- | :--- | :--- |
 | 🖥️ **Borne Kiosque** | `http://192.168.1.XXX:4000/?kiosk` | Plein écran tactile, sans navbar ni footer |
-| 📺 **Écran TV Public** | `http://192.168.1.XXX:4000/?display` | Plein écran, appels sonores et vocaux |
-| 👨‍💼 **Poste Caissier** | `http://192.168.1.XXX:4000/?agent` | Interface guichet sans navbar |
+| 📺 **Écran TV Public** | `http://192.168.1.XXX:4000/?display` | Plein écran, appels sonores et vocaux sans superposition |
+| 👨‍💼 **Poste Caissier** | `http://192.168.1.XXX:4000/?agent` | Interface guichet avec bouton de déconnexion rapide |
 | 🔐 **Console Superviseur** | `http://192.168.1.XXX:4000/?admin` | Tableau de bord de supervision |
 | 📱 **Widget Caissier Décollé** | `http://192.168.1.XXX:4000/?widgetOnly=true` | Fenêtre pop-out compacte 360x420px |
 | 🎯 **Mode Démo / Formation** | `http://192.168.1.XXX:4000/?demo=true` | Navigation complète visible avec sélecteur de modules |
@@ -165,37 +166,32 @@ Remplacer `192.168.1.XXX` par l'IP fixe du Mini-PC serveur d'agence :
 2. **Propriétés de l'imprimante sous Windows** :
    - Nom de l'imprimante : `POS-58` ou `Xprinter 58`.
    - Définir comme **imprimante par défaut**.
-   - Format de papier personnalisé : **Largeur 58 mm**, **Hauteur 50 mm**.
-   - Orientation : **Paysage (Landscape)**.
+   - Format de papier personnalisé : **Largeur 44 mm utile (rouleau 58 mm)**, **Hauteur 50 mm**.
    - Marges : Définir à **0 mm** ou « Aucune ».
-3. **Comportement du bouton dans l'application** :
-   - L'impression est **volontaire** (clic sur le bouton "Imprimer mon ticket").
-   - La commande de massicotage papier native ESC/POS (`\x1DV\x41\x00`) est transmise en fin d'impression.
+3. **Optimisations intégrées** :
+   - Calage à gauche sans décalage auto (`margin: 0`).
+   - Impression via **iframe isolée et invisible** (élimine la page grise et les rejets de format).
+   - Police fluide responsive pour les numéros longs (ex: `PMR 001`).
+   - L'impression papier est optionnelle (bouton "Imprimer mon ticket") pour économiser le papier thermique.
 
 ---
 
 ## 🔄 MISE À JOUR ET MAINTENANCE
 
 ### Mettre à jour le logiciel depuis GitHub :
+Les bundles de production (`dist/` et `server/dist/`) étant directement versionnés dans le dépôt, **aucune compilation n'est requise sur le serveur de production** :
+
 ```bash
 # Se placer dans le répertoire du projet
 cd Cofina-Queue-Deployement
 
-# Récupérer les dernières mises à jour
-git pull origin main
-
-# Recompiler si nécessaire
-npm run build
-npm --prefix server run build
-
-# Redémarrer les services
-# Sous Windows : Relancer Lancer_Borne_Cofina.bat
-# Sous Ubuntu  : pm2 restart all
+# Mettre à jour en 1 commande
+git pull origin main && pm2 restart all
 ```
 
 ### Sauvegarde et restauration SQLite :
 - Les sauvegardes automatiques sont créées chaque nuit dans `server/backups/`.
-- Pour déclencher une sauvegarde manuelle instantanée : se connecter à la console Admin (`/?admin`) et cliquer sur **« Sauvegarder la base »**.
+- Déclenchement manuel : se connecter à la console Admin (`/?admin`) et cliquer sur **« Sauvegarder la base »**.
 - En cas de restauration d'urgence : copier le fichier `.db` de sauvegarde vers `server/prisma/cofina_edge.db`.
 
 ---
@@ -204,21 +200,17 @@ npm --prefix server run build
 
 ### 1. La page affiche "Site inaccessible" (`ERR_CONNECTION_REFUSED`)
 - Le serveur Node.js n'est pas démarré.
-- Sous Windows : Exécuter `Lancer_Borne_Cofina.bat`.
+- Sous Ubuntu : `pm2 status` puis `pm2 restart all`.
 - Vérifier que l'URL utilise bien le port **4000** (et non 3000).
 
-### 2. Le QR Code ne s'ouvre pas sur le téléphone du client en 4G
-- Vérifier que `Lancer_Tunnel_4G.bat` est bien en cours d'exécution.
-- Vérifier que l'adresse `https://xxx.trycloudflare.com` générée par le tunnel est bien renseignée dans les variables `PUBLIC_URL` et `VITE_PUBLIC_URL` du fichier `.env`.
-- Relancer le serveur pour recharger le fichier `.env`.
+### 2. Le QR Code mobile ne s'ouvre pas en 4G/5G
+- S'assurer que le tunnel est actif (`pm2 status` doit afficher `cofina-tunnel-4g` en vert `online`).
+- Pour le relancer manuellement : `bash lancer_tunnel_4g.sh`.
+- Dès son ouverture, le QR code de la borne bascule automatiquement sur l'adresse Cloudflare active.
 
-### 3. La barre de navigation s'affiche alors qu'elle ne devrait pas
-- Vérifier que l'URL ne contient pas `?demo=true` ou `?nav=true`.
-- Utiliser les raccourcis préconfigurés (`ouvrir_caisse.bat`, `ouvrir_borne.bat`, `ouvrir_ecran_tv.bat`, `ouvrir_admin.bat`).
-
-### 4. Après une coupure de courant
-- Le Mini-PC redémarre : double-cliquer simplement sur `Lancer_Borne_Cofina.bat`.
-- Les tickets de la journée sont intégralement conservés grâce à SQLite WAL.
+### 3. Après une coupure de courant
+- Le serveur redémarre : PM2 relance automatiquement l'application et le tunnel au boot (`systemd`).
+- Les données et tickets de la journée sont intégralement conservés grâce à SQLite en mode WAL.
 
 ---
 
@@ -230,3 +222,4 @@ npm --prefix server run build
 | **Assistance Opérationnelle Agence** | Support Agence COFINA Togo | **92 68 60 60** |
 
 *© 2026 Groupe COFINA Togo — Guide d'exploitation et de déploiement homologué.*
+

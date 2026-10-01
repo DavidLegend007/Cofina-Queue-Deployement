@@ -41,7 +41,7 @@
 | **N5** | **Endpoint `/api/network-info` enrichi** | `server/src/routes/network.routes.ts` | Retourne `publicUrl` et `isPublic` pour permettre au frontend de basculer dynamiquement entre URL LAN et URL publique dans le QR Code. |
 | **N6** | **QR Code du Kiosk adaptatif** | `src/components/KioskModule.jsx` | Le lien du QR Code est automatiquement l'URL publique si le tunnel est actif, sinon l'URL LAN locale. Le message d'instructions clients est adapté (`Wi-Fi ou 4G`). |
 | **N7** | **Nouveau script Admin** | `ouvrir_admin.bat` | Lance la console de supervision directement dans Edge/Chrome sans barre kiosque, avec support IP configurable en paramètre. |
-| **N8** | **Configuration `.env` enrichie** | `.env`, `server/.env` | Variables `PUBLIC_URL` et `VITE_PUBLIC_URL` ajoutées pour piloter l'URL publique sans modifier le code source. |
+| **N8** | **Détection dynamique automatique du tunnel 4G** | `server/src/services/tunnel.service.ts` | Détection automatique de l'URL Cloudflare en mémoire et par fichier temporaire, émission WebSocket instantanée sans modification manuelle du fichier `.env`. |
 
 ---
 
@@ -118,7 +118,7 @@ graph TB
 | Scénario | Action | QR Code généré |
 | :--- | :--- | :--- |
 | **LAN seul (sans tunnel)** | `Lancer_Borne_Cofina.bat` | URL locale `http://192.168.x.x:4000/ticket?q=XXX` |
-| **LAN + 4G (avec tunnel)** | `Lancer_Borne_Cofina.bat` + `Lancer_Tunnel_4G.bat` + renseigner `PUBLIC_URL` dans `.env` | URL publique `https://<tunnel>.trycloudflare.com/ticket?q=XXX` |
+| **LAN + 4G (avec tunnel)** | `Lancer_Borne_Cofina.bat` + `Lancer_Tunnel_4G.bat` (ou `lancer_tunnel_4g.sh`) | URL publique `https://<tunnel>.trycloudflare.com/ticket?q=XXX` (détection dynamique automatique en direct) |
 
 ### 4.3. Sécurité du tunnel public
 * **Chiffrement TLS** : Cloudflare assure HTTPS de bout en bout entre le mobile client et le tunnel.
@@ -241,7 +241,7 @@ dist/assets/index-*.js             237.38 kB
 5. PC Admin    : ouvrir_admin.bat           → Console de supervision
 ```
 
-> **Note tunnel 4G** : L'URL publique change à chaque démarrage du tunnel. Renseigner la nouvelle URL dans `.env` (`PUBLIC_URL` et `VITE_PUBLIC_URL`) puis relancer le serveur pour mettre à jour le QR Code. Pour une URL permanente, utiliser un tunnel Cloudflare nommé avec domaine fixe (compte Cloudflare gratuit requis).
+> **Note tunnel 4G/5G** : L'URL publique est désormais automatiquement détectée en mémoire par le service de tunnel (`tunnel.service.ts` / `lancer_tunnel_4g.sh`) et transmise instantanément au QR Code de la borne par WebSocket. Aucune édition manuelle de fichier `.env` ni redémarrage du serveur n'est nécessaire. Sur serveur Linux / Ubuntu, le processus est maintenu 24/7 de manière résiliente avec reconnexion automatique.
 
 ---
 

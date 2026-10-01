@@ -24,6 +24,7 @@
 7. [Cycle de Vie du Ticket Caissier & Automatisations](#7-cycle-de-vie-du-ticket-caissier--automatisations)
 8. [Stratégie de Consolidation Multi-Agences & Reporting](#8-stratégie-de-consolidation-multi-agences--reporting)
 9. [Sécurité, Sauvegardes & Résilience](#9-sécurité-sauvegardes--résilience)
+10. [Référentiel des Endpoints API REST & Événements WebSocket](#10-référentiel-des-endpoints-api-rest--événements-websocket)
 
 ---
 
@@ -111,10 +112,10 @@ graph TB
     subgraph LAN ["🏦 Infrastructure Locale Dédiée — Agence Siège Kodjoviakopé"]
         Switch[🔌 Switch Dédié 16 Ports LAN]
 
-        MiniPC["💻 Mini-PC Serveur Edge Local\nNode.js 22 + Express + SQLite WAL\nPort Unifié : 4000"]
+        MiniPC["💻 Mini-PC Serveur Edge Local\nNode.js 22 + Express + SQLite WAL\nPort Unifié : 4000\nService Détection Tunnel Dynamique"]
         
         Kiosk["🖥️ Borne Tactile Accueil\n/?kiosk (Mode Kiosque Plein Écran)"]
-        DisplayTV["📺 Écran TV 55'' Salle d'Attente\n/?display (Boîtier HDMI + Audio)"]
+        DisplayTV["📺 Écran TV 55'' Salle d'Attente\n/?display (Boîtier HDMI + Audio FIFO)"]
         Caisses["🏧 Caisses 1, 2, 3\n/?agent"]
         Operateurs["💼 Opérateurs 4, 5\n/?agent"]
         Accueil["👩🏽‍💼 Poste Accueil\n/?agent"]
@@ -131,27 +132,28 @@ graph TB
 
     subgraph CLIENTS ["📱 Clients — Consultation du Ticket Mobile"]
         ClientWifi["📶 Client sur Wi-Fi Agence\nAccès direct : http://192.168.x.x:4000/ticket?q=XXX"]
-        Client4G["📱 Client en 4G / Données Mobiles\nAccès HTTPS : https://<tunnel>.trycloudflare.com/ticket?q=XXX"]
+        Client4G["📱 Client en 4G / 5G Données Mobiles\nAccès HTTPS : https://<tunnel>.trycloudflare.com/ticket?q=XXX"]
     end
 
-    Kiosk -->|QR Code Dynamique| CLIENTS
+    Kiosk -->|QR Code Dynamique Haute Lisibilité| CLIENTS
     ClientWifi -->|Réseau Local LAN| MiniPC
-    Client4G -->|HTTPS TLS| Cloudflare["☁️ Cloudflare Tunnel\n(Lancer_Tunnel_4G.bat)"]
-    Cloudflare -->|Reverse Proxy vers port 4000| MiniPC
+    Client4G -->|HTTPS TLS| Cloudflare["☁️ Cloudflare Tunnel Dynamique\n(lancer_tunnel_4g.sh / Lancer_Tunnel_4G.bat)"]
+    Cloudflare -->|Reverse Proxy automatique vers port 4000| MiniPC
 ```
 
 ### URLs d'Accès par Type de Poste (Port unifié 4000)
 
-| Équipement | URL Réseau Local | Mode d'Affichage | Script Windows |
+| Équipement | URL Réseau Local | Mode d'Affichage | Script d'Exploitation |
 | :--- | :--- | :--- | :--- |
 | **Borne Tactile** | `http://<IP_SERVEUR>:4000/?kiosk` | Plein écran Kiosk tactile (sans navbar ni footer) | `Lancer_Borne_Cofina.bat` ou `ouvrir_borne.bat` |
-| **Écran TV Salle d'Attente** | `http://<IP_SERVEUR>:4000/?display` | Plein écran public avec carillon & audio | `ouvrir_ecran_tv.bat` |
-| **Postes Caissiers & Conseillers** | `http://<IP_SERVEUR>:4000/?agent` | Interface guichet épurée sans navbar | `ouvrir_caisse.bat` |
-| **Widget Caissier Bureau** | `http://<IP_SERVEUR>:4000/?widgetOnly=true` | Fenêtre flottante compacte 360x420px | Intégré à l'interface agent |
+| **Écran TV Salle d'Attente** | `http://<IP_SERVEUR>:4000/?display` | Plein écran public avec carillon & audio séquentiel FIFO | `ouvrir_ecran_tv.bat` |
+| **Postes Caissiers & Conseillers** | `http://<IP_SERVEUR>:4000/?agent` | Interface guichet épurée avec déconnexion 1-clic | `ouvrir_caisse.bat` |
+| **Widget Caissier Bureau** | `http://<IP_SERVEUR>:4000/?widgetOnly=true` | Fenêtre flottante compacte 360x420px | Intégré à l'interface agent (<kbd>↗</kbd>) |
 | **Console Administration** | `http://<IP_SERVEUR>:4000/?admin` | Console de supervision sécurisée RBAC | `ouvrir_admin.bat` |
 | **Mode Démonstration / Formation** | `http://<IP_SERVEUR>:4000/?demo=true` | Navigation complète visible avec sélecteur de modules | Accès manuel |
 | **Health Check (Uptime Kuma)** | `http://<IP_SERVEUR>:4000/health` | Supervision JSON automatisée (200 UP) | N/A |
-| **Informations Réseau & QR** | `http://<IP_SERVEUR>:4000/api/network-info` | Détection IP locale & statut passerelle 4G | N/A |
+| **Informations Réseau & QR** | `http://<IP_SERVEUR>:4000/api/network-info` | Détection IP locale & URL publique 4G dynamique | N/A |
+| **Suivi Mobile Client** | `http://<IP_SERVEUR>:4000/api/tickets/track/:ticketNumber` | Endpoint public sans JWT pour suivi mobile | N/A |
 
 ---
 
@@ -160,23 +162,33 @@ graph TB
 ### 5.1 🖥️ Borne Tactile d'Accueil (`KioskModule.jsx`)
 - **Grille de sélection des 12 services** avec icônes distinctes et codes couleurs COFINA Togo.
 - **Accès Prioritaire 1-Clic PMR** : Détection des personnes à mobilité réduite, seniors et femmes enceintes avec attribution immédiate d'un ticket prioritaire `PMR-xxx`.
-- **QR Code Adaptatif Automatique** :
-  - Si la passerelle 4G est active (`PUBLIC_URL`), le QR Code encode l'URL HTTPS publique pour que le client puisse suivre son ticket en 4G.
+- **QR Code Adaptatif Haute Visibilité** :
+  - Rendu en contraste maximal (Noir `#000000` sur Fond Blanc `#ffffff`, marge 2, correction d'erreur M) scannable instantanément par tout appareil photo mobile.
+  - Détection automatique 4G/5G : dès que le tunnel Cloudflare est actif, l'URL publique HTTPS est injectée dynamiquement sans redémarrage serveur.
   - Si le serveur fonctionne en LAN seul, le QR Code encode l'IP locale de l'agence.
-  - Le libellé d'assistance s'adapte automatiquement : *« Scannez avec votre téléphone (Wi-Fi ou 4G) »*.
-- **Impression thermique d'appoint** : Bouton d'impression Xprinter 58x50mm avec massicotage automatique ESC/POS (`\x1DV\x41\x00`).
+  - Encodage sécurisé des paramètres via `encodeURIComponent` pour garantir la prise en compte des numéros avec tirets (`PMR-001`).
+  - Clic direct interactif sur le QR code permettant l'ouverture immédiate de la page de suivi client pour tests et démonstrations.
+  - Le libellé d'assistance s'adapte automatiquement : *« Scannez avec votre téléphone (Wi-Fi ou 4G/5G) »*.
+- **Impression thermique d'appoint calibrée** :
+  - Bouton d'impression thermique Xprinter calibré strictement sur **44mm de largeur imprimable effective** (alignement gauche, marges nulles) pour rouleau 58mm : zéro tronquage de texte sur les références longues.
+  - Déclenchement via un iframe HTML isolé et invisible éliminant les cadres gris ou fenêtres vierges du navigateur.
+  - Commande native ESC/POS de découpe automatique de ticket (`\x1DV\x41\x00`).
 - **Affichage immersif** : Absence complète de barre de navigation et de pied de page.
 
 ### 5.2 📺 Écran TV Public & Synthèse Vocale (`DisplayModule.jsx`)
 - **Vue d'ensemble des 6 guichets en direct** : Caisses 1-3, Opérateurs 1-2, Accueil.
 - **Bannière d'Appel Grand Format** : Numéro clignotant et mise en valeur du guichet de destination.
-- **Sonorisation Bimodale Intelligente** :
-  1. *Carillon Attention* : Sonnette 2 tons haute clarté.
+- **Sonorisation Bimodale Intelligente avec File d'Attente FIFO** :
+  1. *Carillon Attention* : Sonnette 2 tons haute clarté (gong AudioContext Web Audio).
   2. *Synthèse Vocale Web Speech API* : Annonce dynamique en français (*"Ticket D-015, veuillez passer à la Caisse 2"*).
+  3. *File d'Attente Séquentielle FIFO (`audioQueueRef`)* : En cas d'appels simultanés par plusieurs guichets, les annonces sont jouées rigoureusement les unes après les autres (`source.onended` sur le carillon puis `utterance.onend` sur la voix).
+  4. *Anti-bégaiement / Déduplication* : Fenêtre de sécurité de 4 secondes évitant tout écho ou rejeu intempestif d'un même appel.
 - Plein écran total sans distractions visuelles.
 
 ### 5.3 👨🏽‍💼 Station Agent Dédiée (`AgentModule.jsx`)
 - Session individuelle par agent avec guichet assigné.
+- **Bouton de Déconnexion Rapide 1-Clic** situé dans la barre de titre supérieure pour changer d'opérateur ou fermer le poste en toute sécurité.
+- Nettoyage instantané de l'ensemble des minuteries automatiques (`clearAllAutoTimers`) à la déconnexion ou lors d'un changement d'état.
 - Bouton d'ouverture/fermeture de guichet (`🟢 Ouvert` / `🔴 Fermé`).
 - **Commandes d'appel complètes** :
   - **Suivant (<kbd>▶</kbd>)** : Appelle le prochain client selon les services autorisés.
@@ -189,7 +201,7 @@ graph TB
 ### 5.4 📱 Widget Bureau Flottant Indépendant (`FloatingTellerWidget.jsx`)
 - Fenêtre pop-out ultra-compacte (`360px x 420px`) détachable via le bouton (<kbd>↗</kbd>).
 - Reste au premier plan pendant que le caissier utilise son logiciel bancaire (*Amplitude Core Banking*) ou *Excel*.
-- Contient toutes les fonctionnalités d'appel sans perte de contexte.
+- Contient toutes les fonctionnalités d'appel ainsi que le bouton de déconnexion rapide sans perte de contexte.
 
 ### 5.5 🔐 Console Administration & Supervision (`AdminModule.jsx`)
 - Accessible via `ouvrir_admin.bat` ou `http://<IP_SERVEUR>:4000/?admin`.
@@ -302,6 +314,37 @@ stateDiagram-v2
 ### 9.4 Résilience Électrique
 - En cas de coupure brutale de courant, la base SQLite WAL préserve l'intégrité intégrale des données.
 - Au redémarrage du Mini-PC, l'exécution de `Lancer_Borne_Cofina.bat` remet l'ensemble des postes en service en quelques secondes.
+
+---
+
+## 10. Référentiel des Endpoints API REST & Événements WebSocket
+
+### 10.1 Endpoints API REST (Port 4000)
+
+| Méthode | Route | Accès | Rôle & Description |
+| :---: | :--- | :---: | :--- |
+| `GET` | `/health` | Public | Sondage de disponibilité Uptime Kuma (`{ status: "UP" }`). |
+| `GET` | `/api/network-info` | Public | Détection de l'IP LAN locale et de l'URL publique active du tunnel 4G/5G. |
+| `GET` | `/api/tickets/track/:ticketNumber` | Public | **Suivi Mobile Client** : Permet au client de consulter en direct l'avancement de son ticket (position dans la file, guichet d'appel, statut) sans compte ni JWT. |
+| `POST` | `/api/tickets/create` | Public | Émission d'un nouveau ticket depuis la borne tactile. Génère un numéro séquentiel incrémenté. |
+| `GET` | `/api/tickets/today` | Authentifié (`AGENT`/`ADMIN`) | Liste complète des tickets émis durant la journée. |
+| `POST` | `/api/tickets/call-next` | Authentifié (`AGENT`) | Algorithme d'appel du prochain ticket selon services autorisés et priorité PMR. |
+| `POST` | `/api/tickets/recall` | Authentifié (`AGENT`) | Réémission de l'annonce d'appel sonore et vocale à l'écran TV. |
+| `POST` | `/api/tickets/update-status` | Authentifié (`AGENT`) | Mise à jour d'état du ticket (`IN_PROGRESS`, `COMPLETED`, `NO_SHOW`). |
+| `POST` | `/api/auth/login` | Public | Authentification des agents et administrateurs avec délivrance du token JWT. |
+| `POST` | `/api/backup/now` | Authentifié (`ADMIN`) | Déclenchement d'un `VACUUM INTO` immédiat de la base SQLite. |
+| `POST` | `/api/archive/weekly` | Authentifié (`ADMIN`) | Clôture et archivage hebdomadaire de la file d'attente. |
+| `POST` | `/api/reload-clients` | Authentifié (`ADMIN`) | Déclenche le rechargement à chaud de tous les écrans connectés. |
+
+### 10.2 Événements Temps Réel (Socket.io)
+
+| Nom de l'événement | Direction | Description & Données transmises |
+| :--- | :---: | :--- |
+| `ticket_created` | Serveur ➔ Tous | Notifie la création d'un nouveau ticket à la borne pour mise à jour des files. |
+| `ticket_called` | Serveur ➔ Tous | Déclenche l'affichage dynamique et la sonorisation (Carillon + Voix) sur l'écran TV. |
+| `ticket_updated` | Serveur ➔ Tous | Synchronise les transitions d'état (`IN_PROGRESS`, `COMPLETED`, `NO_SHOW`). |
+| `network_info_updated` | Serveur ➔ Borne | Notifie en direct le QR Code de la borne lorsque le tunnel 4G/5G s'active. |
+| `force_reload` | Serveur ➔ Tous | Ordonne le rafraîchissement d'interface envoyé depuis la console d'administration. |
 
 ---
 

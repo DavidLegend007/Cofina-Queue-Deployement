@@ -30,23 +30,27 @@ Le **Cofina Queue System** a été conçu pour répondre aux exigences réelles 
    - L'ensemble des postes de travail de l'agence (Borne tactile, Caisses, Écran TV, Administration) fonctionne exclusivement en **réseau local (LAN)** sur le port unifié **4000**.
    - Même en cas de coupure totale d'Internet ou de fibre, l'agence fonctionne normalement sans interruption.
 
-2. **Accès Hybride Wi-Fi & 4G pour le QR Code Client** :
+2. **Accès Hybride Wi-Fi & 4G/5G pour le QR Code Client** :
    - Les clients peuvent scanner le QR Code de leur ticket depuis leur smartphone, **qu'ils soient connectés au Wi-Fi de l'agence ou en données mobiles 4G/5G**.
-   - La passerelle publique optionnelle s'active via un **tunnel Cloudflare chiffré en TLS** (`Lancer_Tunnel_4G.bat`), sans exposer la base de données ni nécessiter d'adresse IP publique fixe.
+   - Le QR Code bénéficie d'un contraste maximal (Noir pur `#000000` sur Fond Blanc `#ffffff`, marge 2, correction d'erreur M) et est directement cliquable sur écran pour tests.
+   - Détection dynamique automatique de l'URL publique Cloudflare (`tunnel.service.ts` / `lancer_tunnel_4g.sh`) sans aucune reconfiguration manuelle de fichier `.env`.
 
-3. **Interface Hardware Épurée (Zéro Barre de Navigation en Production)** :
+3. **Interface Hardware Épurée & Déconnexion Sécurisée** :
    - Les écrans opérationnels (Borne tactile, Guichets caissiers, Écran TV, Console superviseur) se lancent en **plein écran immersif sans barre de navigation ni menu de démo**.
+   - Déconnexion 1-clic intégrée pour les caissiers avec nettoyage instantané de tous les minuteurs d'appel (`clearAllAutoTimers`).
    - Un mode démo reste accessible aux administrateurs et formateurs via le paramètre URL `?demo=true` ou `?nav=true`.
 
-4. **Automatisation Métier Complète du Caissier** :
+4. **Automatisation Métier Complète & File Audio FIFO Séquentielle** :
+   - File d'attente audio stricte FIFO (`audioQueueRef`) sur l'écran TV : aucun chevauchement de voix en cas d'appels simultanés multi-caisses.
    - Synchronisation vocale intelligente : le système attend la fin effective de l'annonce vocale avant de lancer les minuteurs.
    - **Rappel automatique (15s)** si le client ne s'est pas présenté au guichet.
    - **Absence automatique & appel du client suivant (15s)** sans manipulation manuelle requise du caissier.
    - Transition fluide : *Appelé* $\rightarrow$ *En cours de service* $\rightarrow$ *Terminé* ou *Absent (No-Show)*.
 
-5. **Impression Thermique 58mm × 50mm Format Paysage** :
-   - Impression calibrée pour imprimante **Xprinter 58mm USB** avec commande native de découpe papier ESC/POS (`\x1DV\x41\x00`).
-   - Déclenchement maîtrisé par bouton explicite pour éviter le gaspillage de papier.
+5. **Impression Thermique 44mm Calibrée sur Rouleau 58mm** :
+   - Impression calibrée pour imprimante **Xprinter 58mm USB** (largeur imprimable effective de 44mm, marges nulles, zéro coupure sur les tickets PMR ou chèques).
+   - Impression via un iframe HTML isolé invisible (aucune fenêtre grise ou page parasite).
+   - Commande native de découpe papier ESC/POS (`\x1DV\x41\x00`).
 
 6. **Persistance SQLite WAL & Sauvegardes Atomiques Quotidiennes** :
    - Base de données locale ultra-rapide en mode Write-Ahead Logging (`WAL`).
@@ -123,27 +127,32 @@ graph TB
 
 ```
 Cofina-Queue-Deployement/
-├── 📄 Lancer_Borne_Cofina.bat     # ⭐ Script MAÎTRE : Démarre Serveur Edge (4000) + Borne Kiosk
-├── 📄 Lancer_Tunnel_4G.bat        # 🌐 Active la passerelle 4G Cloudflare pour QR Codes
+├── 📄 Lancer_Borne_Cofina.bat     # ⭐ Script MAÎTRE Windows : Démarre Serveur Edge (4000) + Borne Kiosk
+├── 📄 Lancer_Tunnel_4G.bat        # 🌐 Passerelle 4G Cloudflare Windows
+├── 📄 lancer_tunnel_4g.sh         # 🐧 Passerelle 4G Cloudflare Linux/Ubuntu (sans sudo, résilience 24/7)
+├── 📄 install_ubuntu.sh           # 🐧 Script d'installation automatique pour serveur Ubuntu
+├── 📄 ecosystem.config.cjs        # ⚙️ Configuration PM2 de production (Edge Server + Tunnel 4G)
 ├── 📄 ouvrir_caisse.bat           # 🏧 Lance le poste Caissier sur le réseau local
 ├── 📄 ouvrir_ecran_tv.bat         # 📺 Lance l'affichage TV salle d'attente
 ├── 📄 ouvrir_borne.bat            # 🖥️ Raccourci vers la borne tactile seule
 ├── 📄 ouvrir_admin.bat            # 🔐 Lance la console d'administration et supervision
 ├── 📄 Lancer_Serveur.bat          # 🔄 Alias de compatibilité vers Lancer_Borne_Cofina.bat
-├── 📄 RAPPORT_AUDIT.md            # 🛡️ Rapport d'audit technique, sécurité et fonctionnel (V3)
+├── 📄 RAPPORT_AUDIT.md            # 🛡️ Rapport d'audit technique, sécurité et fonctionnel (V3.1)
 ├── 📄 DEPLOIEMENT.md              # 📖 Guide de déploiement pas à pas (Windows / Ubuntu)
 ├── 📄 DOCUMENTATION_TECHNIQUE.md  # 📘 Manuel technique complet et matrice de routage
-├── 📄 cloudflared.exe             # Binaire officiel Cloudflare Tunnel (accès 4G)
+├── 📄 cloudflared.exe             # Binaire officiel Cloudflare Tunnel (Windows)
 │
 ├── 📁 server/                     # BACKEND EXPRESS / TYPESCRIPT / SQLITE
 │   ├── 📁 prisma/                 # Schéma Prisma SQLite (Ticket, User, Archive, SyncOutbox)
+│   ├── 📁 dist/                   # 🚀 Build serveur précompilé (déploiement instantané sans build distant)
 │   ├── 📁 src/
 │   │   ├── 📄 server.ts           # Serveur Express, CORS RFC 1918 + Cloudflare, Socket.io
 │   │   ├── 📄 auth.ts             # Middleware JWT & RBAC strict
 │   │   ├── 📁 routes/             # Routes REST (/tickets, /auth, /network-info, /backup...)
-│   │   └── 📁 services/           # Service de sauvegarde SQLite (VACUUM INTO)
+│   │   └── 📁 services/           # Sauvegarde SQLite (VACUUM INTO) & Tunnel dynamique 4G
 │   └── 📄 package.json
 │
+├── 📁 dist/                       # 🚀 Build frontend Vite précompilé (zéro build nécessaire sur le serveur)
 └── 📁 src/                        # FRONTEND REACT 19 / VITE / TAILWIND
     ├── 📄 App.jsx                 # Routeur avec masquage navbar/footer automatique
     ├── 📁 components/             # KioskModule, DisplayModule, AgentModule, AdminModule...
@@ -165,13 +174,21 @@ Pour une utilisation simple au quotidien par les équipes de l'agence, des racco
 | 🖥️ **`ouvrir_borne.bat`** | Ouvre uniquement l'interface de la borne tactile. | Borne tactile d'accueil |
 | 🔐 **`ouvrir_admin.bat`** | Ouvre la console d'administration et de supervision. | PC Superviseur / Responsable d'agence |
 
-### Procédure de démarrage type le matin en agence :
+---
+
+## 🐧 DÉPLOIEMENT INSTANTANÉ SUR SERVEUR UBUNTU (LINUX)
+
+Les artefacts de production (`dist/` et `server/dist/`) étant **déjà compilés et versionnés dans Git**, aucune étape de build n'est nécessaire sur le serveur distant.
+
+```bash
+# Mise à jour et redémarrage en 1 commande :
+cd /opt/cofina-queue && git pull origin main && pm2 restart all
 ```
-1. Sur le Mini-PC Serveur : Double-clic sur Lancer_Borne_Cofina.bat
-2. [Optionnel 4G]         : Double-clic sur Lancer_Tunnel_4G.bat
-3. Sur chaque PC Caissier : Double-clic sur ouvrir_caisse.bat
-4. Sur l'Écran TV Salle   : Double-clic sur ouvrir_ecran_tv.bat
-5. Sur le PC Superviseur  : Double-clic sur ouvrir_admin.bat
+
+Pour la gestion 24/7 des processus avec PM2 :
+```bash
+pm2 start ecosystem.config.cjs
+pm2 save
 ```
 
 ---
@@ -183,13 +200,14 @@ En production, **l'ensemble du système est unifié sur le port 4000** :
 | Écran | URL Réseau Local | Mode d'Affichage |
 | :--- | :--- | :--- |
 | **Borne Tactile Kiosque** | `http://<IP_SERVEUR>:4000/?kiosk` | Plein écran tactile épuré (sans navbar ni footer) |
-| **Écran TV Salle d'Attente** | `http://<IP_SERVEUR>:4000/?display` | Plein écran public avec carillon & voix |
-| **Poste Caissier / Conseiller** | `http://<IP_SERVEUR>:4000/?agent` | Interface guichet sans navbar |
+| **Écran TV Salle d'Attente** | `http://<IP_SERVEUR>:4000/?display` | Plein écran public avec carillon & audio séquentiel FIFO |
+| **Poste Caissier / Conseiller** | `http://<IP_SERVEUR>:4000/?agent` | Interface guichet sans navbar avec déconnexion 1-clic |
 | **Console Administration** | `http://<IP_SERVEUR>:4000/?admin` | Console de supervision sécurisée par JWT |
 | **Widget Caissier Bureau** | `http://<IP_SERVEUR>:4000/?widgetOnly=true` | Fenêtre pop-out détachable compacte |
 | **Mode Démonstration / Tests** | `http://<IP_SERVEUR>:4000/?demo=true` | Interface avec barre de navigation visible |
 | **Health Check Serveur** | `http://<IP_SERVEUR>:4000/health` | Vérification santé JSON (statut UP) |
-| **Informations Réseau & QR** | `http://<IP_SERVEUR>:4000/api/network-info` | Détection IP locale & URL publique 4G |
+| **Informations Réseau & QR** | `http://<IP_SERVEUR>:4000/api/network-info` | Détection IP locale & URL publique 4G dynamique |
+| **Suivi Mobile Client** | `http://<IP_SERVEUR>:4000/api/tickets/track/:ticketNumber` | Consultation temps réel du statut d'un ticket (Public) |
 
 ---
 
