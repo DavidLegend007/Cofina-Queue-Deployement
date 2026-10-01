@@ -499,8 +499,8 @@ const buildCSS = () => `
   }
 
   @page {
-    size: 58mm auto;
-    margin: 0mm !important;
+    margin: 0;
+    size: auto;
   }
 
   @media print {
@@ -568,8 +568,8 @@ const buildCSS = () => `
       display: flex !important;
       visibility: visible !important;
       position: static !important;
-      width: 52mm !important;
-      max-width: 52mm !important;
+      width: 48mm !important;
+      max-width: 48mm !important;
       margin: 0 auto !important;
       padding: 1.5mm 1mm !important;
       box-sizing: border-box !important;
@@ -799,16 +799,191 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   };
 
   const handlePrintTicket = () => {
-    if (isPrinting) return;
+    if (isPrinting || !issuedTicket) return;
     setIsPrinting(true);
-    const origTitle = document.title;
-    document.title = '';
-    setTimeout(() => {
+
+    const theme = SERVICE_THEMES[issuedTicket.serviceCode] || SERVICE_THEMES.D;
+    const isVip = Boolean(theme?.vip);
+    const agencyLabel = agencyName || 'Agence Siège Kodjoviakopé';
+    const serviceLabel = issuedTicket.operationLabel || issuedTicket.serviceName || 'Service Client';
+    const now = new Date(issuedTicket.createdAt || Date.now());
+    const dateStr = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+    try {
+      let iframe = document.getElementById('cofina-thermal-print-iframe');
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'cofina-thermal-print-iframe';
+        iframe.style.position = 'fixed';
+        iframe.style.top = '-9999px';
+        iframe.style.left = '-9999px';
+        iframe.style.width = '48mm';
+        iframe.style.height = '60mm';
+        iframe.style.border = '0';
+        iframe.style.opacity = '0.01';
+        iframe.style.pointerEvents = 'none';
+        iframe.style.zIndex = '-9999';
+        document.body.appendChild(iframe);
+      }
+
+      const doc = iframe.contentWindow?.document || iframe.contentDocument;
+      if (!doc) {
+        window.print();
+        setIsPrinting(false);
+        setIsPrinted(true);
+        return;
+      }
+
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Ticket ${issuedTicket.ticketNumber}</title>
+  <style>
+    @page {
+      margin: 0;
+      size: auto;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    html, body {
+      width: 48mm;
+      max-width: 48mm;
+      margin: 0 auto;
+      padding: 2mm 1mm;
+      background: #ffffff;
+      color: #000000;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      text-align: center;
+      overflow: hidden;
+    }
+    .th-logo-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      margin-bottom: 2px;
+    }
+    .th-logo {
+      height: 14px;
+      max-width: 36mm;
+      object-fit: contain;
+    }
+    .brand {
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: #000000;
+    }
+    .agency {
+      font-size: 8px;
+      font-weight: 700;
+      margin-top: 1px;
+      color: #111111;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .divider {
+      border-top: 1px dashed #000000;
+      margin: 2.5mm 0;
+      width: 100%;
+    }
+    .lbl {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #222222;
+    }
+    .num {
+      font-size: 32px;
+      font-weight: 900;
+      line-height: 1.05;
+      margin: 1.5mm 0;
+      color: #000000;
+      letter-spacing: 0.5px;
+    }
+    .svc {
+      font-size: 10.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      line-height: 1.2;
+      color: #000000;
+      word-break: break-word;
+    }
+    .vip {
+      display: inline-block;
+      border: 1.5px solid #000000;
+      font-size: 8px;
+      font-weight: 900;
+      padding: 1px 4px;
+      margin-top: 2mm;
+      letter-spacing: 0.5px;
+    }
+    .ftr {
+      font-size: 8px;
+      font-weight: 700;
+      color: #111111;
+    }
+    .wait {
+      font-size: 7.5px;
+      font-weight: 500;
+      color: #222222;
+      margin-top: 1mm;
+    }
+  </style>
+</head>
+<body>
+  <div class="th-logo-row">
+    <img src="/cofina.jpeg" alt="Cofina" class="th-logo" onerror="this.style.display='none'" />
+    <span class="brand">COFINA TOGO</span>
+  </div>
+  <div class="agency">${agencyLabel}</div>
+  <div class="divider"></div>
+  <div class="lbl">VOTRE NUMÉRO :</div>
+  <div class="num">${issuedTicket.ticketNumber}</div>
+  <div class="svc">${serviceLabel}</div>
+  ${isVip ? '<div class="vip">★ ACCÈS PRIORITAIRE VIP ★</div>' : ''}
+  <div class="divider"></div>
+  <div class="ftr">${dateStr} · ${timeStr}</div>
+  <div class="wait">Merci de patienter votre appel</div>
+</body>
+</html>`;
+
+      doc.open();
+      doc.write(html);
+      doc.close();
+
+      setTimeout(() => {
+        try {
+          if (iframe.contentWindow) {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          } else {
+            window.print();
+          }
+        } catch (e) {
+          console.warn('Iframe print error, falling back to window.print', e);
+          window.print();
+        } finally {
+          setIsPrinting(false);
+          setIsPrinted(true);
+        }
+      }, 200);
+    } catch (err) {
+      console.error('Print error:', err);
       window.print();
-      document.title = origTitle;
       setIsPrinting(false);
       setIsPrinted(true);
-    }, 120);
+    }
   };
 
   const handleScanQR = () => {
