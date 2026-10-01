@@ -122,6 +122,8 @@ if (fs.existsSync(clientDist)) {
   console.warn(`⚠️ Dossier dist non trouvé (${clientDist}). En mode dev, utilisez le serveur Vite.`);
 }
 
+import { startTunnelService } from './services/tunnel.service.js';
+
 // ----------------------------------------------------------------------------
 // START SERVER
 // ----------------------------------------------------------------------------
@@ -139,4 +141,7 @@ httpServer.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`   👉 Espace Caissier : http://${localIp}:${PORT}/?agent`);
   console.log(`   👉 Admin / Config  : http://${localIp}:${PORT}/?admin`);
   console.log(`====================================================`);
+
+  // Démarrage automatique de la passerelle 4G/5G Cloudflare Tunnel
+  startTunnelService(PORT, io);
 });

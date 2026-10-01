@@ -98,6 +98,13 @@ if (typeof window !== 'undefined') {
       }
     });
 
+    socket.on('tunnel_url_updated', ({ publicUrl }) => {
+      console.log('🌐 Passerelle 4G/5G Cloudflare active :', publicUrl);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('tunnel_url_updated', { detail: { publicUrl } }));
+      }
+    });
+
     socket.on('reload_page', () => {
       if (typeof window !== 'undefined') {
         window.location.reload();

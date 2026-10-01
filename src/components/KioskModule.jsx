@@ -740,20 +740,35 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   });
 
   useEffect(() => {
-    fetch('/api/network-info')
-      .then(res => res.json())
-      .then(data => {
-        if (data) {
-          if (data.isPublic && data.publicUrl) {
-            setLanBaseUrl(data.publicUrl);
-            setIsPublicUrl(true);
-          } else if (data.lanUrl) {
-            // Toujours privilégier l'adresse IP réseau pour que les smartphones Wi-Fi puissent s'y connecter
-            setLanBaseUrl(data.lanUrl);
+    const refreshNetworkInfo = () => {
+      fetch('/api/network-info')
+        .then(res => res.json())
+        .then(data => {
+          if (data) {
+            if (data.isPublic && data.publicUrl) {
+              setLanBaseUrl(data.publicUrl);
+              setIsPublicUrl(true);
+            } else if (data.lanUrl) {
+              setLanBaseUrl(data.lanUrl);
+              setIsPublicUrl(false);
+            }
           }
-        }
-      })
-      .catch(() => {});
+        })
+        .catch(() => {});
+    };
+
+    refreshNetworkInfo();
+
+    // Écouter l'activation en direct du tunnel 4G/5G sans avoir à recharger la page
+    const handleTunnelEvent = (e) => {
+      if (e.detail && e.detail.publicUrl) {
+        setLanBaseUrl(e.detail.publicUrl);
+        setIsPublicUrl(true);
+      }
+    };
+
+    window.addEventListener('tunnel_url_updated', handleTunnelEvent);
+    return () => window.removeEventListener('tunnel_url_updated', handleTunnelEvent);
   }, []);
 
   // État du mode Accessibilité / Contraste Élevé (persistance locale)
@@ -815,6 +830,20 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
     setWaitingCount(waitingBefore);
 
     try {
+      // Rafraîchir l'URL réseau (4G ou Wi-Fi) en parallèle pour garantir que le QR code est 100% à jour
+      fetch('/api/network-info')
+        .then(res => res.json())
+        .then(data => {
+          if (data?.isPublic && data?.publicUrl) {
+            setLanBaseUrl(data.publicUrl);
+            setIsPublicUrl(true);
+          } else if (data?.lanUrl) {
+            setLanBaseUrl(data.lanUrl);
+            setIsPublicUrl(false);
+          }
+        })
+        .catch(() => {});
+
       const ticket = await createTicket(op.code, null, null, currentLang);
       setIssuedTicket({ ...ticket, operationLabel: op.label, op });
       setIsSubmitting(false);

@@ -1,11 +1,11 @@
 @echo off
-title "Groupe Cofina - Passerelle Publique 4G (Cloudflare Tunnel)"
+title "Groupe Cofina - Passerelle Publique 4G/5G (Cloudflare Tunnel)"
 chcp 65001 >nul
 
 cd /d "%~dp0"
 
 echo ==============================================================================
-echo    GROUPE COFINA TOGO - PASSERELLE PUBLIQUE 4G & WI-FI SECURISEE
+echo    GROUPE COFINA TOGO - PASSERELLE PUBLIQUE 4G & 5G SECURISEE
 echo ==============================================================================
 echo.
 
@@ -21,8 +21,9 @@ if not exist "cloudflared.exe" (
     echo.
 )
 
-echo Activation du tunnel pour rendre les QR Codes scannables en 4G...
+echo [INFO] Activation du tunnel Cloudflare vers le port local 4000...
+echo [INFO] Les QR Codes basculent automatiquement sur la 4G/5G dès que le lien apparait.
 echo.
 
-cloudflared.exe tunnel --no-autoupdate --url http://localhost:4000
+cloudflared.exe tunnel --no-autoupdate --url http://127.0.0.1:4000
 pause

@@ -37,16 +37,19 @@ function getLocalIpAddress(): string {
   return '192.168.1.182'; // Fallback par défaut vers l'IP statique du serveur Siège Kodjoviakopé
 }
 
+import { getDynamicTunnelUrl } from '../services/tunnel.service.js';
+
 export function createNetworkRouter(PORT: string | number) {
   const router = Router();
 
   router.get('/network-info', (_req, res) => {
     const localIp = getLocalIpAddress();
-    const publicUrl = process.env.PUBLIC_URL || process.env.VITE_PUBLIC_URL;
+    const publicUrl = getDynamicTunnelUrl();
     // En production comme en Edge local, le serveur Express sert le frontend sur PORT (4000 par défaut)
     const effectivePort = Number(PORT) || 4000;
     const lanUrl = publicUrl || `http://${localIp}:${effectivePort}`;
 
+    res.setHeader('Cache-Control', 'no-store, no-cache');
     res.json({
       localIp,
       port: effectivePort,
