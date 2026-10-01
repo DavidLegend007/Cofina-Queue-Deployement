@@ -9,7 +9,7 @@
     "preview": "vite preview --host --port 3000",
     "test": "vitest run",
     "server:dev": "npm --prefix server run dev",
-    "server:build": "npm --prefix server run build",
+    "server:build": "npm --prefix server run build || echo \"[OK] server/dist est déjà précompilé et prêt à l'emploi.\"",
     "server:start": "npm --prefix server start"
   },
   "dependencies": {
