@@ -69,12 +69,22 @@ export function startTunnelService(port: number | string, io?: Server) {
   let binaryPath = 'cloudflared';
   const winRootBin = path.resolve(process.cwd(), 'cloudflared.exe');
   const winServerBin = path.resolve(process.cwd(), 'server/cloudflared.exe');
+  const linuxLocalBin = path.resolve(process.cwd(), 'cloudflared');
+  const linuxServerBin = path.resolve(process.cwd(), 'server/cloudflared');
 
   if (process.platform === 'win32') {
     if (fs.existsSync(winRootBin)) {
       binaryPath = winRootBin;
     } else if (fs.existsSync(winServerBin)) {
       binaryPath = winServerBin;
+    }
+  } else {
+    if (fs.existsSync(linuxLocalBin)) {
+      binaryPath = linuxLocalBin;
+    } else if (fs.existsSync(linuxServerBin)) {
+      binaryPath = linuxServerBin;
+    } else if (fs.existsSync('/usr/local/bin/cloudflared')) {
+      binaryPath = '/usr/local/bin/cloudflared';
     }
   }
 
