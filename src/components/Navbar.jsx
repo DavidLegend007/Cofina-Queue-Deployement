@@ -44,7 +44,6 @@ export default function Navbar({
   const currentAgency = COFINA_AGENCIES.find(a => a.id === currentAgencyId) || COFINA_AGENCIES[0];
 
   const handleTestSound = () => {
-    playCallChime();
     speakTicketCall('A-001', 1, lang);
   };
 

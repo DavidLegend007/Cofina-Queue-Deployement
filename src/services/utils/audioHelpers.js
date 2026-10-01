@@ -1,6 +1,7 @@
 // ============================================================
 // audioHelpers.js — Logique concrète de diffusion sonore
-// Carillon Web Audio + TTS Serveur Windows (100% fiable, hors-ligne)
+// Carillon Web Audio + TTS Serveur (100% fiable, hors-ligne)
+// AVEC FILE D'ATTENTE FIFO STRICTE (Zéro superposition / Zéro coupure)
 // ============================================================
 
 // ── URL de base du serveur (déterminé dynamiquement) ─────────
@@ -35,123 +36,212 @@ export const unlockAudio = () => {
 };
 
 // ── 1. Carillon d'annonce (Bip 2 tons, Web Audio natif) ─────────────────────
+// Retourne une Promise qui se résout quand le carillon a fini de sonner (~1.2s)
+let lastChimeTriggerTime = 0;
 export const playCallChime = () => {
-  try {
-    if (typeof window === 'undefined') return;
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
+  return new Promise((resolve) => {
+    try {
+      if (typeof window === 'undefined') return resolve();
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return resolve();
 
-    const ctx = new AudioContext();
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      // Anti-rebond : éviter deux carillons lancés en moins de 600ms
+      const now = Date.now();
+      if (now - lastChimeTriggerTime < 600) {
+        return resolve();
+      }
+      lastChimeTriggerTime = now;
 
-    const t0 = ctx.currentTime;
+      const ctx = new AudioContext();
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
-    // Ton 1 : 880 Hz
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(880, t0);
-    gain1.gain.setValueAtTime(0.3, t0);
-    gain1.gain.exponentialRampToValueAtTime(0.001, t0 + 0.55);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(t0);
-    osc1.stop(t0 + 0.55);
+      const t0 = ctx.currentTime;
 
-    // Ton 2 : 1108.73 Hz
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(1108.73, t0 + 0.25);
-    gain2.gain.setValueAtTime(0.35, t0 + 0.25);
-    gain2.gain.exponentialRampToValueAtTime(0.001, t0 + 1.1);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.start(t0 + 0.25);
-    osc2.stop(t0 + 1.1);
+      // Ton 1 : 880 Hz (0.55s)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(880, t0);
+      gain1.gain.setValueAtTime(0.3, t0);
+      gain1.gain.exponentialRampToValueAtTime(0.001, t0 + 0.55);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(t0);
+      osc1.stop(t0 + 0.55);
 
-    setTimeout(() => { try { ctx.close(); } catch (_) {} }, 1400);
-  } catch (e) {
-    console.warn('playCallChime error:', e);
-  }
-};
+      // Ton 2 : 1108.73 Hz (0.85s)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(1108.73, t0 + 0.25);
+      gain2.gain.setValueAtTime(0.35, t0 + 0.25);
+      gain2.gain.exponentialRampToValueAtTime(0.001, t0 + 1.1);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(t0 + 0.25);
+      osc2.stop(t0 + 1.1);
 
-// ── 2. Annonce vocale : fetch WAV depuis le serveur → jouer via Web Audio API ──
-// Le serveur génère le WAV avec espeak-ng (Ubuntu) et le retourne en audio/wav.
-// Le navigateur Zeus le joue via AudioContext.decodeAudioData() (même API que le bip).
-// → Le son sort des haut-parleurs de la TV ✅
-const speakViaTTSServer = async (text) => {
-  if (typeof window === 'undefined') return;
-  try {
-    const url = `${getServerBase()}/api/tts?text=${encodeURIComponent(text)}`;
-    const response = await fetch(url, { cache: 'no-store' });
-
-    // Si le serveur répond 503 (espeak-ng non installé) → fallback navigateur
-    if (!response.ok) {
-      console.warn('[TTS] Serveur TTS indisponible (code', response.status, '), fallback navigateur');
-      speakFallback(text);
-      return;
+      setTimeout(() => {
+        try { ctx.close().catch(() => {}); } catch (_) {}
+        resolve();
+      }, 1200);
+    } catch (e) {
+      console.warn('playCallChime error:', e);
+      resolve();
     }
+  });
+};
 
-    // Décoder et jouer le WAV reçu via Web Audio API (identique au bip → fonctionne dans Zeus)
-    const arrayBuffer = await response.arrayBuffer();
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) {
-      speakFallback(text);
-      return;
+// ── 2. Fallback synthèse vocale navigateur (avec Promise de fin de parole) ────
+const speakFallbackPromise = (text) => {
+  return new Promise((resolve) => {
+    try {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) return resolve();
+      window.speechSynthesis.cancel(); // Annule toute parole antérieure bloquée
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'fr-FR';
+      utterance.rate = 0.82; // Bien lent et posé
+      utterance.pitch = 1.15; // Tonalité féminine plus douce
+
+      const voices = window.speechSynthesis.getVoices();
+      const frVoice = voices.find(v =>
+        (v.lang || '').toLowerCase().startsWith('fr') &&
+        (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('femme') ||
+         v.name.toLowerCase().includes('hortense') || v.name.toLowerCase().includes('julie') ||
+         v.name.toLowerCase().includes('marie') || v.name.toLowerCase().includes('amelie') ||
+         v.name.toLowerCase().includes('audrey') || v.name.toLowerCase().includes('siwis'))
+      ) || voices.find(v =>
+        v.localService === true && (v.lang || '').toLowerCase().startsWith('fr')
+      ) || voices.find(v => (v.lang || '').toLowerCase().startsWith('fr'));
+
+      if (frVoice) utterance.voice = frVoice;
+
+      let hasEnded = false;
+      const finish = () => {
+        if (!hasEnded) {
+          hasEnded = true;
+          resolve();
+        }
+      };
+
+      utterance.onend = finish;
+      utterance.onerror = finish;
+      // Sécurité max 8s au cas où le navigateur n'émet pas onend
+      setTimeout(finish, 8000);
+
+      window.__cofina_speech = utterance;
+      window.speechSynthesis.speak(utterance);
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+    } catch (e) {
+      console.warn('[TTS] Fallback speechSynthesis error:', e);
+      resolve();
     }
-    const ctx = new AudioCtx();
-    if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
-
-    ctx.decodeAudioData(arrayBuffer, (audioBuffer) => {
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(ctx.destination);
-      source.start(0);
-      source.onended = () => { try { ctx.close(); } catch (_) {} };
-      console.log('[TTS] ✅ Annonce vocale jouée sur la TV via Web Audio API');
-    }, (decodeErr) => {
-      console.warn('[TTS] Erreur décodage WAV:', decodeErr, '→ fallback navigateur');
-      speakFallback(text);
-      try { ctx.close(); } catch (_) {}
-    });
-  } catch (e) {
-    console.warn('[TTS] Fetch /api/tts échoué:', e, '→ fallback navigateur');
-    speakFallback(text);
-  }
+  });
 };
 
-// ── 3. Fallback : Synthèse vocale navigateur si serveur indisponible ──────────
-const speakFallback = (text) => {
-  try {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'fr-FR';
-    utterance.rate = 0.82; // Bien lent et posé
-    utterance.pitch = 1.15; // Tonalité féminine plus douce
+// ── 3. Lecture vocale WAV via Web Audio API (attend la fin exacte de lecture) ──
+const playVoiceWav = (text) => {
+  return new Promise(async (resolve) => {
+    if (typeof window === 'undefined') return resolve();
+    try {
+      const url = `${getServerBase()}/api/tts?text=${encodeURIComponent(text)}`;
+      const response = await fetch(url, { cache: 'no-store' });
 
-    const voices = window.speechSynthesis.getVoices();
-    // Privilégier une voix féminine française si présente sur le système
-    const frVoice = voices.find(v =>
-      (v.lang || '').toLowerCase().startsWith('fr') &&
-      (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('femme') ||
-       v.name.toLowerCase().includes('hortense') || v.name.toLowerCase().includes('julie') ||
-       v.name.toLowerCase().includes('marie') || v.name.toLowerCase().includes('amelie') ||
-       v.name.toLowerCase().includes('audrey') || v.name.toLowerCase().includes('siwis'))
-    ) || voices.find(v =>
-      v.localService === true && (v.lang || '').toLowerCase().startsWith('fr')
-    ) || voices.find(v => (v.lang || '').toLowerCase().startsWith('fr'));
+      // Si le serveur répond 503 (espeak-ng indisponible) → fallback navigateur
+      if (!response.ok) {
+        console.warn('[TTS] Serveur TTS indisponible (code', response.status, '), fallback navigateur');
+        await speakFallbackPromise(text);
+        return resolve();
+      }
 
-    if (frVoice) utterance.voice = frVoice;
-    window.__cofina_speech = utterance;
-    window.speechSynthesis.speak(utterance);
-    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-  } catch (e) {
-    console.warn('[TTS] Fallback speechSynthesis error:', e);
-  }
+      const arrayBuffer = await response.arrayBuffer();
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) {
+        await speakFallbackPromise(text);
+        return resolve();
+      }
+
+      const ctx = new AudioCtx();
+      if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
+
+      ctx.decodeAudioData(arrayBuffer, (audioBuffer) => {
+        const source = ctx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(ctx.destination);
+        
+        let finished = false;
+        const onFinished = () => {
+          if (!finished) {
+            finished = true;
+            try { ctx.close().catch(() => {}); } catch (_) {}
+            resolve();
+          }
+        };
+
+        source.onended = onFinished;
+        source.start(0);
+        
+        // Sécurité maximale basée sur la durée réelle du buffer + 1s de marge
+        const maxDurationMs = Math.ceil((audioBuffer.duration || 6) * 1000) + 1000;
+        setTimeout(onFinished, maxDurationMs);
+
+        console.log(`[TTS] ✅ Annonce vocale en cours (${audioBuffer.duration ? audioBuffer.duration.toFixed(1) : '?'}s)...`);
+      }, async (decodeErr) => {
+        console.warn('[TTS] Erreur décodage WAV:', decodeErr, '→ fallback navigateur');
+        try { ctx.close().catch(() => {}); } catch (_) {}
+        await speakFallbackPromise(text);
+        resolve();
+      });
+    } catch (e) {
+      console.warn('[TTS] Fetch /api/tts échoué:', e, '→ fallback navigateur');
+      await speakFallbackPromise(text);
+      resolve();
+    }
+  });
 };
 
-// ── 4. Annonce de création de ticket (Borne) ─────────────────────────────────
+// ── 4. File d'attente FIFO (Orchestration séquentielle stricte) ───────────────
+// Empêche ABSOLUMENT deux annonces de se chevaucher ou de démarrer en même temps
+const audioQueue = [];
+let isQueueProcessing = false;
+let lastAnnouncedTicketKey = '';
+let lastAnnouncedTimestamp = 0;
+
+const processAudioQueue = async () => {
+  if (isQueueProcessing) return;
+  if (audioQueue.length === 0) return;
+
+  isQueueProcessing = true;
+
+  while (audioQueue.length > 0) {
+    const item = audioQueue.shift();
+    try {
+      console.log(`[AudioQueue] 📢 Démarrage annonce pour : ${item.ticketNumber || 'Ticket'}`);
+
+      // Étape 1 : Jouer le carillon et ATTENDRE qu'il finisse complètement (~1.2s)
+      if (item.includeChime !== false) {
+        await playCallChime();
+        // Petite pause d'attente naturelle après le bip (300ms)
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      // Étape 2 : Jouer la voix TTS et ATTENDRE qu'elle ait TOTALEMENT fini de parler !
+      await playVoiceWav(item.text);
+
+      // Étape 3 : Pause de respiration de 600ms avant de permettre l'annonce du ticket suivant
+      await new Promise(r => setTimeout(r, 600));
+
+      console.log(`[AudioQueue] ✅ Annonce terminée avec succès pour : ${item.ticketNumber || 'Ticket'}`);
+    } catch (err) {
+      console.warn('[AudioQueue] Erreur dans la file d\'annonces:', err);
+    }
+  }
+
+  isQueueProcessing = false;
+};
+
+// ── 5. Annonce de création de ticket (Borne tactile Kiosk) ───────────────────
 export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
   try {
     const rawTicket = String(ticketNumber || '').trim();
@@ -163,13 +253,15 @@ export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
       ? `Welcome to Cofina Togo. Your ticket, ${formattedTicket}, has been created. Please take a seat in the waiting room. Thank you.`
       : `Bienvenue chez Cofina Togo. Votre ticket, ${formattedTicket}, est bien créé. Merci de prendre place en salle d'attente.`;
 
-    setTimeout(() => speakViaTTSServer(text), 300);
+    // Sur la borne, pas de carillon, voix uniquement dans la file séquentielle
+    audioQueue.push({ text, ticketNumber: rawTicket, includeChime: false });
+    processAudioQueue();
   } catch (e) {
     console.warn('speakTicketGenerated error:', e);
   }
 };
 
-// ── 5. Annonce d'appel ticket sur l'Écran TV ─────────────────────────────────
+// ── 6. Annonce d'appel ticket sur l'Écran TV ─────────────────────────────────
 export const speakTicketCall = (ticketNumber, counterNumber, lang = 'fr') => {
   try {
     const rawTicket = String(ticketNumber || '').trim();
@@ -180,17 +272,32 @@ export const speakTicketCall = (ticketNumber, counterNumber, lang = 'fr') => {
     const spacedDigits = digitPart.split('').join(' ');
 
     const isEn = lang === 'en';
-    // Les virgules et points introduisent des micro-pauses pour une diction lente, solennelle et soignée
+    // Les virgules et points introduisent des micro-pauses pour une diction lente et solennelle
     const text = isEn
       ? `Ticket, ${letterPart}, ${spacedDigits}. Please proceed to counter ${counterNumber}. Thank you.`
       : `Ticket, ${letterPart}, ${spacedDigits}. Veuillez vous présenter à la caisse ${counterNumber}. Merci.`;
 
-    // Laisser le carillon (1.1s) se terminer pour que la voix commence calmement
-    setTimeout(() => speakViaTTSServer(text), 950);
+    // Anti-doublon / Anti-rebond (ex: déclenchement simultané WebSocket + Polling)
+    const dedupKey = `${cleanNum}_${counterNumber}_${lang}`;
+    const now = Date.now();
+    if (dedupKey === lastAnnouncedTicketKey && (now - lastAnnouncedTimestamp) < 4000) {
+      console.log(`[AudioQueue] ⏳ Doublon ${dedupKey} ignoré (${now - lastAnnouncedTimestamp}ms)`);
+      return;
+    }
+    lastAnnouncedTicketKey = dedupKey;
+    lastAnnouncedTimestamp = now;
+
+    // Ne pas laisser s'accumuler plus de 3 annonces en attente si appel massif
+    if (audioQueue.length >= 3) {
+      audioQueue.shift();
+    }
+
+    audioQueue.push({ text, ticketNumber: rawTicket, counterNumber, includeChime: true });
+    processAudioQueue();
   } catch (e) {
     console.warn('speakTicketCall error:', e);
   }
 };
 
-// Conservé pour compatibilité avec Navbar.jsx (test voix)
+// Conservé pour compatibilité
 export const getAfricanOrBestVoice = (lang = 'fr') => null;

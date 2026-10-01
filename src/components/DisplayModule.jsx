@@ -69,15 +69,16 @@ export default function DisplayModule({ agencyName, tickets: ticketsFromProps, l
         const freshTickets = Array.isArray(data.tickets) ? data.tickets : [];
         setLocalTickets(freshTickets);
 
-        // Détecter un nouveau ticket appelé pendant la déconnexion WS
+        // Détecter un nouveau ticket appelé (mode secours si WebSocket déconnecté)
         const called = freshTickets.find(t => t.status === 'CALLED') || null;
-        if (called && called.id !== lastCalledIdRef.current) {
-          lastCalledIdRef.current = called.id;
-          setLocalLastCalled(called);
-          // Jouer le son seulement si différent du dernier connu via WS
-          if (!lastCalledFromProps || called.id !== lastCalledFromProps.id) {
-            playCallChime();
+        if (called) {
+          if (!wsConnected && called.id !== lastCalledIdRef.current) {
+            lastCalledIdRef.current = called.id;
+            setLocalLastCalled(called);
             speakTicketCall(called.ticketNumber, called.counterNumber, lang);
+          } else {
+            lastCalledIdRef.current = called.id;
+            setLocalLastCalled(called);
           }
         }
       } catch (e) {
@@ -91,7 +92,7 @@ export default function DisplayModule({ agencyName, tickets: ticketsFromProps, l
     // Polling toutes les 5 secondes
     const interval = setInterval(fetchState, 5000);
     return () => { isMounted = false; clearInterval(interval); };
-  }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lang, wsConnected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   React.useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -102,7 +103,7 @@ export default function DisplayModule({ agencyName, tickets: ticketsFromProps, l
     const handleAudio = (e) => {
       const { ticket } = e.detail;
       if (ticket) {
-        playCallChime();
+        lastCalledIdRef.current = ticket.id;
         speakTicketCall(ticket.ticketNumber, ticket.counterNumber, lang);
       }
     };
@@ -164,7 +165,6 @@ export default function DisplayModule({ agencyName, tickets: ticketsFromProps, l
           className="disp-audio-unlock-banner"
           onClick={() => {
             handleUnlock();
-            playCallChime();
             speakTicketCall('A-01', '1', lang);
           }}
           style={{
@@ -213,7 +213,6 @@ export default function DisplayModule({ agencyName, tickets: ticketsFromProps, l
             className="disp-badge disp-badge-audio"
             onClick={() => {
               handleUnlock();
-              playCallChime();
               speakTicketCall('A-01', '1', lang);
             }}
             style={{ 
