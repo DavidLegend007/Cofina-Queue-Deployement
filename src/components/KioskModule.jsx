@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import { 
   Banknote, 
@@ -466,6 +466,17 @@ const buildCSS = () => `
   .bn-finish-btn:active {
     transform: scale(0.98);
   }
+  .bn-finish-btn.auto-close {
+    background: #ecfdf5;
+    color: #065f46;
+    font-weight: 700;
+    border-color: #a7f3d0;
+  }
+  .bn-finish-btn.auto-close:hover {
+    background: #d1fae5;
+    color: #047857;
+    border-color: #6ee7b7;
+  }
 
   .bn-help-overlay {
     position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px);
@@ -759,16 +770,30 @@ const buildCSS = () => `
 
 /* ─── COMPOSANT PRINCIPAL ────────────────────────────────────────────────── */
 export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr' }) {
-  const [currentLang,    setCurrentLang]    = useState(lang);
-  const [issuedTicket,   setIssuedTicket]   = useState(null);
-  const [isSubmitting,   setIsSubmitting]   = useState(false);
-  const [isPrinting,     setIsPrinting]     = useState(false);
-  const [printed,        setIsPrinted]      = useState(false);
-  const [scanned,        setIsScanned]      = useState(false);
-  const [resetCountdown, setResetCountdown] = useState(25);
-  const [showHelp,       setShowHelp]       = useState(false);
-  const [clockTime,      setClockTime]      = useState(new Date());
-  const [waitingCount,   setWaitingCount]   = useState(0);
+  const [currentLang,        setCurrentLang]        = useState(lang);
+  const [issuedTicket,       setIssuedTicket]       = useState(null);
+  const [isSubmitting,       setIsSubmitting]       = useState(false);
+  const [isPrinting,         setIsPrinting]         = useState(false);
+  const [printed,            setIsPrinted]          = useState(false);
+  const [scanned,            setIsScanned]          = useState(false);
+  const [resetCountdown,     setResetCountdown]     = useState(25);
+  const [autoCloseCountdown, setAutoCloseCountdown] = useState(3);
+  const [showHelp,           setShowHelp]           = useState(false);
+  const [clockTime,          setClockTime]          = useState(new Date());
+  const [waitingCount,       setWaitingCount]       = useState(0);
+
+  // Références synchronisées pour éviter les closures périmées dans les timers asynchrones
+  const printedRef = useRef(printed);
+  printedRef.current = printed;
+
+  const scannedRef = useRef(scanned);
+  scannedRef.current = scanned;
+
+  const isPrintingRef = useRef(isPrinting);
+  isPrintingRef.current = isPrinting;
+
+  const issuedTicketRef = useRef(issuedTicket);
+  issuedTicketRef.current = issuedTicket;
 
   // URL du serveur pour le QR Code mobile (détection auto IP LAN ou URL Publique 4G)
   const [isPublicUrl, setIsPublicUrl] = useState(false);
@@ -814,6 +839,25 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
     return () => window.removeEventListener('tunnel_url_updated', handleTunnelEvent);
   }, []);
 
+  // Écouter si le client a scanné le QR Code depuis son smartphone
+  useEffect(() => {
+    const handleTicketScannedEvent = (e) => {
+      const scannedNum = e.detail?.ticketNumber;
+      const currentNum = issuedTicketRef.current?.ticketNumber;
+      if (currentNum && scannedNum) {
+        const normCurrent = String(currentNum).replace(/[\s\-_]/g, '').toUpperCase();
+        const normScanned = String(scannedNum).replace(/[\s\-_]/g, '').toUpperCase();
+        if (normCurrent === normScanned) {
+          console.log('📱 Ticket scanné sur smartphone détecté par la Borne Kiosk :', scannedNum);
+          setIsScanned(true);
+        }
+      }
+    };
+
+    window.addEventListener('ticket_scanned', handleTicketScannedEvent);
+    return () => window.removeEventListener('ticket_scanned', handleTicketScannedEvent);
+  }, []);
+
   // État du mode Accessibilité / Contraste Élevé (persistance locale)
   const [highContrast, setHighContrast] = useState(() => {
     try {
@@ -841,18 +885,56 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
 
   const txt = TEXTS[currentLang] || TEXTS.fr;
 
-  /* Countdown auto-reset (25s) */
+  /* Countdown d'accueil initial (25s) — actif tant que le ticket n'est pas encore imprimé */
   useEffect(() => {
-    if (!issuedTicket) return;
+    if (!issuedTicket || printed) return;
     setResetCountdown(25);
+
     const id = setInterval(() => {
+      // Si entre-temps le ticket a été imprimé, stopper le timer des 25s
+      if (printedRef.current) {
+        clearInterval(id);
+        return;
+      }
+
       setResetCountdown(prev => {
-        if (prev <= 1) { handleReset(); return 25; }
+        if (prev <= 1) {
+          clearInterval(id);
+          // Après 25 secondes : si la personne n'a NI scanné NI imprimé => impression obligatoire !
+          if (!printedRef.current && !scannedRef.current) {
+            console.log('⏳ 25s écoulées sans scan ni impression => Déclenchement de l\'impression obligatoire.');
+            handlePrintTicket();
+          } else {
+            // Déjà scanné sur mobile ou imprimé => retour à l'accueil
+            handleReset();
+          }
+          return 0;
+        }
         return prev - 1;
       });
     }, 1000);
+
     return () => clearInterval(id);
-  }, [issuedTicket]);
+  }, [issuedTicket, printed]);
+
+  /* Dès que le ticket est imprimé, retour automatique à l'accueil en 3 secondes max (plus d'attente des 25s) */
+  useEffect(() => {
+    if (!printed || !issuedTicket) return;
+    setAutoCloseCountdown(3);
+
+    const timer = setInterval(() => {
+      setAutoCloseCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          handleReset();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [printed, issuedTicket]);
 
   const handleCardTap = async (op) => {
     if (isSubmitting) return;
@@ -860,6 +942,8 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
     setIsPrinting(false);
     setIsPrinted(false);
     setIsScanned(false);
+    setResetCountdown(25);
+    setAutoCloseCountdown(3);
 
     // Capture waiting count before creating ticket to show queue position
     let waitingBefore = 0;
@@ -898,18 +982,19 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   };
 
   const handlePrintTicket = () => {
-    if (isPrinting || !issuedTicket) return;
+    const currentTicket = issuedTicketRef.current || issuedTicket;
+    if (isPrintingRef.current || printedRef.current || !currentTicket) return;
     setIsPrinting(true);
 
-    const theme = SERVICE_THEMES[issuedTicket.serviceCode] || SERVICE_THEMES.D;
+    const theme = SERVICE_THEMES[currentTicket.serviceCode] || SERVICE_THEMES.D;
     const isVip = Boolean(theme?.vip);
     const agencyLabel = agencyName || 'Agence Siège Kodjoviakopé';
-    const serviceLabel = issuedTicket.operationLabel || issuedTicket.serviceName || 'Service Client';
-    const now = new Date(issuedTicket.createdAt || Date.now());
+    const serviceLabel = currentTicket.operationLabel || currentTicket.serviceName || 'Service Client';
+    const now = new Date(currentTicket.createdAt || Date.now());
     const dateStr = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
-    const ticketNum = String(issuedTicket.ticketNumber || '');
+    const ticketNum = String(currentTicket.ticketNumber || '');
     const numFontSize = ticketNum.length >= 7 ? '20px' : ticketNum.length >= 5 ? '23px' : '26px';
 
     try {
@@ -941,7 +1026,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Ticket ${issuedTicket.ticketNumber}</title>
+  <title>Ticket ${currentTicket.ticketNumber}</title>
   <style>
     @page {
       margin: 0;
@@ -1052,7 +1137,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   <div class="agency">${agencyLabel}</div>
   <div class="divider"></div>
   <div class="lbl">VOTRE NUMÉRO :</div>
-  <div class="num">${issuedTicket.ticketNumber}</div>
+  <div class="num">${currentTicket.ticketNumber}</div>
   <div class="svc">${serviceLabel}</div>
   ${isVip ? '<div class="vip">★ ACCÈS PRIORITAIRE VIP ★</div>' : ''}
   <div class="divider"></div>
@@ -1100,6 +1185,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
     setIsPrinted(false);
     setIsScanned(false);
     setResetCountdown(25);
+    setAutoCloseCountdown(3);
   };
 
   return (
@@ -1338,15 +1424,29 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                     type="button"
                     className={`bn-print-action-btn ${printed ? 'printed' : ''}`}
                     onClick={handlePrintTicket}
-                    disabled={isPrinting}
+                    disabled={isPrinting || printed}
                   >
                     {printed ? <CheckCircle2 size={18} /> : <Printer size={18} />}
                     <span>
-                      {isPrinting ? 'Impression en cours…' : printed ? '✓ Reçu papier imprimé !' : '🖨️ IMPRIMER MON TICKET PAPIER'}
+                      {isPrinting 
+                        ? 'Impression en cours…' 
+                        : printed 
+                          ? '✓ Reçu papier imprimé !' 
+                          : '🖨️ IMPRIMER MON TICKET PAPIER'}
                     </span>
                   </button>
-                  <button className="bn-finish-btn" onClick={handleReset}>
-                    <span>Terminer sans imprimer ({resetCountdown}s)</span>
+                  <button 
+                    type="button"
+                    className={`bn-finish-btn ${printed ? 'auto-close' : ''}`} 
+                    onClick={handleReset}
+                  >
+                    <span>
+                      {printed 
+                        ? `Fermer l'écran (${autoCloseCountdown}s)` 
+                        : scanned 
+                          ? `Terminer - Ticket sur mobile (${resetCountdown}s)` 
+                          : `Terminer sans imprimer (${resetCountdown}s)`}
+                    </span>
                     <ArrowRight size={14} />
                   </button>
                 </div>
@@ -1375,7 +1475,10 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                           <RealQRCode 
                             value={qrTargetUrl} 
                             size={165} 
-                            onClick={() => window.open(qrTargetUrl, '_blank')}
+                            onClick={() => {
+                              handleScanQR();
+                              window.open(qrTargetUrl, '_blank');
+                            }}
                           />
                         </div>
                         <p style={{ fontSize: '13px', fontWeight: '600', color: '#1e40af', textAlign: 'center', margin: '14px 0 6px 0', lineHeight: '1.4' }}>
@@ -1394,6 +1497,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                           href={qrTargetUrl}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={() => handleScanQR()}
                           style={{
                             display: 'inline-block',
                             fontSize: '11px',
@@ -1410,10 +1514,31 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                       </>
                     );
                   })()}
-                  <div className="bn-qr-pulse">
-                    <div className="bn-pulse-dot" />
-                    <span>SUIVI EN DIRECT SUR MOBILE</span>
-                  </div>
+                  {scanned ? (
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      background: '#dcfce7',
+                      color: '#15803d',
+                      border: '1px solid #86efac',
+                      padding: '8px 16px',
+                      borderRadius: '9999px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      marginTop: '8px',
+                      boxShadow: '0 2px 8px rgba(22, 163, 74, 0.15)'
+                    }}>
+                      <CheckCircle2 size={16} color="#16a34a" />
+                      <span>✓ Ticket actif sur mobile !</span>
+                    </div>
+                  ) : (
+                    <div className="bn-qr-pulse">
+                      <div className="bn-pulse-dot" />
+                      <span>SUIVI EN DIRECT SUR MOBILE</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

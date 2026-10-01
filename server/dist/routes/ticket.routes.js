@@ -37,6 +37,11 @@ export function createTicketRouter(prisma, io) {
             if (!ticket) {
                 return res.status(404).json({ error: 'Ticket introuvable pour aujourd\'hui' });
             }
+            // Notifier la borne Kiosk en direct que le client a scanné le QR Code
+            io.emit('ticket_scanned', {
+                ticketNumber: ticket.ticketNumber,
+                id: ticket.id
+            });
             // Calcul dynamique de la position en file d'attente
             const waitingList = allToday.filter(t => t.status === 'WAITING');
             let ahead = 0;

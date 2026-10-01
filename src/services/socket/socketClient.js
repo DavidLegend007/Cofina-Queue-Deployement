@@ -98,6 +98,13 @@ if (typeof window !== 'undefined') {
       }
     });
 
+    socket.on('ticket_scanned', ({ ticketNumber, id }) => {
+      console.log('📱 Ticket scanné sur mobile :', ticketNumber);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('ticket_scanned', { detail: { ticketNumber, id } }));
+      }
+    });
+
     socket.on('tunnel_url_updated', ({ publicUrl }) => {
       console.log('🌐 Passerelle 4G/5G Cloudflare active :', publicUrl);
       if (typeof window !== 'undefined') {
