@@ -521,8 +521,8 @@ const buildCSS = () => `
       color: #000000 !important;
       margin: 0 !important;
       padding: 0 !important;
-      width: 58mm !important;
-      max-width: 58mm !important;
+      width: 44mm !important;
+      max-width: 44mm !important;
       height: auto !important;
       min-height: 0 !important;
       overflow: visible !important;
@@ -568,9 +568,9 @@ const buildCSS = () => `
       display: flex !important;
       visibility: visible !important;
       position: static !important;
-      width: 48mm !important;
-      max-width: 48mm !important;
-      margin: 0 auto !important;
+      width: 44mm !important;
+      max-width: 44mm !important;
+      margin: 0 !important;
       padding: 1.5mm 1mm !important;
       box-sizing: border-box !important;
       flex-direction: column !important;
@@ -640,11 +640,11 @@ const buildCSS = () => `
       padding: 1px 0 !important;
     }
     .th-ticket-num {
-      font-size: 26px !important;
+      font-size: 22px !important;
       font-weight: 900 !important;
       line-height: 1.1 !important;
       color: #000000 !important;
-      letter-spacing: 0.5px !important;
+      letter-spacing: 0 !important;
       margin: 1px 0 !important;
       text-align: center !important;
       white-space: nowrap !important;
@@ -810,6 +810,9 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
     const dateStr = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
+    const ticketNum = String(issuedTicket.ticketNumber || '');
+    const numFontSize = ticketNum.length >= 7 ? '20px' : ticketNum.length >= 5 ? '23px' : '26px';
+
     try {
       let iframe = document.getElementById('cofina-thermal-print-iframe');
       if (!iframe) {
@@ -818,7 +821,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
         iframe.style.position = 'fixed';
         iframe.style.top = '-9999px';
         iframe.style.left = '-9999px';
-        iframe.style.width = '48mm';
+        iframe.style.width = '44mm';
         iframe.style.height = '60mm';
         iframe.style.border = '0';
         iframe.style.opacity = '0.01';
@@ -853,10 +856,10 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
       print-color-adjust: exact;
     }
     html, body {
-      width: 48mm;
-      max-width: 48mm;
-      margin: 0 auto;
-      padding: 2mm 1mm;
+      width: 44mm;
+      max-width: 44mm;
+      margin: 0;
+      padding: 1.5mm 1mm;
       background: #ffffff;
       color: #000000;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -867,52 +870,53 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 4px;
+      gap: 3px;
       margin-bottom: 2px;
     }
     .th-logo {
-      height: 14px;
-      max-width: 36mm;
+      height: 12px;
+      max-width: 32mm;
       object-fit: contain;
     }
     .brand {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 900;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
       text-transform: uppercase;
       color: #000000;
     }
     .agency {
-      font-size: 8px;
+      font-size: 7.5px;
       font-weight: 700;
       margin-top: 1px;
       color: #111111;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      word-break: break-word;
+      line-height: 1.2;
     }
     .divider {
       border-top: 1px dashed #000000;
-      margin: 2.5mm 0;
+      margin: 2mm 0;
       width: 100%;
     }
     .lbl {
       font-size: 8px;
       font-weight: 700;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
       color: #222222;
     }
     .num {
-      font-size: 32px;
+      font-size: ${numFontSize};
       font-weight: 900;
-      line-height: 1.05;
+      line-height: 1.1;
       margin: 1.5mm 0;
       color: #000000;
-      letter-spacing: 0.5px;
+      letter-spacing: 0;
+      white-space: nowrap;
+      text-align: center;
     }
     .svc {
-      font-size: 10.5px;
+      font-size: 10px;
       font-weight: 800;
       text-transform: uppercase;
       line-height: 1.2;
@@ -921,20 +925,20 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
     }
     .vip {
       display: inline-block;
-      border: 1.5px solid #000000;
-      font-size: 8px;
+      border: 1px solid #000000;
+      font-size: 7.5px;
       font-weight: 900;
-      padding: 1px 4px;
-      margin-top: 2mm;
-      letter-spacing: 0.5px;
+      padding: 1px 3px;
+      margin-top: 1.5mm;
+      letter-spacing: 0.2px;
     }
     .ftr {
-      font-size: 8px;
+      font-size: 7.5px;
       font-weight: 700;
       color: #111111;
     }
     .wait {
-      font-size: 7.5px;
+      font-size: 7px;
       font-weight: 500;
       color: #222222;
       margin-top: 1mm;
