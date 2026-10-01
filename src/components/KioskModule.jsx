@@ -499,24 +499,45 @@ const buildCSS = () => `
   }
 
   @page {
-    size: 58mm auto;
+    size: 58mm 50mm;
     margin: 0mm !important;
   }
 
   @media print {
-    /* Supprimer marges globales et masquer tout le contenu écran */
+    /* Supprimer marges globales et brider strictement la hauteur à 50mm (format ticket thermique) */
     html, body {
       background: #ffffff !important;
       margin: 0 !important;
       padding: 0 !important;
       width: 58mm !important;
-      height: auto !important;
+      max-width: 58mm !important;
+      height: 50mm !important;
+      max-height: 50mm !important;
       min-height: 0 !important;
       overflow: hidden !important;
     }
     
     body * {
       visibility: hidden !important;
+    }
+
+    /* Écraser la hauteur de tous les conteneurs d'écran plein format (100vh / 1080px) */
+    #root,
+    .cofina-app-root,
+    .bn-root,
+    .bn-ticket-card,
+    .bn-card-wrap,
+    .bn-overlay,
+    main,
+    header,
+    footer {
+      height: 0 !important;
+      min-height: 0 !important;
+      max-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      overflow: visible !important;
     }
 
     /* Rendre UNIQUEMENT visible le ticket thermique 58mm */
@@ -529,9 +550,11 @@ const buildCSS = () => `
       position: absolute !important;
       top: 0 !important;
       left: 0 !important;
-      width: 54mm !important;
-      max-width: 54mm !important;
-      margin: 0 auto !important;
+      width: 52mm !important;
+      max-width: 52mm !important;
+      height: 48mm !important;
+      max-height: 48mm !important;
+      margin: 0 !important;
       padding: 1.5mm 1mm !important;
       box-sizing: border-box !important;
       flex-direction: column !important;
@@ -543,6 +566,8 @@ const buildCSS = () => `
       overflow: hidden !important;
       page-break-after: avoid !important;
       page-break-inside: avoid !important;
+      break-after: avoid !important;
+      break-inside: avoid !important;
     }
 
     .th-header {
