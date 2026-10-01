@@ -11,9 +11,6 @@ const getServerBase = () => {
   return 'http://localhost:4000';
 };
 
-// ── Référence audio globale pour éviter la GC ────────────────
-let currentAudio = null;
-
 // ── 0. Déblocage universel de l'AudioContext ──────────────────
 export const unlockAudio = () => {
   try {
@@ -79,43 +76,47 @@ export const playCallChime = () => {
   }
 };
 
-// ── 2. Annonce vocale via TTS serveur Windows (100% hors-ligne) ──────────────
-// Utilise /api/tts qui génère un WAV via Microsoft Hortense Desktop sur le serveur
-const speakViaTTSServer = (text) => {
+// ── 2. Annonce vocale : fetch WAV depuis le serveur → jouer via Web Audio API ──
+// Le serveur génère le WAV avec espeak-ng (Ubuntu) et le retourne en audio/wav.
+// Le navigateur Zeus le joue via AudioContext.decodeAudioData() (même API que le bip).
+// → Le son sort des haut-parleurs de la TV ✅
+const speakViaTTSServer = async (text) => {
   if (typeof window === 'undefined') return;
   try {
     const url = `${getServerBase()}/api/tts?text=${encodeURIComponent(text)}`;
+    const response = await fetch(url, { cache: 'no-store' });
 
-    // Arrêter l'audio précédent si encore en cours
-    if (currentAudio) {
-      try { currentAudio.pause(); currentAudio.src = ''; } catch (_) {}
-      currentAudio = null;
+    // Si le serveur répond 503 (espeak-ng non installé) → fallback navigateur
+    if (!response.ok) {
+      console.warn('[TTS] Serveur TTS indisponible (code', response.status, '), fallback navigateur');
+      speakFallback(text);
+      return;
     }
 
-    const audio = new Audio(url);
-    audio.volume = 1.0;
-    currentAudio = audio;
-
-    // Conserver la référence globale pour éviter le GC
-    window.__cofina_audio = audio;
-
-    audio.onended = () => {
-      currentAudio = null;
-      window.__cofina_audio = null;
-    };
-    audio.onerror = (err) => {
-      console.warn('[TTS] Erreur lecture audio:', err);
-      currentAudio = null;
-      window.__cofina_audio = null;
-    };
-
-    audio.play().catch((err) => {
-      console.warn('[TTS] play() bloqué, tentative de fallback speechSynthesis:', err);
-      // Fallback sur speechSynthesis si l'audio est bloqué
+    // Décoder et jouer le WAV reçu via Web Audio API (identique au bip → fonctionne dans Zeus)
+    const arrayBuffer = await response.arrayBuffer();
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) {
       speakFallback(text);
+      return;
+    }
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
+
+    ctx.decodeAudioData(arrayBuffer, (audioBuffer) => {
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      source.onended = () => { try { ctx.close(); } catch (_) {} };
+      console.log('[TTS] ✅ Annonce vocale jouée sur la TV via Web Audio API');
+    }, (decodeErr) => {
+      console.warn('[TTS] Erreur décodage WAV:', decodeErr, '→ fallback navigateur');
+      speakFallback(text);
+      try { ctx.close(); } catch (_) {}
     });
   } catch (e) {
-    console.warn('[TTS] speakViaTTSServer error:', e);
+    console.warn('[TTS] Fetch /api/tts échoué:', e, '→ fallback navigateur');
     speakFallback(text);
   }
 };
