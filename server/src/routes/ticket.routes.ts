@@ -12,6 +12,19 @@ import { enqueueSyncEvent } from '../syncWorker.js';
 export function createTicketRouter(prisma: PrismaClient, io: Server) {
   const router = Router();
 
+  // ── GET /api/tickets/today-state — Polling TV (DisplayModule, sans auth) ──
+  // Utilisé par la TV Zeus toutes les 5s pour garder la file d'attente à jour
+  // même si le WebSocket est instable sur ce navigateur.
+  router.get('/today-state', async (_req, res) => {
+    try {
+      const state = await getTodayState(prisma);
+      res.setHeader('Cache-Control', 'no-store, no-cache');
+      res.json(state);
+    } catch (e: any) {
+      res.status(500).json({ error: 'Erreur récupération état file', details: e.message });
+    }
+  });
+
   router.get('/', async (req, res) => {
     try {
       const page = Math.max(1, parseInt(req.query.page as string) || 1);

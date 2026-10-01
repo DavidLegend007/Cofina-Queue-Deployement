@@ -6,15 +6,92 @@ import {
   Sparkles, 
   Tv, 
   CheckCircle2, 
-  Users
+  Users,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { translations } from '../services/translations';
 import { COFINA_SERVICES } from '../services/queueStore';
 import { playCallChime, speakTicketCall, unlockAudio } from '../services/utils/audioHelpers';
 
-export default function DisplayModule({ agencyName, tickets, lastCalledTicket, lang = 'fr' }) {
+// URL du serveur (même origine que la page TV)
+const SERVER_BASE = typeof window !== 'undefined'
+  ? `${window.location.protocol}//${window.location.hostname}:4000`
+  : 'http://localhost:4000';
+
+export default function DisplayModule({ agencyName, tickets: ticketsFromProps, lastCalledTicket: lastCalledFromProps, lang = 'fr' }) {
   const [currentTime, setCurrentTime] = React.useState(new Date());
   const [isAudioUnlocked, setIsAudioUnlocked] = React.useState(false);
+
+  // ── État local indépendant du WebSocket (filet de sécurité pour Zeus) ──────
+  // Le DisplayModule gère ses propres tickets en les récupérant directement
+  // depuis l'API HTTP toutes les 5 secondes. Si le WebSocket fonctionne bien,
+  // les props sont aussi utilisées (merge). Résultat : toujours à jour.
+  const [localTickets, setLocalTickets] = React.useState(ticketsFromProps || []);
+  const [localLastCalled, setLocalLastCalled] = React.useState(lastCalledFromProps || null);
+  const [wsConnected, setWsConnected] = React.useState(true);
+  const lastCalledIdRef = React.useRef(null);
+
+  // Synchroniser depuis les props WebSocket quand elles changent
+  React.useEffect(() => {
+    if (ticketsFromProps && ticketsFromProps.length > 0) {
+      setLocalTickets(ticketsFromProps);
+      setWsConnected(true);
+    }
+  }, [ticketsFromProps]);
+
+  React.useEffect(() => {
+    if (lastCalledFromProps) {
+      setLocalLastCalled(lastCalledFromProps);
+    }
+  }, [lastCalledFromProps]);
+
+  // ── Polling HTTP direct toutes les 5s (filet de sécurité Zeus) ───────────
+  // Indépendant du WebSocket : fetch l'état depuis le serveur directement.
+  // Déclenche le son si un nouveau ticket est appelé pendant que WS était KO.
+  React.useEffect(() => {
+    let isMounted = true;
+    let consecutiveFails = 0;
+
+    const fetchState = async () => {
+      try {
+        const res = await fetch(`${SERVER_BASE}/api/tickets/today-state`, {
+          cache: 'no-store',
+          headers: { 'Accept': 'application/json' }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!isMounted) return;
+
+        consecutiveFails = 0;
+        setWsConnected(true);
+
+        const freshTickets = Array.isArray(data.tickets) ? data.tickets : [];
+        setLocalTickets(freshTickets);
+
+        // Détecter un nouveau ticket appelé pendant la déconnexion WS
+        const called = freshTickets.find(t => t.status === 'CALLED') || null;
+        if (called && called.id !== lastCalledIdRef.current) {
+          lastCalledIdRef.current = called.id;
+          setLocalLastCalled(called);
+          // Jouer le son seulement si différent du dernier connu via WS
+          if (!lastCalledFromProps || called.id !== lastCalledFromProps.id) {
+            playCallChime();
+            speakTicketCall(called.ticketNumber, called.counterNumber, lang);
+          }
+        }
+      } catch (e) {
+        consecutiveFails++;
+        if (consecutiveFails >= 2) setWsConnected(false);
+      }
+    };
+
+    // Premier fetch immédiat
+    fetchState();
+    // Polling toutes les 5 secondes
+    const interval = setInterval(fetchState, 5000);
+    return () => { isMounted = false; clearInterval(interval); };
+  }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   React.useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -52,10 +129,15 @@ export default function DisplayModule({ agencyName, tickets, lastCalledTicket, l
     };
   }, [handleUnlock]);
 
+  // Données finales : priorité aux données locales (polling + WS fusionnés)
+  const tickets = localTickets;
+  const lastCalledTicket = localLastCalled;
+
   const t = translations[lang] || translations.fr;
   const activeTickets = tickets.filter(t => t.status === 'CALLED' || t.status === 'IN_PROGRESS');
   const waitingTickets = tickets.filter(t => t.status === 'WAITING')
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
 
   return (
     <div className="disp-root animate-fade-in">
