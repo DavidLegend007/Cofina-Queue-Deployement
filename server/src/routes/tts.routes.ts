@@ -2,15 +2,16 @@
 // tts.routes.ts — TTS Audio Streaming vers le Navigateur TV
 //
 // ARCHITECTURE :
-//   Serveur Ubuntu → génère WAV via espeak-ng ou espeak (--stdout)
+//   Serveur Ubuntu → génère WAV via espeak-ng (--stdout)
+//                  → voix féminine douce, lente et soignée
 //                  → streame le WAV au navigateur TV (Zeus)
 //   Navigateur TV (Zeus) → reçoit le WAV → joue via Web Audio API
 //
 // Le son sort des haut-parleurs de la TV (pas du serveur).
 //
-// Installation sur Ubuntu :
-//   sudo apt install espeak-ng     ← recommandé (voix de meilleure qualité)
-//   sudo apt install espeak        ← alternative si espeak-ng absent
+// OPTIONS VOCALES :
+//   - Native espeak-ng : fr+f3 (féminine douce, lente, posée)
+//   - Studio MBROLA : mb-fr4 (si sudo apt install mbrola mbrola-fr4)
 // ============================================================
 
 import { Router, Request, Response } from 'express';
@@ -30,16 +31,32 @@ function detectTTSCommand(): string | null {
   return null;
 }
 
+// Détecte la voix la plus belle disponible :
+// 1. MBROLA mb-fr4 si installée (vraie voix humaine féminine studio)
+// 2. espeak-ng fr+f3 (voix féminine native douce et posée)
+function detectDefaultVoice(cmd: string | null): string {
+  if (!cmd) return 'fr+f3';
+  try {
+    const test = spawnSync(cmd, ['-v', 'mb-fr4', '--stdout', 'test'], { encoding: 'utf8', timeout: 2000 });
+    if (test.status === 0 && !test.stderr.toLowerCase().includes('failed') && !test.stderr.toLowerCase().includes('error')) {
+      console.log('[TTS] 💎 Voix féminine studio MBROLA fr4 détectée et activée !');
+      return 'mb-fr4';
+    }
+  } catch (_) {}
+  console.log('[TTS] 🌸 Voix féminine douce native (fr+f3) sélectionnée par défaut');
+  return 'fr+f3';
+}
+
 const TTS_CMD = detectTTSCommand();
+const DEFAULT_VOICE = detectDefaultVoice(TTS_CMD);
 
 export function createTTSRouter() {
   const router = Router();
 
-  // GET /api/tts?text=Ticket+D+0+0+1+veuillez+passer+à+la+caisse+2
+  // GET /api/tts?text=...&voice=...&speed=...&pitch=...
   //
   // Le serveur génère le WAV et le streame en réponse HTTP.
   // Le navigateur TV reçoit le WAV et le joue via Web Audio API.
-  // → Le son sort des HP de la TV.
   router.get('/', (req: Request, res: Response) => {
     const text = String(req.query.text || '').trim().slice(0, 300);
     if (!text) {
@@ -50,17 +67,21 @@ export function createTTSRouter() {
       console.error('[TTS] Aucun moteur TTS disponible — le navigateur utilisera le fallback');
       return res.status(503).json({
         error: 'TTS indisponible',
-        install: 'sudo apt install espeak-ng',
+        install: 'sudo apt install espeak-ng mbrola mbrola-fr4',
         fallback: true
       });
     }
 
-    // Arguments communs à espeak-ng et espeak :
-    // -v fr     : voix française
-    // -s 130    : vitesse (mots/min), 130 = agréable pour annonces
-    // -a 100    : amplitude/volume (0-200, 100 = défaut)
-    // --stdout  : écrire le WAV sur stdout → pipe vers la réponse HTTP
-    const args = ['-v', 'fr', '-s', '130', '-a', '100', '--stdout', text];
+    // Paramètres voix :
+    // - voice : fr+f3 (féminine douce) ou mb-fr4 (studio), surchargeable par query
+    // - speed : 115 mots/min (bien lent, clair et posé pour le hall bancaire)
+    // - pitch : 58 (hauteur de ton féminine chaleureuse)
+    // - gap   : 2 (micro-pause entre chaque mot pour aérer la phrase)
+    const voice = String(req.query.voice || DEFAULT_VOICE).trim();
+    const speed = String(req.query.speed || '115').trim();
+    const pitch = String(req.query.pitch || '58').trim();
+
+    const args = ['-v', voice, '-s', speed, '-p', pitch, '-g', '2', '-a', '105', '--stdout', text];
     const proc = spawn(TTS_CMD, args);
 
     res.setHeader('Content-Type', 'audio/wav');
@@ -88,7 +109,7 @@ export function createTTSRouter() {
       if (code !== 0) {
         console.error(`[TTS] ${TTS_CMD} code ${code}:`, stderrOutput.trim());
       } else {
-        console.log(`[TTS] ✅ WAV streamé vers TV (${TTS_CMD}) :`, text.substring(0, 60));
+        console.log(`[TTS] ✅ WAV voix [${voice}, s=${speed}, p=${pitch}] streamé vers TV :`, text.substring(0, 60));
       }
     });
   });

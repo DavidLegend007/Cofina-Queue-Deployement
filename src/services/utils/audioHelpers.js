@@ -127,12 +127,21 @@ const speakFallback = (text) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'fr-FR';
-    utterance.rate = 0.88;
-    utterance.pitch = 1.0;
+    utterance.rate = 0.82; // Bien lent et posé
+    utterance.pitch = 1.15; // Tonalité féminine plus douce
+
     const voices = window.speechSynthesis.getVoices();
+    // Privilégier une voix féminine française si présente sur le système
     const frVoice = voices.find(v =>
+      (v.lang || '').toLowerCase().startsWith('fr') &&
+      (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('femme') ||
+       v.name.toLowerCase().includes('hortense') || v.name.toLowerCase().includes('julie') ||
+       v.name.toLowerCase().includes('marie') || v.name.toLowerCase().includes('amelie') ||
+       v.name.toLowerCase().includes('audrey') || v.name.toLowerCase().includes('siwis'))
+    ) || voices.find(v =>
       v.localService === true && (v.lang || '').toLowerCase().startsWith('fr')
     ) || voices.find(v => (v.lang || '').toLowerCase().startsWith('fr'));
+
     if (frVoice) utterance.voice = frVoice;
     window.__cofina_speech = utterance;
     window.speechSynthesis.speak(utterance);
@@ -151,10 +160,10 @@ export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
       .replace(/([A-Za-z]+)(\d+)/g, '$1 $2');
     const isEn = lang === 'en';
     const text = isEn
-      ? `Welcome to Cofina Togo. Your ticket ${formattedTicket} has been created. Please take a seat in the waiting room.`
-      : `Bienvenue à l'agence Cofina Togo ! Votre ticket numéro ${formattedTicket} est bien créé. Merci de prendre place en salle d'attente.`;
+      ? `Welcome to Cofina Togo. Your ticket, ${formattedTicket}, has been created. Please take a seat in the waiting room. Thank you.`
+      : `Bienvenue chez Cofina Togo. Votre ticket, ${formattedTicket}, est bien créé. Merci de prendre place en salle d'attente.`;
 
-    setTimeout(() => speakViaTTSServer(text), 200);
+    setTimeout(() => speakViaTTSServer(text), 300);
   } catch (e) {
     console.warn('speakTicketGenerated error:', e);
   }
@@ -164,19 +173,20 @@ export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
 export const speakTicketCall = (ticketNumber, counterNumber, lang = 'fr') => {
   try {
     const rawTicket = String(ticketNumber || '').trim();
-    // Séparer lettres et chiffres : "D001" → "D 0 0 1"
+    // Séparer lettres et chiffres : "D001" → "D, 0 0 1"
     const cleanNum = rawTicket.replace(/-/g, '');
     const letterPart = cleanNum.replace(/[0-9]/g, '');
     const digitPart = cleanNum.replace(/[^0-9]/g, '');
-    const formattedTicket = `${letterPart} ${digitPart.split('').join(' ')}`.trim();
+    const spacedDigits = digitPart.split('').join(' ');
 
     const isEn = lang === 'en';
+    // Les virgules et points introduisent des micro-pauses pour une diction lente, solennelle et soignée
     const text = isEn
-      ? `Ticket ${formattedTicket}, please proceed to Counter ${counterNumber}.`
-      : `Ticket ${formattedTicket}, veuillez passer à la caisse ${counterNumber}.`;
+      ? `Ticket, ${letterPart}, ${spacedDigits}. Please proceed to counter ${counterNumber}. Thank you.`
+      : `Ticket, ${letterPart}, ${spacedDigits}. Veuillez vous présenter à la caisse ${counterNumber}. Merci.`;
 
-    // Laisser le carillon se terminer (450ms) avant de parler
-    setTimeout(() => speakViaTTSServer(text), 450);
+    // Laisser le carillon (1.1s) se terminer pour que la voix commence calmement
+    setTimeout(() => speakViaTTSServer(text), 950);
   } catch (e) {
     console.warn('speakTicketCall error:', e);
   }
