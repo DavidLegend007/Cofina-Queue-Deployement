@@ -3,7 +3,8 @@ import {
   getWeekCycleStart, 
   generateESCPOSPayload, 
   COFINA_SERVICES,
-  COFINA_AGENCIES
+  COFINA_AGENCIES,
+  getServiceName
 } from '../src/services/queueStore';
 
 describe('COFINA Queue — Core Business & Weekly Logic', () => {
@@ -93,6 +94,40 @@ describe('COFINA Queue — Core Business & Weekly Logic', () => {
     // 4. Si non démarré après rappels -> NO_SHOW (Absent)
     const absentTicket = { ...ticket, status: 'NO_SHOW' };
     expect(absentTicket.status).toBe('NO_SHOW');
+  });
+
+  it('should translate all 12 services accurately in French and English using getServiceName', () => {
+    // Test FR
+    expect(getServiceName('D', 'fr')).toBe('Dépôt');
+    expect(getServiceName('R', 'fr')).toBe('Retrait');
+    expect(getServiceName('TN', 'fr')).toBe('Transfert national');
+    expect(getServiceName('TI', 'fr')).toBe('Transfert international');
+    expect(getServiceName('O', 'fr')).toBe('Ouverture de compte');
+    expect(getServiceName('RC', 'fr')).toBe('Remise de chèque');
+    expect(getServiceName('V', 'fr')).toBe('Virement');
+    expect(getServiceName('DR', 'fr')).toBe('Demande de Relevé');
+    expect(getServiceName('CM', 'fr')).toBe('COFINA Mobile+');
+    expect(getServiceName('C', 'fr')).toBe('Crédit');
+    expect(getServiceName('PC', 'fr')).toBe('Parler à un conseiller');
+    expect(getServiceName('PMR', 'fr')).toBe('Mobilité Réduite');
+
+    // Test EN
+    expect(getServiceName('D', 'en')).toBe('Deposit');
+    expect(getServiceName('R', 'en')).toBe('Withdrawal');
+    expect(getServiceName('TN', 'en')).toBe('Domestic Transfer');
+    expect(getServiceName('TI', 'en')).toBe('International Transfer');
+    expect(getServiceName('O', 'en')).toBe('Account Opening');
+    expect(getServiceName('RC', 'en')).toBe('Check Deposit');
+    expect(getServiceName('V', 'en')).toBe('Bank Transfer');
+    expect(getServiceName('DR', 'en')).toBe('Account Statement');
+    expect(getServiceName('CM', 'en')).toBe('COFINA Mobile+');
+    expect(getServiceName('C', 'en')).toBe('Loan Application');
+    expect(getServiceName('PC', 'en')).toBe('Customer Advisor');
+    expect(getServiceName('PMR', 'en')).toBe('Priority / Accessibility');
+
+    // Test fallback unknown service
+    expect(getServiceName('UNKNOWN', 'fr')).toBe('Service Client');
+    expect(getServiceName('UNKNOWN', 'en')).toBe('Customer Service');
   });
 });
 

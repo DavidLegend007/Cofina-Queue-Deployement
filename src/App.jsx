@@ -54,6 +54,8 @@ export default function App() {
   // Persisted language state ('fr' | 'en')
   const [lang, setLang] = useState(() => {
     try {
+      const urlLang = urlParams.get('lang');
+      if (urlLang === 'en' || urlLang === 'fr') return urlLang;
       return localStorage.getItem('cofina_lang_v1') || 'fr';
     } catch (e) {
       return 'fr';
@@ -234,6 +236,7 @@ export default function App() {
               agencyName={currentAgency.name}
               onTicketGenerated={() => updateLocalState()}
               lang={lang}
+              onLangChange={handleSetLang}
             />
           )}
 

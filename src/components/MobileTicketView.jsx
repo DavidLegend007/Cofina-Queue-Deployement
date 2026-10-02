@@ -39,6 +39,13 @@ export default function MobileTicketView({
     }
   }, [tickets]);
 
+  // Sync lang prop
+  useEffect(() => {
+    if (lang && lang !== currentLang) {
+      setCurrentLang(lang);
+    }
+  }, [lang]);
+
   // Periodic polling fallback to guarantee real-time updates on mobile
   useEffect(() => {
     const fetchLatest = async () => {
@@ -85,14 +92,20 @@ export default function MobileTicketView({
     || localTickets.find(t => t.ticketNumber === ticketNumber || normalize(t.ticketNumber) === normalize(ticketNumber)) 
     || null;
 
+  const isEn = currentLang === 'en';
+
   // Find service config
-  const serviceInfo = currentTicket 
-    ? (COFINA_SERVICES.find(s => s.code === currentTicket.serviceCode) || {
-        name: currentTicket.serviceName || 'Opération Caisse',
+  const foundService = currentTicket ? COFINA_SERVICES.find(s => s.code === currentTicket.serviceCode) : null;
+  const serviceInfo = foundService 
+    ? {
+        ...foundService,
+        name: isEn ? (foundService.nameEn || foundService.name) : foundService.name
+      }
+    : (currentTicket ? {
+        name: currentTicket.serviceName || (isEn ? 'Counter Operation' : 'Opération Caisse'),
         color: '#D3122A',
         badge: 'Service'
-      })
-    : { name: 'Opération Caisse', color: '#D3122A', badge: 'Service' };
+      } : { name: isEn ? 'Counter Operation' : 'Opération Caisse', color: '#D3122A', badge: 'Service' });
 
   // Calculate waiting count ahead in the queue
   const waitingTickets = localTickets.filter(t => t.status === 'WAITING');
@@ -126,8 +139,6 @@ export default function MobileTicketView({
       prevStatusRef.current = currentStatus;
     }
   }, [currentTicket, soundEnabled]);
-
-  const isEn = currentLang === 'en';
 
   return (
     <div className="mobile-ticket-container">

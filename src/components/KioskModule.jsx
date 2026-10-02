@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import QRCode from 'qrcode';
 import { 
   Banknote, 
@@ -21,7 +21,7 @@ import {
   Clock,
   Eye
 } from 'lucide-react';
-import { createTicket, COFINA_SERVICES } from '../services/queueStore';
+import { createTicket, COFINA_SERVICES, getServiceName } from '../services/queueStore';
 
 /* ─── Design tokens (COFINA Brand Theme) ─────────────── */
 const MD = {
@@ -42,14 +42,6 @@ const MD = {
   onSecondaryContainer:    '#646464',
 };
 
-/* ─── 12 operations COFINA issues de COFINA_SERVICES ───────────────────────── */
-const OPERATIONS = COFINA_SERVICES.map(s => ({
-  id: `op-${s.code.toLowerCase()}`,
-  code: s.code,
-  label: s.name,
-  iconName: s.icon
-}));
-
 const SERVICE_THEMES = {
   D:   { color: '#D3122A', gradient: 'linear-gradient(135deg, #D3122A 0%, #920020 100%)', bg: '#FFF5F5', border: '#FECACA', iconBg: 'rgba(211,18,42,0.12)' },
   R:   { color: '#F97316', gradient: 'linear-gradient(135deg, #F97316 0%, #C2410C 100%)', bg: '#FFF7ED', border: '#FFEDD5', iconBg: 'rgba(249,115,22,0.12)' },
@@ -65,47 +57,87 @@ const SERVICE_THEMES = {
   PMR: { color: '#10B981', gradient: 'linear-gradient(135deg, #10B981 0%, #047857 100%)', bg: '#ECFDF5', border: '#A7F3D0', iconBg: 'rgba(16,185,129,0.12)' },
 };
 
-/* ─── Textes bilingues ────────────────────────────────────────────────────── */
+/* ─── Textes bilingues (FR / EN) ─────────────────────────────────────────── */
 const TEXTS = {
   fr: {
-    welcomeTitle:   'BIENVENUE A COFINA TOGO',
-    welcomeSub:     'Institution Panafricaine de la Finance Inclusive\nVeuillez sélectionner votre opération',
-    helpBtn:        "Besoin d'aide ?",
-    ticketLabel:    'VOTRE NUMÉRO DE PASSAGE',
-    waitNotice:     "Veuillez vous asseoir en salle d'attente. Votre numéro sera annoncé à l'écran TV.",
-    resetText:      "Retour à l'accueil dans",
-    finishBtn:      "TERMINER / RETOUR À L'ACCUEIL",
-    helpTitle:      'Assistance & Orientation Client',
-    helpBody:       "Veuillez vous adresser directement à l'un de nos agents d'accueil présents dans le hall pour vous guider et vous assister dans vos démarches. Vous pouvez également contacter notre Assistance au 92686060.",
-    closeBtn:       'Fermer',
-    audioNotice:    "Ticket créé, veuillez prendre place en salle d'attente",
-    processingText: 'Génération de votre ticket…',
-    qrHeader:       'TICKET NUMÉRIQUE (QR CODE)',
-    qrSub:          'Ouvrez l\'appareil photo de votre téléphone ou une application lecteur QR et visez ce code pour suivre votre rang',
-    scanBtn:        'Scanner le QR Code (Mobile)',
-    printBtn:       'Imprimer le ticket papier',
-    printingText:   'Impression thermique 58mm en cours…',
-    printedText:    '✓ Ticket Papier Imprimé !',
+    welcomeTitle:     'BIENVENUE A COFINA TOGO',
+    welcomeSub:       'Institution Panafricaine de la Finance Inclusive\nVeuillez sélectionner votre opération',
+    helpBtn:          "Besoin d'aide ?",
+    ticketLabel:      'VOTRE NUMÉRO DE PASSAGE',
+    waitNotice:       "Veuillez vous asseoir en salle d'attente. Votre numéro sera annoncé à l'écran TV.",
+    resetText:        "Retour à l'accueil dans",
+    finishBtn:        "TERMINER / RETOUR À L'ACCUEIL",
+    helpTitle:        'Assistance & Orientation Client',
+    helpBody:         "Veuillez vous adresser directement à l'un de nos agents d'accueil présents dans le hall pour vous guider et vous assister dans vos démarches. Vous pouvez également contacter notre Assistance au 92686060.",
+    closeBtn:         'Fermer',
+    audioNotice:      "Ticket créé, veuillez prendre place en salle d'attente",
+    processingText:   'Génération de votre ticket…',
+    qrHeader:         'TICKET NUMÉRIQUE',
+    qrSub:            "Ouvrez l'appareil photo de votre téléphone ou une application lecteur QR et visez ce code pour suivre votre rang",
+    liveTracking:     'SUIVI EN DIRECT SUR MOBILE',
+    activeOnMobile:   '✓ Ticket actif sur mobile !',
+    openMobileTicket: 'Ouvrir le ticket mobile',
+
+    // Boutons de la modale
+    printBtn:         '🖨️ IMPRIMER MON TICKET PAPIER',
+    printingBtn:      'Impression en cours…',
+    printedBtn:       '✓ Reçu papier imprimé !',
+    closeAutoBtn:     (sec) => `Fermer l'écran (${sec}s)`,
+    finishMobileBtn:  (sec) => `Terminer - Ticket sur mobile (${sec}s)`,
+    finishNoPrintBtn: (sec) => `Terminer sans imprimer (${sec}s)`,
+
+    // File d'attente
+    nextInLine:       "🎉 Vous êtes le prochain ! Approchez-vous d'un guichet.",
+    peopleAhead:      (count, min) => `👥 ~${count} personne${count > 1 ? 's' : ''} avant vous · Attente estimée ~${min} min`,
+
+    // Reçu thermique imprimé 58mm
+    thermalTicketNumLabel: 'VOTRE NUMÉRO :',
+    thermalVipBadge:       '★ ACCÈS PRIORITAIRE VIP ★',
+    thermalFooterNotice:   'Merci de patienter votre appel',
+
+    // Mode accessibilité
+    a11yStandard:     'Mode Standard',
+    a11yHighContrast: 'Contraste Élevé (A11y)'
   },
   en: {
-    welcomeTitle:   'WELCOME TO COFINA Togo',
-    welcomeSub:     'Pan-African Institution of Inclusive Finance.\nPlease select your operation',
-    helpBtn:        'Need help?',
-    ticketLabel:    'YOUR TICKET NUMBER',
-    waitNotice:     'Please take a seat. Your number will be displayed on the TV screen.',
-    resetText:      'Returning home in',
-    finishBtn:      'FINISH / RETURN TO HOME',
-    helpTitle:      'Customer Support & Guidance',
-    helpBody:       'Please speak directly with one of our welcoming agents available in the lobby to guide and assist you with your request. You can also contact our Support line at 92686060.',
-    closeBtn:       'Close',
-    audioNotice:    'Ticket issued, please have a seat in the waiting area',
-    processingText: 'Generating your ticket…',
-    qrHeader:       'DIGITAL TICKET (QR CODE)',
-    qrSub:          'Open your phone\'s camera or a QR scanner app and point it at this code to track your turn',
-    scanBtn:        'Scan QR Code (Mobile)',
-    printBtn:       'Print paper ticket',
-    printingText:   '58mm thermal printing in progress…',
-    printedText:    '✓ Paper Ticket Printed!',
+    welcomeTitle:     'WELCOME TO COFINA TOGO',
+    welcomeSub:       'Pan-African Institution of Inclusive Finance\nPlease select your transaction',
+    helpBtn:          'Need help?',
+    ticketLabel:      'YOUR TICKET NUMBER',
+    waitNotice:       'Please take a seat in the waiting area. Your number will be announced on the TV screen.',
+    resetText:        'Returning home in',
+    finishBtn:        'FINISH / RETURN TO HOME',
+    helpTitle:        'Customer Support & Guidance',
+    helpBody:         'Please speak directly with one of our welcoming agents available in the lobby to guide and assist you with your request. You can also contact our Support line at 92686060.',
+    closeBtn:         'Close',
+    audioNotice:      'Ticket issued, please have a seat in the waiting area',
+    processingText:   'Generating your ticket…',
+    qrHeader:         'DIGITAL TICKET',
+    qrSub:            "Open your phone's camera or a QR scanner app and point it at this code to track your turn",
+    liveTracking:     'LIVE TRACKING ON MOBILE',
+    activeOnMobile:   '✓ Ticket active on mobile!',
+    openMobileTicket: 'Open mobile ticket',
+
+    // Boutons de la modale
+    printBtn:         '🖨️ PRINT MY PAPER TICKET',
+    printingBtn:      'Printing in progress…',
+    printedBtn:       '✓ Paper receipt printed!',
+    closeAutoBtn:     (sec) => `Close screen (${sec}s)`,
+    finishMobileBtn:  (sec) => `Done - Ticket on mobile (${sec}s)`,
+    finishNoPrintBtn: (sec) => `Done without printing (${sec}s)`,
+
+    // File d'attente
+    nextInLine:       '🎉 You are next! Please proceed to a counter.',
+    peopleAhead:      (count, min) => `👥 ~${count} person${count > 1 ? 's' : ''} ahead of you · Estimated wait ~${min} min`,
+
+    // Reçu thermique imprimé 58mm
+    thermalTicketNumLabel: 'YOUR NUMBER:',
+    thermalVipBadge:       '★ VIP PRIORITY ACCESS ★',
+    thermalFooterNotice:   'Please wait to be called',
+
+    // Mode accessibilité
+    a11yStandard:     'Standard Mode',
+    a11yHighContrast: 'High Contrast (A11y)'
   },
 };
 
@@ -131,7 +163,7 @@ function ServiceLucideIcon({ name, size = 44, color }) {
 }
 
 /* ─── Real QR Code Haute Lisibilité ─────────────────────────────────── */
-function RealQRCode({ value = '', size = 170, onClick = null }) {
+function RealQRCode({ value = '', size = 170, onClick = null, title = '' }) {
   const [src, setSrc] = useState('');
   useEffect(() => {
     if (!value) return;
@@ -160,7 +192,7 @@ function RealQRCode({ value = '', size = 170, onClick = null }) {
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
       }} 
       onClick={onClick}
-      title={onClick ? "Cliquer pour tester sur cet écran" : undefined}
+      title={title || (onClick ? "Cliquer pour tester sur cet écran" : undefined)}
     />
   ) : (
     <div style={{ width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', borderRadius: '8px', margin: '0 auto' }}>
@@ -769,7 +801,7 @@ const buildCSS = () => `
 `;
 
 /* ─── COMPOSANT PRINCIPAL ────────────────────────────────────────────────── */
-export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr' }) {
+export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr', onLangChange }) {
   const [currentLang,        setCurrentLang]        = useState(lang);
   const [issuedTicket,       setIssuedTicket]       = useState(null);
   const [isSubmitting,       setIsSubmitting]       = useState(false);
@@ -781,6 +813,32 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   const [showHelp,           setShowHelp]           = useState(false);
   const [clockTime,          setClockTime]          = useState(new Date());
   const [waitingCount,       setWaitingCount]       = useState(0);
+
+  // Synchronisation de la langue avec le parent ou les changements externes
+  useEffect(() => {
+    if (lang && lang !== currentLang) {
+      setCurrentLang(lang);
+    }
+  }, [lang]);
+
+  const handleLanguageSwitch = (newLang) => {
+    setCurrentLang(newLang);
+    try {
+      localStorage.setItem('cofina_lang_v1', newLang);
+    } catch (_) {}
+    if (onLangChange) onLangChange(newLang);
+  };
+
+  // Liste réactive des 12 opérations selon la langue active
+  const operations = useMemo(() => {
+    return COFINA_SERVICES.map(s => ({
+      id: `op-${s.code.toLowerCase()}`,
+      code: s.code,
+      label: currentLang === 'en' ? (s.nameEn || s.name) : s.name,
+      description: currentLang === 'en' ? (s.descriptionEn || s.description) : s.description,
+      iconName: s.icon
+    }));
+  }, [currentLang]);
 
   // Références synchronisées pour éviter les closures périmées dans les timers asynchrones
   const printedRef = useRef(printed);
@@ -988,11 +1046,12 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
 
     const theme = SERVICE_THEMES[currentTicket.serviceCode] || SERVICE_THEMES.D;
     const isVip = Boolean(theme?.vip);
-    const agencyLabel = agencyName || 'Agence Siège Kodjoviakopé';
-    const serviceLabel = currentTicket.operationLabel || currentTicket.serviceName || 'Service Client';
+    const agencyLabel = agencyName || (currentLang === 'en' ? 'Kodjoviakopé Head Office Agency' : 'Agence Siège Kodjoviakopé');
+    const serviceLabel = getServiceName(currentTicket.serviceCode, currentLang);
     const now = new Date(currentTicket.createdAt || Date.now());
-    const dateStr = now.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const dateLocale = currentLang === 'en' ? 'en-US' : 'fr-FR';
+    const dateStr = now.toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' });
 
     const ticketNum = String(currentTicket.ticketNumber || '');
     const numFontSize = ticketNum.length >= 7 ? '20px' : ticketNum.length >= 5 ? '23px' : '26px';
@@ -1136,13 +1195,13 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
   </div>
   <div class="agency">${agencyLabel}</div>
   <div class="divider"></div>
-  <div class="lbl">VOTRE NUMÉRO :</div>
+  <div class="lbl">${txt.thermalTicketNumLabel}</div>
   <div class="num">${currentTicket.ticketNumber}</div>
   <div class="svc">${serviceLabel}</div>
-  ${isVip ? '<div class="vip">★ ACCÈS PRIORITAIRE VIP ★</div>' : ''}
+  ${isVip ? `<div class="vip">${txt.thermalVipBadge}</div>` : ''}
   <div class="divider"></div>
   <div class="ftr">${dateStr} · ${timeStr}</div>
-  <div class="wait">Merci de patienter votre appel</div>
+  <div class="wait">${txt.thermalFooterNotice}</div>
 </body>
 </html>`;
 
@@ -1200,12 +1259,12 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
             type="button"
             className={`bn-a11y-btn ${highContrast ? 'active' : ''}`}
             onClick={toggleHighContrast}
-            aria-label="Basculer le mode Contraste Élevé pour malvoyants (Accessibilité WCAG)"
+            aria-label={currentLang === 'en' ? 'Toggle High Contrast mode (WCAG Accessibility)' : 'Basculer le mode Contraste Élevé pour malvoyants (Accessibilité WCAG)'}
             aria-pressed={highContrast}
-            title="Mode Accessibilité & Contraste Élevé"
+            title={currentLang === 'en' ? 'Accessibility & High Contrast Mode' : 'Mode Accessibilité & Contraste Élevé'}
           >
             <Eye size={18} />
-            <span>{highContrast ? 'Mode Standard' : 'Contraste Élevé (A11y)'}</span>
+            <span>{highContrast ? txt.a11yStandard : txt.a11yHighContrast}</span>
           </button>
           <div className="bn-agency-badge">
             <span>📍 {agencyName}</span>
@@ -1232,14 +1291,14 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
             boxShadow: '0 2px 10px rgba(211, 18, 42, 0.08)'
           }}>
             <Clock size={18} />
-            <span>{clockTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+            <span>{clockTime.toLocaleTimeString(currentLang === 'en' ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
           </div>
           <h1>{txt.welcomeTitle}</h1>
           <p>{txt.welcomeSub}</p>
         </div>
 
         <div className="bn-grid">
-          {OPERATIONS.map(op => {
+          {operations.map(op => {
             const theme = SERVICE_THEMES[op.code] || SERVICE_THEMES.D;
             return (
               <button
@@ -1255,7 +1314,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                 disabled={isSubmitting}
                 role="button"
                 tabIndex={0}
-                aria-label={`Prendre un ticket pour : ${op.label} (Service ${op.code})`}
+                aria-label={currentLang === 'en' ? `Take a ticket for: ${op.label} (Service ${op.code})` : `Prendre un ticket pour : ${op.label} (Service ${op.code})`}
                 style={{
                   borderColor: highContrast ? '#FACC15' : theme.border,
                   transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
@@ -1320,14 +1379,18 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
 
         <div className="bn-lang-toggle">
           <button
+            type="button"
             className={`bn-lang-btn ${currentLang === 'fr' ? 'active' : 'inactive'}`}
-            onClick={() => setCurrentLang('fr')}
+            onClick={() => handleLanguageSwitch('fr')}
+            aria-label="Passer en Français"
           >
             FR
           </button>
           <button
+            type="button"
             className={`bn-lang-btn ${currentLang === 'en' ? 'active' : 'inactive'}`}
-            onClick={() => setCurrentLang('en')}
+            onClick={() => handleLanguageSwitch('en')}
+            aria-label="Switch to English"
           >
             EN
           </button>
@@ -1347,14 +1410,16 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
       {/* MODAL TICKET PREMIUM — BOARDING PASS COFINA */}
       {issuedTicket && (() => {
         const theme = SERVICE_THEMES[issuedTicket.serviceCode] || SERVICE_THEMES.D;
-        const now = new Date();
-        const dateStr = now.toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-        const timeStr = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        const now = new Date(issuedTicket.createdAt || Date.now());
+        const dateLocale = currentLang === 'en' ? 'en-US' : 'fr-FR';
+        const dateStr = now.toLocaleDateString(dateLocale, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+        const timeStr = now.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' });
+        const serviceLabel = getServiceName(issuedTicket.serviceCode, currentLang);
         const avgMin = (COFINA_SERVICES.find(s => s.code === issuedTicket.serviceCode) || {}).avgTimeMin || 5;
         const estWait = Math.max(2, waitingCount * avgMin);
         return (
           <>
-            <div className="bn-overlay" onClick={handleReset} role="dialog" aria-modal="true" aria-label="Ticket de passage généré">
+            <div className="bn-overlay" onClick={handleReset} role="dialog" aria-modal="true" aria-label={txt.ticketLabel}>
             <div className="bn-ticket-card" onClick={e => e.stopPropagation()} aria-live="polite">
 
               {/* ── SECTION GAUCHE (INFOS TICKET) ── */}
@@ -1368,10 +1433,10 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
                     <span className="bn-ticket-service-badge">
-                      {theme.emoji} {issuedTicket.serviceName}
+                      {theme.emoji || ''} {serviceLabel}
                     </span>
                     {theme.vip && (
-                      <span className="bn-ticket-vip-badge">★ ACCÈS PRIORITAIRE VIP</span>
+                      <span className="bn-ticket-vip-badge">{txt.thermalVipBadge}</span>
                     )}
                   </div>
                 </div>
@@ -1402,7 +1467,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                       {issuedTicket.ticketNumber}
                     </div>
                     <p className="bn-receipt-service" style={{ color: theme.color, fontWeight: '700' }}>
-                      {issuedTicket.operationLabel}
+                      {serviceLabel}
                     </p>
                     <p className="bn-ticket-date">
                       {dateStr.charAt(0).toUpperCase() + dateStr.slice(1)} · {timeStr}
@@ -1412,8 +1477,8 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                   {waitingCount >= 0 && (
                     <div className="bn-wait-info" style={{ marginTop: '16px' }}>
                       {waitingCount === 0
-                        ? '🎉 Vous êtes le prochain ! Approchez-vous d\'un guichet.'
-                        : `👥 ~${waitingCount} personne${waitingCount > 1 ? 's' : ''} avant vous · Attente estimée ~${estWait} min`
+                        ? txt.nextInLine
+                        : txt.peopleAhead(waitingCount, estWait)
                       }
                     </div>
                   )}
@@ -1429,10 +1494,10 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                     {printed ? <CheckCircle2 size={18} /> : <Printer size={18} />}
                     <span>
                       {isPrinting 
-                        ? 'Impression en cours…' 
+                        ? txt.printingBtn 
                         : printed 
-                          ? '✓ Reçu papier imprimé !' 
-                          : '🖨️ IMPRIMER MON TICKET PAPIER'}
+                          ? txt.printedBtn 
+                          : txt.printBtn}
                     </span>
                   </button>
                   <button 
@@ -1442,10 +1507,10 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                   >
                     <span>
                       {printed 
-                        ? `Fermer l'écran (${autoCloseCountdown}s)` 
+                        ? txt.closeAutoBtn(autoCloseCountdown) 
                         : scanned 
-                          ? `Terminer - Ticket sur mobile (${resetCountdown}s)` 
-                          : `Terminer sans imprimer (${resetCountdown}s)`}
+                          ? txt.finishMobileBtn(resetCountdown) 
+                          : txt.finishNoPrintBtn(resetCountdown)}
                     </span>
                     <ArrowRight size={14} />
                   </button>
@@ -1464,17 +1529,18 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                 <div className="bn-qr-section" style={{ border: 'none', background: 'transparent', padding: 0 }}>
                   <div className="bn-qr-title" style={{ fontSize: '13px', marginBottom: '12px' }}>
                     <span>📱</span>
-                    <span>TICKET NUMÉRIQUE</span>
+                    <span>{txt.qrHeader}</span>
                   </div>
                   {(() => {
                     const cleanNum = encodeURIComponent(String(issuedTicket.ticketNumber || '').trim());
-                    const qrTargetUrl = `${lanBaseUrl}/?ticket=${cleanNum}`;
+                    const qrTargetUrl = `${lanBaseUrl}/?ticket=${cleanNum}&lang=${currentLang}`;
                     return (
                       <>
                         <div className="bn-qr-box" style={{ padding: '14px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
                           <RealQRCode 
                             value={qrTargetUrl} 
                             size={165} 
+                            title={currentLang === 'en' ? "Click to test on this screen" : "Cliquer pour tester sur cet écran"}
                             onClick={() => {
                               handleScanQR();
                               window.open(qrTargetUrl, '_blank');
@@ -1507,7 +1573,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                             marginBottom: '12px',
                             wordBreak: 'break-all'
                           }}
-                          title="Ouvrir le ticket mobile"
+                          title={txt.openMobileTicket}
                         >
                           {qrTargetUrl}
                         </a>
@@ -1531,12 +1597,12 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
                       boxShadow: '0 2px 8px rgba(22, 163, 74, 0.15)'
                     }}>
                       <CheckCircle2 size={16} color="#16a34a" />
-                      <span>✓ Ticket actif sur mobile !</span>
+                      <span>{txt.activeOnMobile}</span>
                     </div>
                   ) : (
                     <div className="bn-qr-pulse">
                       <div className="bn-pulse-dot" />
-                      <span>SUIVI EN DIRECT SUR MOBILE</span>
+                      <span>{txt.liveTracking}</span>
                     </div>
                   )}
                 </div>
@@ -1559,14 +1625,14 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
 
             <div className="th-body">
               <div className="th-ticket-num">{issuedTicket.ticketNumber}</div>
-              <div className="th-service">{issuedTicket.operationLabel || issuedTicket.serviceName}</div>
-              {theme.vip && <div className="th-vip">★ ACCÈS PRIORITAIRE VIP ★</div>}
+              <div className="th-service">{serviceLabel}</div>
+              {theme.vip && <div className="th-vip">{txt.thermalVipBadge}</div>}
             </div>
 
             <div className="th-divider" />
 
             <div className="th-footer">
-              <span>{new Date(issuedTicket.createdAt || Date.now()).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })} · {timeStr}</span>
+              <span>{new Date(issuedTicket.createdAt || Date.now()).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' })} · {timeStr}</span>
             </div>
           </div>
         </>

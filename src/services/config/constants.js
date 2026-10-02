@@ -10,19 +10,25 @@ export const COFINA_AGENCIES = [
 ];
 
 export const COFINA_SERVICES = [
-  { code: 'D', name: 'Dépôt', description: 'Versements', color: '#D3122A', avgTimeMin: 3, icon: 'Banknote', badge: 'Dépôt' },
-  { code: 'R', name: 'Retrait', description: 'Retraits caisse', color: '#F97316', avgTimeMin: 3, icon: 'Wallet', badge: 'Retrait' },
-  { code: 'TN', name: 'Transfert national', description: 'Envoi/Réception', color: '#2563EB', avgTimeMin: 5, icon: 'Send', badge: 'Transfert' },
-  { code: 'TI', name: 'Transfert international', description: 'Envoi/Réception', color: '#06B6D4', avgTimeMin: 8, icon: 'Globe', badge: 'Transfert' },
-  { code: 'O', name: 'Ouverture de compte', description: 'Nouveaux comptes', color: '#10B981', avgTimeMin: 15, icon: 'UserPlus', badge: 'Compte' },
-  { code: 'RC', name: 'Remise de chèque', description: 'Dépôt chèque', color: '#D97706', avgTimeMin: 4, icon: 'FileCheck', badge: 'Chèque' },
-  { code: 'V', name: 'Virement', description: 'Virement bancaire', color: '#8B5CF6', avgTimeMin: 5, icon: 'ArrowRightLeft', badge: 'Virement' },
-  { code: 'DR', name: 'Demande de Relevé', description: 'Relevé de compte', color: '#EC4899', avgTimeMin: 3, icon: 'FileText', badge: 'Relevé' },
-  { code: 'CM', name: 'COFINA Mobile+', description: 'Assistance mobile', color: '#D3122A', avgTimeMin: 5, icon: 'Smartphone', badge: 'Digital' },
-  { code: 'C', name: 'Crédit', description: 'Demande de prêt', color: '#F59E0B', avgTimeMin: 20, icon: 'CreditCard', badge: 'Crédit' },
-  { code: 'PC', name: 'Parler à un conseiller', description: 'Assistance client', color: '#3B82F6', avgTimeMin: 15, icon: 'Headphones', badge: 'Conseil' },
-  { code: 'PMR', name: 'Mobilité Réduite', description: 'Accès prioritaire', color: '#10B981', avgTimeMin: 5, icon: 'Accessibility', badge: 'Priorité', isPriority: true }
+  { code: 'D', name: 'Dépôt', nameEn: 'Deposit', description: 'Versements', descriptionEn: 'Cash deposit', color: '#D3122A', avgTimeMin: 3, icon: 'Banknote', badge: 'Dépôt' },
+  { code: 'R', name: 'Retrait', nameEn: 'Withdrawal', description: 'Retraits caisse', descriptionEn: 'Cash withdrawal', color: '#F97316', avgTimeMin: 3, icon: 'Wallet', badge: 'Retrait' },
+  { code: 'TN', name: 'Transfert national', nameEn: 'Domestic Transfer', description: 'Envoi/Réception', descriptionEn: 'Domestic money transfer', color: '#2563EB', avgTimeMin: 5, icon: 'Send', badge: 'Transfert' },
+  { code: 'TI', name: 'Transfert international', nameEn: 'International Transfer', description: 'Envoi/Réception', descriptionEn: 'International remittance', color: '#06B6D4', avgTimeMin: 8, icon: 'Globe', badge: 'Transfert' },
+  { code: 'O', name: 'Ouverture de compte', nameEn: 'Account Opening', description: 'Nouveaux comptes', descriptionEn: 'New accounts & onboarding', color: '#10B981', avgTimeMin: 15, icon: 'UserPlus', badge: 'Compte' },
+  { code: 'RC', name: 'Remise de chèque', nameEn: 'Check Deposit', description: 'Dépôt chèque', descriptionEn: 'Check clearing & deposit', color: '#D97706', avgTimeMin: 4, icon: 'FileCheck', badge: 'Chèque' },
+  { code: 'V', name: 'Virement', nameEn: 'Bank Transfer', description: 'Virement bancaire', descriptionEn: 'Account & wire transfer', color: '#8B5CF6', avgTimeMin: 5, icon: 'ArrowRightLeft', badge: 'Virement' },
+  { code: 'DR', name: 'Demande de Relevé', nameEn: 'Account Statement', description: 'Relevé de compte', descriptionEn: 'Statement & balance inquiry', color: '#EC4899', avgTimeMin: 3, icon: 'FileText', badge: 'Relevé' },
+  { code: 'CM', name: 'COFINA Mobile+', nameEn: 'COFINA Mobile+', description: 'Assistance mobile', descriptionEn: 'Digital banking support', color: '#D3122A', avgTimeMin: 5, icon: 'Smartphone', badge: 'Digital' },
+  { code: 'C', name: 'Crédit', nameEn: 'Loan Application', description: 'Demande de prêt', descriptionEn: 'Credit & micro-loan requests', color: '#F59E0B', avgTimeMin: 20, icon: 'CreditCard', badge: 'Crédit' },
+  { code: 'PC', name: 'Parler à un conseiller', nameEn: 'Customer Advisor', description: 'Assistance client', descriptionEn: 'Customer advice & support', color: '#3B82F6', avgTimeMin: 15, icon: 'Headphones', badge: 'Conseil' },
+  { code: 'PMR', name: 'Mobilité Réduite', nameEn: 'Priority / Accessibility', description: 'Accès prioritaire', descriptionEn: 'Elderly, pregnant, disability priority', color: '#10B981', avgTimeMin: 5, icon: 'Accessibility', badge: 'Priorité', isPriority: true }
 ];
+
+export const getServiceName = (serviceCode, lang = 'fr') => {
+  const service = COFINA_SERVICES.find(s => s.code === serviceCode);
+  if (!service) return lang === 'en' ? 'Customer Service' : 'Service Client';
+  return lang === 'en' ? (service.nameEn || service.name) : service.name;
+};
 
 // 6 POSTES PHYSIQUES COFINA : 3 Caisses, 2 Opérateurs, 1 Accueil
 export const INITIAL_AGENTS = [
