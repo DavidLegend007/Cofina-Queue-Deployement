@@ -93,29 +93,40 @@ export const playCallChime = () => {
 };
 
 // ── 2. Fallback synthèse vocale navigateur (avec Promise de fin de parole) ────
-const speakFallbackPromise = (text) => {
+const speakFallbackPromise = (text, lang = 'fr') => {
   return new Promise((resolve) => {
     try {
       if (typeof window === 'undefined' || !('speechSynthesis' in window)) return resolve();
       window.speechSynthesis.cancel(); // Annule toute parole antérieure bloquée
 
+      const isEn = lang === 'en';
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 0.82; // Bien lent et posé
-      utterance.pitch = 1.15; // Tonalité féminine plus douce
+      utterance.lang = isEn ? 'en-US' : 'fr-FR';
+      utterance.rate = 0.85; // Bien lent et posé
+      utterance.pitch = 1.10; // Tonalité chaleureuse
 
       const voices = window.speechSynthesis.getVoices();
-      const frVoice = voices.find(v =>
-        (v.lang || '').toLowerCase().startsWith('fr') &&
-        (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('femme') ||
-         v.name.toLowerCase().includes('hortense') || v.name.toLowerCase().includes('julie') ||
-         v.name.toLowerCase().includes('marie') || v.name.toLowerCase().includes('amelie') ||
-         v.name.toLowerCase().includes('audrey') || v.name.toLowerCase().includes('siwis'))
-      ) || voices.find(v =>
-        v.localService === true && (v.lang || '').toLowerCase().startsWith('fr')
-      ) || voices.find(v => (v.lang || '').toLowerCase().startsWith('fr'));
+      let targetVoice = null;
+      if (isEn) {
+        targetVoice = voices.find(v =>
+          (v.lang || '').toLowerCase().startsWith('en') &&
+          (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('natural') ||
+           v.name.toLowerCase().includes('samantha') || v.name.toLowerCase().includes('victoria') ||
+           v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('jenny'))
+        ) || voices.find(v => (v.lang || '').toLowerCase().startsWith('en'));
+      } else {
+        targetVoice = voices.find(v =>
+          (v.lang || '').toLowerCase().startsWith('fr') &&
+          (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('femme') ||
+           v.name.toLowerCase().includes('hortense') || v.name.toLowerCase().includes('julie') ||
+           v.name.toLowerCase().includes('marie') || v.name.toLowerCase().includes('amelie') ||
+           v.name.toLowerCase().includes('audrey') || v.name.toLowerCase().includes('siwis'))
+        ) || voices.find(v =>
+          v.localService === true && (v.lang || '').toLowerCase().startsWith('fr')
+        ) || voices.find(v => (v.lang || '').toLowerCase().startsWith('fr'));
+      }
 
-      if (frVoice) utterance.voice = frVoice;
+      if (targetVoice) utterance.voice = targetVoice;
 
       let hasEnded = false;
       const finish = () => {
@@ -141,24 +152,24 @@ const speakFallbackPromise = (text) => {
 };
 
 // ── 3. Lecture vocale WAV via Web Audio API (attend la fin exacte de lecture) ──
-const playVoiceWav = (text) => {
+const playVoiceWav = (text, lang = 'fr') => {
   return new Promise(async (resolve) => {
     if (typeof window === 'undefined') return resolve();
     try {
-      const url = `${getServerBase()}/api/tts?text=${encodeURIComponent(text)}`;
+      const url = `${getServerBase()}/api/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(lang)}`;
       const response = await fetch(url, { cache: 'no-store' });
 
-      // Si le serveur répond 503 (espeak-ng indisponible) → fallback navigateur
+      // Si le serveur répond 503 (moteur indisponible) → fallback navigateur
       if (!response.ok) {
         console.warn('[TTS] Serveur TTS indisponible (code', response.status, '), fallback navigateur');
-        await speakFallbackPromise(text);
+        await speakFallbackPromise(text, lang);
         return resolve();
       }
 
       const arrayBuffer = await response.arrayBuffer();
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) {
-        await speakFallbackPromise(text);
+        await speakFallbackPromise(text, lang);
         return resolve();
       }
 
@@ -190,12 +201,12 @@ const playVoiceWav = (text) => {
       }, async (decodeErr) => {
         console.warn('[TTS] Erreur décodage WAV:', decodeErr, '→ fallback navigateur');
         try { ctx.close().catch(() => {}); } catch (_) {}
-        await speakFallbackPromise(text);
+        await speakFallbackPromise(text, lang);
         resolve();
       });
     } catch (e) {
       console.warn('[TTS] Fetch /api/tts échoué:', e, '→ fallback navigateur');
-      await speakFallbackPromise(text);
+      await speakFallbackPromise(text, lang);
       resolve();
     }
   });
@@ -227,7 +238,7 @@ const processAudioQueue = async () => {
       }
 
       // Étape 2 : Jouer la voix TTS et ATTENDRE qu'elle ait TOTALEMENT fini de parler !
-      await playVoiceWav(item.text);
+      await playVoiceWav(item.text, item.lang || 'fr');
 
       // Étape 3 : Pause de respiration de 600ms avant de permettre l'annonce du ticket suivant
       await new Promise(r => setTimeout(r, 600));
@@ -254,7 +265,7 @@ export const speakTicketGenerated = (ticketNumber, lang = 'fr') => {
       : `Bienvenue chez Cofina Togo. Votre ticket, ${formattedTicket}, est bien créé. Merci de prendre place en salle d'attente.`;
 
     // Sur la borne, pas de carillon, voix uniquement dans la file séquentielle
-    audioQueue.push({ text, ticketNumber: rawTicket, includeChime: false });
+    audioQueue.push({ text, ticketNumber: rawTicket, includeChime: false, lang });
     processAudioQueue();
   } catch (e) {
     console.warn('speakTicketGenerated error:', e);
@@ -292,7 +303,7 @@ export const speakTicketCall = (ticketNumber, counterNumber, lang = 'fr') => {
       audioQueue.shift();
     }
 
-    audioQueue.push({ text, ticketNumber: rawTicket, counterNumber, includeChime: true });
+    audioQueue.push({ text, ticketNumber: rawTicket, counterNumber, includeChime: true, lang });
     processAudioQueue();
   } catch (e) {
     console.warn('speakTicketCall error:', e);
