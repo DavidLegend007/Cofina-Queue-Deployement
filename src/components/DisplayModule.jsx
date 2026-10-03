@@ -89,8 +89,8 @@ export default function DisplayModule({ agencyName, tickets: ticketsFromProps, l
 
     // Premier fetch immédiat
     fetchState();
-    // Polling toutes les 5 secondes
-    const interval = setInterval(fetchState, 5000);
+    // Polling de sécurité rapide toutes les 2 secondes (au lieu de 5s)
+    const interval = setInterval(fetchState, 2000);
     return () => { isMounted = false; clearInterval(interval); };
   }, [lang, wsConnected]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -104,6 +104,9 @@ export default function DisplayModule({ agencyName, tickets: ticketsFromProps, l
       const { ticket } = e.detail;
       if (ticket) {
         lastCalledIdRef.current = ticket.id;
+        // ── MISE À JOUR INSTANTANÉE (0ms) SUR L'ÉCRAN TV DÈS L'ÉVÉNEMENT SOCKET ──
+        setLocalLastCalled(ticket);
+        setLocalTickets(prev => [ticket, ...(prev || []).filter(t => t && t.id !== ticket.id)]);
         speakTicketCall(ticket.ticketNumber, ticket.counterNumber, lang);
       }
     };

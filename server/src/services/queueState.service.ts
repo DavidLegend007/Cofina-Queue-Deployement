@@ -35,22 +35,28 @@ export function getWeekStartDate(): Date {
 // ── État du Jour (Live Queue pour Borne, Caisses, Écran TV) ──
 // Ne renvoie QUE les tickets créés AUJOURD'HUI.
 // Clôture automatiquement les tickets non servis de la veille (NO_SHOW)
+let lastCleanupTime = 0;
+
 export async function getTodayState(prisma: PrismaClient) {
   const startOfDay = getTodayStartDate();
+  const now = Date.now();
 
-  // Clôturer les tickets restés en attente de la veille pour ne pas polluer aujourd'hui
-  try {
-    await prisma.ticket.updateMany({
-      where: {
-        status: { in: ['WAITING', 'CALLED', 'IN_PROGRESS'] },
-        createdAt: { lt: startOfDay }
-      },
-      data: {
-        status: 'NO_SHOW'
-      }
-    });
-  } catch (e) {
-    console.warn('[QueueState] Auto-clôture tickets anciens:', e);
+  // Clôturer les tickets restés en attente de la veille AU MAXIMUM une fois par heure (évite de bloquer SQLite)
+  if (now - lastCleanupTime > 3600000) {
+    lastCleanupTime = now;
+    try {
+      await prisma.ticket.updateMany({
+        where: {
+          status: { in: ['WAITING', 'CALLED', 'IN_PROGRESS'] },
+          createdAt: { lt: startOfDay }
+        },
+        data: {
+          status: 'NO_SHOW'
+        }
+      });
+    } catch (e) {
+      console.warn('[QueueState] Auto-clôture tickets anciens:', e);
+    }
   }
 
   const tickets = await prisma.ticket.findMany({

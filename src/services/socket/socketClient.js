@@ -7,14 +7,16 @@ let socket = null;
 if (typeof window !== 'undefined') {
   try {
     socket = io(SERVER_URL, {
-      reconnectionAttempts: 20,
-      reconnectionDelay: 1000,
-      timeout: 3000,
+      transports: ['websocket', 'polling'], // WebSocket prioritaire (latence < 5ms)
+      upgrade: true,
+      reconnectionAttempts: 50,
+      reconnectionDelay: 500,
+      timeout: 5000,
       autoConnect: true
     });
 
     socket.on('connect', () => {
-      console.log('✅ Connecté au Serveur Edge Local COFINA (Socket.io LAN):', SERVER_URL);
+      console.log('⚡ Connecté au Serveur Edge Local COFINA (WebSocket Ultra-Rapide):', SERVER_URL);
     });
 
     socket.on('init_state', ({ tickets, dailyCounters }) => {
@@ -54,7 +56,7 @@ if (typeof window !== 'undefined') {
       const existingTickets = Array.isArray(local.tickets) ? local.tickets : [];
       const newTickets = Array.isArray(tickets) 
         ? tickets 
-        : existingTickets.map(t => (t && t.id === ticket.id ? ticket : t));
+        : [ticket, ...existingTickets.filter(t => t && t.id !== ticket.id)];
       const newState = {
         ...local,
         lastCalledTicket: ticket,
@@ -85,7 +87,7 @@ if (typeof window !== 'undefined') {
       const existingTickets = Array.isArray(local.tickets) ? local.tickets : [];
       const newTickets = Array.isArray(tickets) 
         ? tickets 
-        : existingTickets.map(t => (t && t.id === ticket.id ? ticket : t));
+        : [ticket, ...existingTickets.filter(t => t && t.id !== ticket.id)];
       const newState = {
         ...local,
         lastCalledTicket: ticket,

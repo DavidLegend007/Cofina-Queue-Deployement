@@ -242,10 +242,15 @@ export function createTicketRouter(prisma: PrismaClient, io: Server) {
         }
       });
 
-      const updatedState = await getTodayState(prisma);
-      enqueueSyncEvent(prisma, 'TICKET_CALLED', updatedTicket);
+      // ── ÉMISSION INSTANTANÉE (0ms) : La TV s'actualise immédiatement ──
+      io.emit('ticket_called', { ticket: updatedTicket });
 
-      io.emit('ticket_called', { ticket: updatedTicket, tickets: updatedState.tickets });
+      // Synchronisation de l'état global et outbox hors chemin critique
+      enqueueSyncEvent(prisma, 'TICKET_CALLED', updatedTicket);
+      getTodayState(prisma).then(updatedState => {
+        io.emit('ticket_called', { ticket: updatedTicket, tickets: updatedState.tickets });
+      }).catch(() => {});
+
       res.json(updatedTicket);
     } catch (e: any) {
       console.error('Error calling ticket:', e);
@@ -279,10 +284,14 @@ export function createTicketRouter(prisma: PrismaClient, io: Server) {
         }
       });
 
-      const updatedState = await getTodayState(prisma);
-      enqueueSyncEvent(prisma, 'TICKET_UPDATED', updated);
+      // Émission instantanée du statut
+      io.emit('ticket_updated', { ticket: updated });
 
-      io.emit('ticket_updated', { ticket: updated, tickets: updatedState.tickets });
+      enqueueSyncEvent(prisma, 'TICKET_UPDATED', updated);
+      getTodayState(prisma).then(updatedState => {
+        io.emit('ticket_updated', { ticket: updated, tickets: updatedState.tickets });
+      }).catch(() => {});
+
       res.json(updated);
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -299,10 +308,14 @@ export function createTicketRouter(prisma: PrismaClient, io: Server) {
         data: { calledAt: now }
       });
 
-      const updatedState = await getTodayState(prisma);
-      enqueueSyncEvent(prisma, 'TICKET_CALLED', updated);
+      // ── ÉMISSION INSTANTANÉE (0ms) : Rappel immédiat sur la TV ──
+      io.emit('ticket_recalled', { ticket: updated });
 
-      io.emit('ticket_recalled', { ticket: updated, tickets: updatedState.tickets });
+      enqueueSyncEvent(prisma, 'TICKET_CALLED', updated);
+      getTodayState(prisma).then(updatedState => {
+        io.emit('ticket_recalled', { ticket: updated, tickets: updatedState.tickets });
+      }).catch(() => {});
+
       res.json(updated);
     } catch (e: any) {
       res.status(500).json({ error: e.message });

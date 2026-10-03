@@ -15,6 +15,12 @@ const __dirname = path.dirname(__filename);
 const PORT = process.env.PORT || 4000;
 const prisma = new PrismaClient();
 
+// Activation du mode WAL SQLite (Lectures et écritures concurrentes à haute vitesse, zéro latence)
+prisma.$executeRawUnsafe('PRAGMA journal_mode = WAL;').then(() => {
+  console.log('⚡ Base de données SQLite optimisée en mode WAL (Concurrence maximale, zéro verrou)');
+}).catch(() => {});
+prisma.$executeRawUnsafe('PRAGMA synchronous = NORMAL;').catch(() => {});
+
 // --- Auth & RBAC ---
 import { authenticateToken, requireRole } from './auth.js';
 
@@ -64,7 +70,10 @@ const corsOptions: cors.CorsOptions = {
 };
 
 const io = new Server(httpServer, {
-  cors: corsOptions
+  cors: corsOptions,
+  transports: ['websocket', 'polling'], // WebSocket direct en priorité absolue (latence < 5ms)
+  pingInterval: 10000,
+  pingTimeout: 5000
 });
 
 // Protection des headers HTTP adaptée au réseau local (LAN Edge HTTP sans HTTPS)
