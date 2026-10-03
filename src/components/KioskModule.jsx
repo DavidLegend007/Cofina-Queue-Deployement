@@ -862,7 +862,7 @@ export default function KioskModule({ agencyName, onTicketGenerated, lang = 'fr'
         return origin;
       }
     }
-    return 'http://192.168.1.182:4000'; // IP statique locale du serveur Agence Siège Kodjoviakopé
+    return 'http://10.228.2.137:4000'; // IP actuelle du serveur agence COFINA
   });
 
   useEffect(() => {

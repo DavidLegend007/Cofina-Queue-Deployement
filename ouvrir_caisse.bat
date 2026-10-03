@@ -9,7 +9,7 @@ echo    GROUPE COFINA TOGO - ESPACE AGENT (CAISSES, GUICHETS, CONSEIL, ACCUEIL)
 echo ==============================================================================
 echo.
 
-set SERVER_HOST=192.168.1.182
+set SERVER_HOST=10.228.2.137
 if not "%1"=="" set SERVER_HOST=%1
 
 set AGENT_URL=http://%SERVER_HOST%:4000/?agent^&v=%RANDOM%

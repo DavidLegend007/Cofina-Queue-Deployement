@@ -3,7 +3,7 @@ REM ============================================================================
 REM COFINA QUEUE — RACCOURCI ÉCRAN D'AFFICHAGE TV PLEIN ÉCRAN
 REM ==============================================================================
 
-set SERVER_HOST=192.168.1.182
+set SERVER_HOST=10.228.2.137
 if not "%1"=="" set SERVER_HOST=%1
 
 title COFINA - Lancement Ecran TV (%SERVER_HOST%)

@@ -29,7 +29,7 @@ function getLocalIpAddress() {
             }
         }
     }
-    return '192.168.1.182'; // Fallback par défaut vers l'IP statique du serveur Siège Kodjoviakopé
+    return '10.228.2.137'; // Fallback par défaut vers l'IP actuelle de l'agence COFINA
 }
 import { getDynamicTunnelUrl } from '../services/tunnel.service.js';
 export function createNetworkRouter(PORT) {
