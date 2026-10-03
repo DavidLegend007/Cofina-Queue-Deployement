@@ -17,35 +17,35 @@ echo  Serveur : http://%SERVER_HOST%:4000/?display
 echo.
 
 set TV_URL=http://%SERVER_HOST%:4000/?display
-set FLAGS=--autoplay-policy=no-user-gesture-required --user-data-dir="%TEMP%\cofina_tv_profile" --no-first-run --kiosk
+set FLAGS=--autoplay-policy=no-user-gesture-required --user-data-dir="%TEMP%\cofina_tv_profile" --no-first-run
 
 REM 1. Tester Microsoft Edge (Chemin standard 64-bit et 32-bit)
 if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" (
     echo  [OK] Lancement avec Microsoft Edge (Mode Kiosk TV)...
-    start "" "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" %FLAGS% --edge-kiosk-type=fullscreen "%TV_URL%"
+    start "" "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" %FLAGS% --kiosk "%TV_URL%" --edge-kiosk-type=fullscreen
     goto SUCCESS
 )
 if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" (
     echo  [OK] Lancement avec Microsoft Edge (Mode Kiosk TV)...
-    start "" "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" %FLAGS% --edge-kiosk-type=fullscreen "%TV_URL%"
+    start "" "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" %FLAGS% --kiosk "%TV_URL%" --edge-kiosk-type=fullscreen
     goto SUCCESS
 )
 
 REM 2. Tester Google Chrome
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
     echo  [OK] Lancement avec Google Chrome (Mode Kiosk TV)...
-    start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" %FLAGS% "%TV_URL%"
+    start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" %FLAGS% --kiosk "%TV_URL%"
     goto SUCCESS
 )
 if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
     echo  [OK] Lancement avec Google Chrome (Mode Kiosk TV)...
-    start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" %FLAGS% "%TV_URL%"
+    start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" %FLAGS% --kiosk "%TV_URL%"
     goto SUCCESS
 )
 
 REM 3. Lancement standard par commande start
 echo  [INFO] Lancement via le navigateur par defaut...
-start msedge %FLAGS% "%TV_URL%" || start chrome %FLAGS% "%TV_URL%" || start %TV_URL%
+start msedge %FLAGS% --kiosk "%TV_URL%" || start chrome %FLAGS% --kiosk "%TV_URL%" || start http://%SERVER_HOST%:4000/?display
 
 :SUCCESS
 echo.

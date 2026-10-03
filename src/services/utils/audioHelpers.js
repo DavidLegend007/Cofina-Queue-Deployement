@@ -12,23 +12,55 @@ const getServerBase = () => {
   return 'http://localhost:4000';
 };
 
-// ── 0. Déblocage universel de l'AudioContext ──────────────────
+// ── 0. AudioContext Partagé & Persistant (Ne jamais fermer pour conserver l'état débloqué) ──
+let sharedAudioCtx = null;
+
+export const getSharedAudioContext = () => {
+  if (typeof window === 'undefined') return null;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return null;
+  if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
+    sharedAudioCtx = new AudioCtx();
+  }
+  if (sharedAudioCtx.state === 'suspended') {
+    sharedAudioCtx.resume().catch(() => {});
+  }
+  return sharedAudioCtx;
+};
+
+// Écouteur universel passif de déblocage automatique dès le premier contact
+if (typeof window !== 'undefined') {
+  const handleUserGesture = () => {
+    const ctx = getSharedAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    if ('speechSynthesis' in window && window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+  };
+  window.addEventListener('click', handleUserGesture, { passive: true });
+  window.addEventListener('keydown', handleUserGesture, { passive: true });
+  window.addEventListener('pointerdown', handleUserGesture, { passive: true });
+  window.addEventListener('touchstart', handleUserGesture, { passive: true });
+}
+
 export const unlockAudio = () => {
   try {
-    if (typeof window === 'undefined') return;
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (AudioCtx) {
-      const ctx = new AudioCtx();
+    const ctx = getSharedAudioContext();
+    if (ctx && ctx.state === 'suspended') {
       ctx.resume().then(() => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        gain.gain.value = 0.001;
+        gain.gain.value = 0.0001;
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.start();
-        osc.stop(ctx.currentTime + 0.05);
-        setTimeout(() => ctx.close().catch(() => {}), 200);
+        osc.stop(ctx.currentTime + 0.02);
       }).catch(() => {});
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      if (window.speechSynthesis.paused) window.speechSynthesis.resume();
     }
   } catch (e) {
     console.warn('unlockAudio error:', e);
@@ -42,8 +74,8 @@ export const playCallChime = () => {
   return new Promise((resolve) => {
     try {
       if (typeof window === 'undefined') return resolve();
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return resolve();
+      const ctx = getSharedAudioContext();
+      if (!ctx) return resolve();
 
       // Anti-rebond : éviter deux carillons lancés en moins de 600ms
       const now = Date.now();
@@ -52,8 +84,9 @@ export const playCallChime = () => {
       }
       lastChimeTriggerTime = now;
 
-      const ctx = new AudioContext();
-      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
 
       const t0 = ctx.currentTime;
 
@@ -81,8 +114,8 @@ export const playCallChime = () => {
       osc2.start(t0 + 0.25);
       osc2.stop(t0 + 1.1);
 
+      // Résolution après la durée du carillon (on garde ctx OUVERT pour les annonces suivantes)
       setTimeout(() => {
-        try { ctx.close().catch(() => {}); } catch (_) {}
         resolve();
       }, 1200);
     } catch (e) {
@@ -167,45 +200,53 @@ const playVoiceWav = (text, lang = 'fr') => {
       }
 
       const arrayBuffer = await response.arrayBuffer();
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) {
+      const ctx = getSharedAudioContext();
+      if (!ctx) {
         await speakFallbackPromise(text, lang);
         return resolve();
       }
 
-      const ctx = new AudioCtx();
-      if (ctx.state === 'suspended') await ctx.resume().catch(() => {});
+      if (ctx.state === 'suspended') {
+        await ctx.resume().catch(() => {});
+      }
 
-      ctx.decodeAudioData(arrayBuffer, (audioBuffer) => {
-        const source = ctx.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(ctx.destination);
-        
-        let finished = false;
-        const onFinished = () => {
-          if (!finished) {
-            finished = true;
-            try { ctx.close().catch(() => {}); } catch (_) {}
-            resolve();
-          }
-        };
+      // Décodage avec support Promise + Fallback Callback
+      let audioBuffer;
+      try {
+        audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      } catch (err) {
+        audioBuffer = await new Promise((res, rej) => {
+          ctx.decodeAudioData(arrayBuffer, res, rej);
+        });
+      }
 
-        source.onended = onFinished;
-        source.start(0);
-        
-        // Sécurité maximale basée sur la durée réelle du buffer + 1s de marge
-        const maxDurationMs = Math.ceil((audioBuffer.duration || 6) * 1000) + 1000;
-        setTimeout(onFinished, maxDurationMs);
+      if (!audioBuffer) {
+        throw new Error('Buffer audio vide');
+      }
 
-        console.log(`[TTS] ✅ Annonce vocale en cours (${audioBuffer.duration ? audioBuffer.duration.toFixed(1) : '?'}s)...`);
-      }, async (decodeErr) => {
-        console.warn('[TTS] Erreur décodage WAV:', decodeErr, '→ fallback navigateur');
-        try { ctx.close().catch(() => {}); } catch (_) {}
-        await speakFallbackPromise(text, lang);
-        resolve();
-      });
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      
+      let finished = false;
+      const onFinished = () => {
+        if (!finished) {
+          finished = true;
+          try { source.disconnect(); } catch (_) {}
+          resolve();
+        }
+      };
+
+      source.onended = onFinished;
+      source.start(0);
+      
+      // Sécurité maximale basée sur la durée réelle du buffer + 1s de marge
+      const maxDurationMs = Math.ceil((audioBuffer.duration || 6) * 1000) + 1000;
+      setTimeout(onFinished, maxDurationMs);
+
+      console.log(`[TTS] ✅ Annonce vocale en cours (${audioBuffer.duration ? audioBuffer.duration.toFixed(1) : '?'}s)...`);
     } catch (e) {
-      console.warn('[TTS] Fetch /api/tts échoué:', e, '→ fallback navigateur');
+      console.warn('[TTS] Fetch/Lecture /api/tts échoué:', e, '→ fallback navigateur');
       await speakFallbackPromise(text, lang);
       resolve();
     }
